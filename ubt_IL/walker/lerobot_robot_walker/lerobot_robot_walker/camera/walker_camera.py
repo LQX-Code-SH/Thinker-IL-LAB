@@ -29,6 +29,7 @@ import zmq
 from numpy.typing import NDArray
 
 from lerobot.cameras.camera import Camera
+from lerobot.cameras.configs import ColorMode
 
 from .config_walker_camera import WalkerCameraConfig
 
@@ -208,6 +209,12 @@ class WalkerCamera(Camera):
                 frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
                 if frame is None:
                     logger.warning("%s: failed to decode JPEG frame.", self)
+                    continue
+
+                if self.color_mode == ColorMode.RGB:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                elif self.color_mode != ColorMode.BGR:
+                    logger.warning("%s: unsupported color mode %s.", self, self.color_mode)
                     continue
 
                 # Match the configured LeRobot camera shape.

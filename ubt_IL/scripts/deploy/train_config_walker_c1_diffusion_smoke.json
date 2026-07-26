@@ -1,0 +1,126 @@
+{
+    "dataset": {
+        "repo_id": "Walker_C1_26_1RGB",
+        "root": "/ubt_IL/dataset/Walker_C1_26_1RGB",
+        "episodes": null,
+        "image_transforms": {
+            "enable": false,
+            "max_num_transforms": 3,
+            "random_order": false,
+            "tfs": {}
+        },
+        "revision": null,
+        "use_imagenet_stats": true,
+        "video_backend": "torchcodec",
+        "return_uint8": false,
+        "streaming": false
+    },
+    "env": null,
+    "policy": {
+        "type": "diffusion",
+        "n_obs_steps": 2,
+        "horizon": 16,
+        "n_action_steps": 8,
+        "input_features": {
+            "observation.images.camera_head": {
+                "type": "VISUAL",
+                "shape": [3, 480, 640]
+            },
+            "observation.state": {
+                "type": "STATE",
+                "shape": [26]
+            }
+        },
+        "output_features": {
+            "action": {
+                "type": "ACTION",
+                "shape": [26]
+            }
+        },
+        "device": "cuda",
+        "use_amp": false,
+        "use_peft": false,
+        "push_to_hub": false,
+        "repo_id": "local/Walker_C1_26_1RGB_diffusion_smoke",
+        "private": null,
+        "tags": null,
+        "license": null,
+        "pretrained_path": null,
+        "normalization_mapping": {
+            "VISUAL": "MEAN_STD",
+            "STATE": "MIN_MAX",
+            "ACTION": "MIN_MAX"
+        },
+        "drop_n_last_frames": 7,
+        "vision_backbone": "resnet18",
+        "resize_shape": [240, 320],
+        "crop_ratio": 1.0,
+        "crop_shape": null,
+        "crop_is_random": false,
+        "pretrained_backbone_weights": null,
+        "use_group_norm": false,
+        "spatial_softmax_num_keypoints": 32,
+        "use_separate_rgb_encoder_per_camera": true,
+        "down_dims": [128, 256, 512],
+        "kernel_size": 5,
+        "n_groups": 8,
+        "diffusion_step_embed_dim": 128,
+        "use_film_scale_modulation": true,
+        "noise_scheduler_type": "DDPM",
+        "num_train_timesteps": 10,
+        "beta_schedule": "squaredcos_cap_v2",
+        "beta_start": 0.0001,
+        "beta_end": 0.02,
+        "prediction_type": "epsilon",
+        "clip_sample": true,
+        "clip_sample_range": 1.0,
+        "num_inference_steps": 2,
+        "compile_model": false,
+        "compile_mode": "reduce-overhead",
+        "do_mask_loss_for_padding": false,
+        "optimizer_lr": 0.0001,
+        "optimizer_betas": [0.95, 0.999],
+        "optimizer_eps": 1e-8,
+        "optimizer_weight_decay": 1e-6,
+        "scheduler_name": "cosine",
+        "scheduler_warmup_steps": 0
+    },
+    "reward_model": null,
+    "output_dir": "/ubt_IL/model/Walker_C1_26_1RGB_diffusion_smoke",
+    "job_name": "Walker_C1_26_1RGB_diffusion_smoke",
+    "resume": false,
+    "seed": 1000,
+    "cudnn_deterministic": false,
+    "num_workers": 0,
+    "batch_size": 1,
+    "prefetch_factor": 2,
+    "persistent_workers": false,
+    "steps": 2,
+    "eval_freq": 0,
+    "log_freq": 1,
+    "tolerance_s": 0.0001,
+    "save_checkpoint": true,
+    "save_freq": 2,
+    "use_policy_training_preset": true,
+    "optimizer": null,
+    "scheduler": null,
+    "eval": {
+        "n_episodes": 1,
+        "batch_size": 1,
+        "use_async_envs": false
+    },
+    "wandb": {
+        "enable": false,
+        "disable_artifact": true,
+        "project": "lerobot",
+        "entity": null,
+        "notes": "C1 end-to-end smoke test",
+        "run_id": null,
+        "mode": "disabled",
+        "add_tags": false
+    },
+    "peft": null,
+    "sample_weighting": null,
+    "rename_map": {},
+    "checkpoint_path": null
+}

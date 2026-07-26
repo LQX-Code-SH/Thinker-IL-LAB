@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "robot_model": "walker_c1_26d",
+  "description": "Walker C1: left/right 7D arms + left/right logical 6D dexterous hands",
+  "action_order": [
+    "L_shoulder_pitch_joint",
+    "L_shoulder_roll_joint",
+    "L_shoulder_yaw_joint",
+    "L_elbow_pitch_joint",
+    "L_elbow_yaw_joint",
+    "L_wrist_pitch_joint",
+    "L_wrist_roll_joint",
+    "R_shoulder_pitch_joint",
+    "R_shoulder_roll_joint",
+    "R_shoulder_yaw_joint",
+    "R_elbow_pitch_joint",
+    "R_elbow_yaw_joint",
+    "R_wrist_pitch_joint",
+    "R_wrist_roll_joint",
+    "left_thumb_swing",
+    "left_thumb_mcp",
+    "left_index_mcp",
+    "left_middle_mcp",
+    "left_ring_mcp",
+    "left_little_mcp",
+    "right_thumb_swing",
+    "right_thumb_mcp",
+    "right_index_mcp",
+    "right_middle_mcp",
+    "right_ring_mcp",
+    "right_little_mcp"
+  ],
+  "body": {
+    "groups": {
+      "left_arm": [
+        "L_shoulder_pitch_joint",
+        "L_shoulder_roll_joint",
+        "L_shoulder_yaw_joint",
+        "L_elbow_pitch_joint",
+        "L_elbow_yaw_joint",
+        "L_wrist_pitch_joint",
+        "L_wrist_roll_joint"
+      ],
+      "right_arm": [
+        "R_shoulder_pitch_joint",
+        "R_shoulder_roll_joint",
+        "R_shoulder_yaw_joint",
+        "R_elbow_pitch_joint",
+        "R_elbow_yaw_joint",
+        "R_wrist_pitch_joint",
+        "R_wrist_roll_joint"
+      ],
+      "head": [],
+      "waist": []
+    },
+    "lock_joints": [
+      "L_shoulder_pitch_joint",
+      "L_shoulder_roll_joint",
+      "L_shoulder_yaw_joint",
+      "L_elbow_pitch_joint",
+      "L_elbow_yaw_joint",
+      "L_wrist_pitch_joint",
+      "L_wrist_roll_joint"
+    ],
+    "home": {
+      "L_shoulder_pitch_joint": -0.291,
+      "L_shoulder_roll_joint": 0.3,
+      "L_shoulder_yaw_joint": 0.136,
+      "L_elbow_pitch_joint": -1.155,
+      "L_elbow_yaw_joint": 0.124,
+      "L_wrist_pitch_joint": -0.361,
+      "L_wrist_roll_joint": -0.194,
+      "R_shoulder_pitch_joint": -0.291,
+      "R_shoulder_roll_joint": -0.3,
+      "R_shoulder_yaw_joint": -0.136,
+      "R_elbow_pitch_joint": -1.155,
+      "R_elbow_yaw_joint": -0.124,
+      "R_wrist_pitch_joint": -0.361,
+      "R_wrist_roll_joint": 0.194
+    },
+    "limits": {
+      "L_shoulder_pitch_joint": [-3.089, 2.565],
+      "L_shoulder_roll_joint": [-0.139, 1.884],
+      "L_shoulder_yaw_joint": [-2.844, 2.844],
+      "L_elbow_pitch_joint": [-2.2689, 0.104],
+      "L_elbow_yaw_joint": [-2.844, 2.844],
+      "L_wrist_pitch_joint": [-0.68, 0.68],
+      "L_wrist_roll_joint": [-1.57, 1.57],
+      "R_shoulder_pitch_joint": [-3.089, 2.565],
+      "R_shoulder_roll_joint": [-1.884, 0.139],
+      "R_shoulder_yaw_joint": [-2.844, 2.844],
+      "R_elbow_pitch_joint": [-2.2689, 0.104],
+      "R_elbow_yaw_joint": [-2.844, 2.844],
+      "R_wrist_pitch_joint": [-0.68, 0.68],
+      "R_wrist_roll_joint": [-1.57, 1.57]
+    }
+  },
+  "end_effectors": {
+    "type": "c1_hand_6dof",
+    "groups": {
+      "left_hand": [
+        "left_thumb_swing",
+        "left_thumb_mcp",
+        "left_index_mcp",
+        "left_middle_mcp",
+        "left_ring_mcp",
+        "left_little_mcp"
+      ],
+      "right_hand": [
+        "right_thumb_swing",
+        "right_thumb_mcp",
+        "right_index_mcp",
+        "right_middle_mcp",
+        "right_ring_mcp",
+        "right_little_mcp"
+      ]
+    },
+    "open": {
+      "left_thumb_swing": 0.0,
+      "left_thumb_mcp": 0.0,
+      "left_index_mcp": 0.0,
+      "left_middle_mcp": 0.0,
+      "left_ring_mcp": 0.0,
+      "left_little_mcp": 0.0,
+      "right_thumb_swing": 0.0,
+      "right_thumb_mcp": 0.0,
+      "right_index_mcp": 0.0,
+      "right_middle_mcp": 0.0,
+      "right_ring_mcp": 0.0,
+      "right_little_mcp": 0.0
+    },
+    "limits": {
+      "thumb_swing": [0.0, 0.96],
+      "thumb_mcp": [0.0, 1.04],
+      "index_mcp": [0.0, 1.57],
+      "middle_mcp": [0.0, 1.57],
+      "ring_mcp": [0.0, 1.57],
+      "little_mcp": [0.0, 1.57]
+    },
+    "topics": {
+      "left_cmd": "/mc/left_hand/command",
+      "right_cmd": "/mc/right_hand/command",
+      "left_state": "/mc/left_hand/joint_states",
+      "right_state": "/mc/right_hand/joint_states"
+    }
+  },
+  "ros": {
+    "namespace": "",
+    "cmd_namespace": "",
+    "body_cmd_topic": "/mc/sdk/robot_command",
+    "body_state_topic": "/mc/sdk/robot_state",
+    "sim_object_state_topic": "/sim/object_state",
+    "sim_object_pose_cmd_topic": "/sim/cmd_set_object_pose"
+  },
+  "zmq": {
+    "host": "127.0.0.1",
+    "cmd_port": 5561,
+    "status_port": 5562,
+    "image_port": 5563
+  },
+  "bridge": {
+    "enabled": true,
+    "script": "/ubt_IL/walker/ros2_walker_bridge.py"
+  },
+  "safety": {
+    "max_relative_target": null,
+    "disable_torque_on_disconnect": true
+  },
+  "cameras": {
+    "camera_head": {
+      "type": "walker_camera",
+      "ros_topic": "/sensor/camera/head/color/raw",
+      "msg_type": "sensor_msgs/Image",
+      "width": 640,
+      "height": 480,
+      "fps": 30,
+      "color_mode": "rgb",
+      "warmup_s": 3,
+      "timeout_ms": 5000
+    }
+  }
+}

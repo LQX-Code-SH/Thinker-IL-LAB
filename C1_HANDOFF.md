@@ -2,6 +2,139 @@
 
 本文档给后续接手的 AI/工程师使用。当前有效工作目录已经切换到新 clone 的 `walker_c1` 分支仓库。
 
+## 2026-07-26 LeRobot 常驻多轮评估尝试、根因分析与回滚
+
+### 当前结论
+
+Diffusion Policy 的单次训练和单次推理链路可以继续使用，但不要再使用后来试验的
+`walker_c1_eval` 常驻多 episode 策略。用户明确更看重少改 Mentor 原代码，可以接受每个
+episode 重新加载模型。当前已经回到与 Walker S2/Tienkung 一致的方式：
+LeRobot 原生 `base` strategy 一次只执行一个固定时长的 rollout，结束后停止推理引擎、
+断开相机和 Walker Bridge2；下一次运行重新创建并加载。
+
+当前 C1 单次入口：
+
+```bash
+docker exec -it lerobot-walker-c1 bash -lc '
+ROS_DOMAIN_ID=146 DURATION=30 \
+POLICY_PATH=/ubt_IL/model/Walker_C1_26_1RGB_diffusion/checkpoints/050000/pretrained_model \
+bash /ubt_IL/scripts/deploy/rollout_walker_c1.sh'
+```
+
+第一次推理前仍应由用户在仿真容器里手动运行 `reset.py`，让策略从与训练数据一致的 ready
+姿势开始。不传参数时 `rollout_walker_c1.sh` 运行1次；它后来重新提供了 `--episodes N`，
+但实现已经改为脚本外层进程循环：每轮重新加载 checkpoint、Bridge2 和相机，再调用一次
+原生 `base` rollout。它不是已经删除的常驻 `walker_c1_eval`。
+
+例如运行10次：
+
+```bash
+docker exec -it lerobot-walker-c1 bash -lc '
+ROS_DOMAIN_ID=146 \
+POLICY_PATH=/ubt_IL/model/Walker_C1_26_1RGB_diffusion/checkpoints/050000/pretrained_model \
+bash /ubt_IL/scripts/deploy/rollout_walker_c1.sh \
+  --episodes 10 --duration 30 --seed 1000'
+```
+
+外层脚本在每轮启动模型前通过 ROS 放置苹果，正常 rollout 结束后读取苹果最终位置并按固定
+盘心统计成功率。因为上一轮的 Bridge2 已经完全退出，下一轮放置苹果时不存在常驻进程中的
+500 Hz body hold 竞争。盘子仍没有独立归位接口；盘子被碰走或 rollout 异常退出时应停止
+批量运行并人工恢复场景/机器人。
+
+2026-07-26 用户根据实际推理现象选择取消 C1 机械臂相对目标限幅：
+`walker_c1_26d.json` 的 `safety.max_relative_target` 当前为 `null`。这只关闭
+LeRobot `send_action()` 中相对实测关节位置的单周期裁剪；机械臂硬关节限位、手部范围裁剪和
+Bridge2 的 500 Hz 五次曲线插值仍保留。不限幅时曾观察到策略有成功案例，但手臂会来回修正；
+若后续需要恢复折中限幅，优先重新测试 `0.10 rad/周期`，不要直接照搬 S2 的 `0.02`。
+
+### 做过的常驻方案
+
+曾在 LeRobot rollout 核心中新增 `walker_c1_eval` strategy，目标是在同一个进程内只加载
+一次 checkpoint、相机和 ROS/ZMQ bridge，然后连续运行 N 个 episode。该策略还负责：
+
+- 按种子在采集方形区域内随机放置苹果；
+- 每轮重置 policy/interpolator 状态；
+- 失败后把右臂和手恢复 ready；
+- 根据苹果到固定盘心的距离判断成功，并输出累计成功率；
+- 成功后提前结束本轮，避免始终等待完整 duration。
+
+为了支持它，试验性修改过 LeRobot 的 rollout config、strategy factory、
+`ThreadSafeRobot` 辅助接口和测试，并新增
+`src/lerobot/rollout/strategies/walker_c1_eval.py`。这些核心修改现已全部定点回滚，
+新增 strategy 文件已经删除，`ubt_IL/lerobot` 子仓库恢复为无本地修改状态。
+
+### 苹果从第二轮开始放置超时的确定根因
+
+典型错误：
+
+```text
+Timed out waiting for the simulator to place the apple
+(target=[8.171047420351096, 5.856062510050574, 0.9421],
+ last=[8.464376449584961, 6.263848781585693, 0.9419999718666077])
+```
+
+这里的 target 按 `seed=1000` 和当前随机算法反算，精确对应第 2 个 episode。last 与 target
+水平相差约 0.50 m，是上一轮动作后遗留的苹果位置，不是苹果从目标点自然滚动造成的厘米级
+偏差。因此问题不是 `DURATION` 太短、苹果 z 高度不对或等待落稳不足，而是第 2 轮的放置
+命令没有在仿真端执行。
+
+完整链路中的冲突为：
+
+1. `ros2 topic pub --once /sim/cmd_set_object_pose` 只能确认 ROS CLI 发布进程正常结束，
+   不能确认仿真最终执行了 teleport。
+2. ROS2-ZMQ bridge 将苹果放置消息和机器人 body/hand 指令发到同一个 ZMQ command socket。
+3. 第 1 轮策略动作开始后，Walker Bridge2 的 body hold 线程会持续以 500 Hz 发布关节目标，
+   即使该轮策略已经结束，常驻进程内仍会继续 hold。
+4. 仿真 `WalkerC1Controller` 的同一 command SUB socket 使用 `RCVHWM=1`。低频、单次的
+   `set_object_pose` 与 500 Hz body 消息竞争时会被队列丢弃。
+5. 第 1 轮放置通常正常，是因为策略还没发过动作、500 Hz hold 尚未启动；从第 2 轮开始
+   稳定复现，重启仿真或重新创建 Bridge2 后也只会暂时恢复第一轮。
+
+因此，单纯把等待从 10 秒增到 30 秒、降低苹果落下高度、重发若干次或重启后再试，都没有
+解决传输层根因。消息一旦在共享队列中丢失，继续等待不会让它重新出现。可靠的长期方案应是
+给仿真场景控制使用独立的可靠通道及执行 ACK，或明确停止高频 hold 后再发送场景命令；但这
+会改动 Mentor 的桥接/仿真控制结构，当前按用户要求不继续实施。
+
+### 盘子归位是另一个独立问题
+
+当前 `/sim/cmd_set_object_pose` 的实现只控制 `env.scene["object"]`，即任务苹果，没有盘子
+参数，也没有独立的盘子 pose topic。粉色可见盘是场景 USD 内部节点，并不是该接口管理的
+任务刚体，所以现有 C1 推理代码不能保证盘子被碰走后自动归位。
+
+期间尝试过两条路线，均已放弃：
+
+- 在 episode 间执行整个 `/sim/cmd_reset`：常驻 rollout 中会扰动相机/场景生命周期，曾出现
+  后续取不到相机帧，且不能把它当成可靠的盘子专用 ACK；
+- 在 `scene_v2_c1.usda` 中移除粉色盘内部网格的 RigidBody/Collision API，使其不可移动：
+  用户明确不希望为了评估修改 USD，因此该试验性修改已经用 Git 恢复。
+
+若以后仍要自动评估多轮且允许盘子移动，必须在“每次重启完整仿真恢复场景”和“增加盘子
+专用 reset 接口”之间明确选择；不要声称现有苹果 topic 可以恢复盘子。
+
+### 本次回滚范围与保留内容
+
+已经回滚：
+
+- LeRobot 中所有 `walker_c1_eval` config/factory/export/wrapper/test 修改；
+- 新增的 `walker_c1_eval.py`；
+- `rollout_walker.sh` 中对常驻 C1 strategy 的特殊分支；
+- `scene_v2_c1.usda` 中固定粉色盘的试验性覆盖。
+
+继续保留：
+
+- `walker_c1_26d.json` 的26维动作映射；
+- Walker C1 相机、手部和 Bridge2 的基础适配；
+- HDF5 → LeRobot 数据转换配置；
+- Diffusion Policy 训练配置和 checkpoint；
+- `rollout_walker_c1.sh` 单次推理入口；
+- 原 `rollout_walker.sh` 自带的动作维度/配置预检。
+
+后续跑 100 次使用 `rollout_walker_c1.sh --episodes 100`；该参数现在只控制外层进程循环，
+不要重新修改 LeRobot strategy 核心。脚本已负责随机放苹果和按最终位置统计成功率，但盘子
+恢复仍未自动化，因此批量运行期间需要观察盘子是否被碰走。
+
+---
+
 ## 2026-07-21 mentor 反馈：固定抓取倾角并恢复 8 cm 苹果
 
 抓取掌心姿态不再复制历史成功轨迹中带侧歪的 3×3 朝向矩阵。现在完整姿态固定为 base frame

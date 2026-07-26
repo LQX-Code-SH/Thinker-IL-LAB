@@ -495,16 +495,32 @@ class WalkerC1RobotController(Node):
 
     # ── task-level helpers ──
     def go_ready(self, clear_duration: float = 0.6, final_duration: float = 1.0,
-                 hz: float = 20.0, hand_repeats: int = 5) -> None:
-        """Staged move to the grasp-ready pose (same semantics as reset.py)."""
+                 hz: float = 20.0, hand_repeats: int = 5,
+                 right_arm_only: bool = False) -> None:
+        """Staged move to the grasp-ready pose.
+
+        ``right_arm_only`` is used after a task has started: the camera is
+        mounted on the head, so re-commanding the head/waist during the final
+        return changes the visual observation even though neither is part of
+        the learned action.  It also keeps the unused left arm fixed at the
+        pose established by reset.py.
+        """
         self.open_hand("left", repeats=hand_repeats)
         self.open_hand("right", repeats=hand_repeats)
+        keep = set(RIGHT_ARM_JOINT_NAMES) if right_arm_only else None
+
+        def filter_pose(pose: dict[str, float]) -> dict[str, float]:
+            if keep is None:
+                return dict(pose)
+            return {name: value for name, value in pose.items() if name in keep}
         stages = (
-            ("raising arms sideways", TASK_RESET_ARM_CLEAR_POSE, clear_duration),
-            ("folding elbows clear", TASK_RESET_ELBOW_CLEAR_POSE, clear_duration),
-            ("moving to ready pose", TASK_RESET_BODY_POSE, final_duration),
+            ("raising arms sideways", filter_pose(TASK_RESET_ARM_CLEAR_POSE), clear_duration),
+            ("folding elbows clear", filter_pose(TASK_RESET_ELBOW_CLEAR_POSE), clear_duration),
+            ("moving to ready pose", filter_pose(TASK_RESET_BODY_POSE), final_duration),
         )
         for label, pose, duration in stages:
+            if not pose:
+                continue
             self.get_logger().info(f"reset: {label} ({duration:.1f} simulated seconds) ...")
             self.move_body_pose(pose, duration=duration, hz=hz)
         self.move_hand("left", TASK_RESET_LEFT_HAND_POSE, repeats=hand_repeats)

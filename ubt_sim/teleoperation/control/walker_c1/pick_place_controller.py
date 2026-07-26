@@ -35,7 +35,9 @@ except ImportError:
     from robot_controller import LEFT_HAND_SDK_NAMES, RIGHT_HAND_SDK_NAMES, WalkerC1RobotController
 
 
-APPLE_SPAWN_W = (8.17, 5.86, 0.968)
+# Table top is z=0.902 and the apple collision radius is 0.040 m. Keep only
+# 2 mm clearance so initialization does not create a rolling impact.
+APPLE_SPAWN_W = (8.17, 5.86, 0.944)
 APPLE_RANDOM_HALF_EXTENT_M = 0.025
 PLATE_CENTER_W = (8.19, 6.083, 0.930)
 PLATE_RADIUS = 0.12
@@ -126,27 +128,54 @@ class WalkerC1PickPlace(WalkerC1RobotController):
         """Scale arm interpolation time without shortening grasp/hold checks."""
         return float(nominal_seconds) / self.motion_speed
 
-    def _go_ready(self) -> bool:
+    def _go_ready(self, right_arm_only: bool = False) -> bool:
         self.go_ready(
             clear_duration=self._motion_duration(0.6),
             final_duration=self._motion_duration(1.0),
             hand_repeats=2,
+            right_arm_only=right_arm_only,
         )
-        self.ready_pose_converged = self.hold_body_pose_until_converged(TASK_RESET_BODY_POSE)
+        ready_target = TASK_RESET_BODY_POSE
+        if right_arm_only:
+            ready_target = {
+                name: TASK_RESET_BODY_POSE[name]
+                for name in RIGHT_ARM_JOINT_NAMES
+            }
+        self.ready_pose_converged = self.hold_body_pose_until_converged(ready_target)
         return self.ready_pose_converged
 
     # ── synchronized ROS trajectory recording ──
-    def start_recording(self) -> None:
+    def prepare_recording(self) -> None:
         if not self.record_enabled:
             return
+        self._record_active = False
         for values in self._record_buffers.values():
             values.clear()
         self._record_skipped_frames = 0
         self._next_record_sim_step = None
         self._last_record_wall_stamp = None
         self._record_uses_sim_time = False
+
+    def start_recording(self) -> None:
+        if not self.record_enabled:
+            return
+        self.prepare_recording()
+        # When reset.py ran in a separate process, this controller has not
+        # published the ready target itself.  Seed the recorded action with
+        # the live ready state until the first task command is sent.
+        for name in LEFT_ARM_JOINT_NAMES + RIGHT_ARM_JOINT_NAMES:
+            if name in self.joint_pos:
+                self.commanded_body.setdefault(name, float(self.joint_pos[name]))
+        for name in LEFT_HAND_SDK_NAMES:
+            if name in self.left_hand_pos:
+                self.commanded_hand["left"].setdefault(name, float(self.left_hand_pos[name]))
+        for name in RIGHT_HAND_SDK_NAMES:
+            if name in self.right_hand_pos:
+                self.commanded_hand["right"].setdefault(name, float(self.right_hand_pos[name]))
         self._record_active = True
-        self.get_logger().info("recording synchronized state/action/RGB frames ...")
+        self.get_logger().info(
+            "recording synchronized state/action/RGB frames from the ready pose ..."
+        )
 
     def _record_image_cb(self, msg: Image) -> None:
         if not self._record_active:
@@ -614,7 +643,7 @@ class WalkerC1PickPlace(WalkerC1RobotController):
         )
 
         self.get_logger().info("back to ready ...")
-        self._go_ready()
+        self._go_ready(right_arm_only=True)
 
         final_w = self.object_state.get("object_pos_w")
         if not final_w:
@@ -666,8 +695,8 @@ class WalkerC1PickPlace(WalkerC1RobotController):
                 apple_w[1] += float(offset_xy[1])
             self.get_logger().info(f"setting apple near fixed spot {np.round(apple_w, 3).tolist()}")
             self.set_object_world_pos(*apple_w)
-            self.get_logger().info("waiting 0.5 simulated seconds for the apple to settle ...")
-            self.wait_sim_steps(50, timeout=15.0)
+            self.get_logger().info("waiting 0.1 simulated seconds for the apple to settle ...")
+            self.wait_sim_steps(10, timeout=5.0)
 
         apple0_b = self.object_pos_in_base()
         if apple0_b is None:
@@ -678,6 +707,9 @@ class WalkerC1PickPlace(WalkerC1RobotController):
             f"base pos: {_format_vec(apple0_b)}"
         )
 
+        # The initial move/reset and apple settling are deliberately excluded.
+        # The final return-to-ready remains inside the recorded episode.
+        self.start_recording()
         grasp_rot = self.prepare_palm_down_cage()
 
         held = False
@@ -698,7 +730,7 @@ class WalkerC1PickPlace(WalkerC1RobotController):
         if not held:
             self.get_logger().warn("failed to grasp; returning to ready")
             self.open_hand("right")
-            self._go_ready()
+            self._go_ready(right_arm_only=True)
             return False
 
         return self.place_and_return(grasp_rot)
@@ -717,6 +749,11 @@ def main() -> int:
     parser.add_argument("--use-existing-apple", action="store_true", help="Do not command the sim-only apple placement topic")
     parser.add_argument("--episodes", type=int, default=1)
     parser.add_argument("--max-grasp-attempts", type=int, default=2)
+    parser.add_argument(
+        "--skip-initial-reset",
+        action="store_true",
+        help="Assume reset.py already placed the robot at ready; do not repeat the first reset",
+    )
     parser.add_argument("--record", dest="record", action="store_true", help="Record synchronized ROS state/action/RGB to HDF5")
     parser.add_argument("--no-record", dest="record", action="store_false", help="Disable HDF5 recording")
     parser.add_argument("--record-root", default=DEFAULT_RECORD_ROOT, help="Root directory for ROS-recorded trajectories")
@@ -751,12 +788,15 @@ def main() -> int:
     try:
         for ep in range(args.episodes):
             node.get_logger().info(f"=== episode {ep + 1}/{args.episodes} ===")
-            node.start_recording()
+            node.prepare_recording()
             ok = node.run_task(
                 randomize=args.randomize,
                 set_apple=not args.use_existing_apple,
                 max_grasp_attempts=args.max_grasp_attempts,
-                reset_at_start=not (ep > 0 and previous_ok and node.ready_pose_converged),
+                reset_at_start=not (
+                    (ep == 0 and args.skip_initial_reset)
+                    or (ep > 0 and previous_ok and node.ready_pose_converged)
+                ),
                 apple_xy=args.apple_xy,
             )
             previous_ok = ok

@@ -84,6 +84,7 @@ class WalkerRobot(Robot):
             group: [0.0] * len(features) for group, features in self._group_features.items()
         }
         self._state_ready = threading.Event()
+        self._auxiliary_status: dict = {}
 
         # Status receive thread
         self._recv_thread: threading.Thread | None = None
@@ -175,6 +176,9 @@ class WalkerRobot(Robot):
             "bash", "-lc",
             "source /opt/ros/humble/setup.bash 2>/dev/null || true; "
             "source /ubt_IL/walker/walker_sdk_ros2/install/setup.bash 2>/dev/null || true; "
+            "export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-${DOMAIN_ID:-0}}; "
+            "export RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}; "
+            "export FASTRTPS_DEFAULT_PROFILES_FILE=${FASTRTPS_DEFAULT_PROFILES_FILE:-/ubt_IL/docker/fastdds_no_shm.xml}; "
             f"exec /usr/bin/python3 {shlex.quote(self.config.bridge_script)} --config {shlex.quote(config_json)}",
         ]
 
@@ -212,7 +216,47 @@ class WalkerRobot(Robot):
                 values = data.get(group, [])
                 if len(values) >= len(features):
                     self._group_state[group][:] = values[:len(features)]
+            self._auxiliary_status = dict(data.get("sim_object_state") or {})
         self._state_ready.set()
+
+    def get_auxiliary_status(self) -> dict:
+        """Return simulation-only status without exposing it as a policy feature."""
+        with self._state_lock:
+            return dict(self._auxiliary_status)
+
+    @check_if_not_connected
+    def set_sim_object_pose(self, position: list[float] | tuple[float, float, float]) -> None:
+        """Set a simulation object pose through Bridge2's existing command channel."""
+        if self.config.topic_sim_object_pose_cmd is None:
+            raise RuntimeError("This Walker configuration has no simulation object pose command topic")
+        if len(position) < 3:
+            raise ValueError("Simulation object position must contain x, y, z")
+        self._cmd_socket.send_json(
+            {"sim_object_pose": [float(position[0]), float(position[1]), float(position[2])]}
+        )
+
+    def get_home_action(self) -> dict[str, float]:
+        """Return the configured ready/home pose in LeRobot feature-key order."""
+        home: dict[str, float] = {}
+        offset = 0
+        for group in ("left_arm", "right_arm", "head", "waist"):
+            features = self._group_features[group]
+            values = self.config.home_position[offset : offset + len(features)]
+            home.update(zip(features, (float(value) for value in values)))
+            offset += len(features)
+        home.update(
+            zip(
+                self._group_features["left_hand"],
+                (float(value) for value in self.config.left_hand_open_position or []),
+            )
+        )
+        home.update(
+            zip(
+                self._group_features["right_hand"],
+                (float(value) for value in self.config.right_hand_open_position or []),
+            )
+        )
+        return {name: home[name] for name in self._all_joints}
 
     @check_if_not_connected
     def get_observation(self) -> RobotObservation:
@@ -263,6 +307,7 @@ class WalkerRobot(Robot):
                     joint_name,
                     self.config.hand_type,
                     self.config.gripper_position_limits,
+                    self.config.hand_joint_limits,
                 )
                 for value, joint_name in zip(grouped[group], joint_names)
             ]

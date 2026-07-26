@@ -52,6 +52,16 @@ def v4_clip_position(position: list, joint_names: list) -> list:
     return result
 
 
+def c1_clip_position(position: list, joint_names: list, joint_limits: dict) -> list:
+    """Clamp C1 logical 6-DoF hand commands using config-provided limits."""
+    result = []
+    for pos, name in zip(position, joint_names):
+        short = name.removeprefix("left_").removeprefix("right_")
+        limits = joint_limits.get(name, joint_limits.get(short))
+        result.append(_clamp(pos, limits) if limits is not None else float(pos))
+    return result
+
+
 _DEFAULT_CFG = {
     "robot_model": "walker_s2_v4_hand_31d",
     "zmq_cmd_port": 5561,
@@ -118,6 +128,8 @@ _DEFAULT_CFG = {
     "topic_body_state": "/mc/sdk/robot_state",
     "topic_left_hand_state": "/mc/left_hand/joint_states",
     "topic_right_hand_state": "/mc/right_hand/joint_states",
+    "topic_sim_object_state": None,
+    "topic_sim_object_pose_cmd": None,
 }
 
 
@@ -179,6 +191,7 @@ class WalkerRealRobotBridge:
         self._left_hand_joint_names = cfg["left_hand_joint_names"]
         self._right_hand_joint_names = cfg["right_hand_joint_names"]
         self._body_joint_limits = cfg.get("body_joint_limits", {})
+        self._hand_joint_limits = cfg.get("hand_joint_limits", {})
         self._hand_type = cfg.get("hand_type", "v4")
         self._end_effector_type = cfg.get("end_effector_type", "v4_hand_7dof")
         self._lock_joints = set(cfg.get("lock_joints", []))
@@ -201,7 +214,9 @@ class WalkerRealRobotBridge:
         from rclpy.executors import MultiThreadedExecutor
         from rclpy.node import Node
         from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+        from geometry_msgs.msg import Point
         from sensor_msgs.msg import JointState
+        from std_msgs.msg import String
 
         try:
             from mc_state_msgs.msg import RobotState
@@ -230,6 +245,7 @@ class WalkerRealRobotBridge:
         self._JointCmd = JointCmd
         self._JointCommand = JointCommand
         self._JointState = JointState
+        self._Point = Point
 
         if not rclpy.ok():
             rclpy.init()
@@ -239,6 +255,7 @@ class WalkerRealRobotBridge:
         self._body_jpos = [0.0] * self._n_body
         self._left_hand_pos = [0.0] * self._n_left_hand
         self._right_hand_pos = [0.0] * self._n_right_hand
+        self._sim_object_state: dict[str, Any] = {}
         self._state_lock = threading.Lock()
 
         qos_sensor = QoSProfile(
@@ -294,6 +311,25 @@ class WalkerRealRobotBridge:
             )
             self._node.create_subscription(
                 JointState, f"{ros_namespace}{cfg['topic_right_hand_state']}", self._right_hand_callback, 10
+            )
+
+        self._sim_object_pose_pub = None
+        sim_object_state_topic = cfg.get("topic_sim_object_state")
+        sim_object_pose_cmd_topic = cfg.get("topic_sim_object_pose_cmd")
+        if sim_object_state_topic:
+            self._node.create_subscription(
+                String,
+                f"{ros_namespace}{sim_object_state_topic}",
+                self._sim_object_state_callback,
+                qos_sensor,
+            )
+        if sim_object_pose_cmd_topic:
+            self._sim_object_pose_pub = self._node.create_publisher(
+                Point,
+                f"{cmd_namespace}{sim_object_pose_cmd_topic}"
+                if cmd_namespace
+                else sim_object_pose_cmd_topic,
+                qos_cmd,
             )
 
         self._executor = MultiThreadedExecutor(num_threads=4)
@@ -386,6 +422,20 @@ class WalkerRealRobotBridge:
                 self._right_hand_pos[:] = [pos]
         self._publish_status()
 
+    def _sim_object_state_callback(self, msg: Any) -> None:
+        try:
+            state = json.loads(msg.data)
+        except (json.JSONDecodeError, TypeError):
+            return
+        compact = {
+            key: state[key]
+            for key in ("object_pos_w", "sim_step")
+            if key in state
+        }
+        with self._state_lock:
+            self._sim_object_state = compact
+        self._publish_status()
+
     def _body_group_values(self, group: str) -> list[float]:
         start = 0
         for name in ("left_arm", "right_arm", "head", "waist"):
@@ -404,6 +454,7 @@ class WalkerRealRobotBridge:
                 "waist": self._body_group_values("waist"),
                 "left_hand": list(self._left_hand_pos),
                 "right_hand": list(self._right_hand_pos),
+                "sim_object_state": dict(self._sim_object_state),
                 "ts": time.time(),
             }
         self.zmq_bridge.send_status(status)
@@ -412,11 +463,26 @@ class WalkerRealRobotBridge:
         while self._running:
             action = self.zmq_bridge.recv_action(timeout_ms=50)
             if action is not None:
+                sim_object_pose = action.get("sim_object_pose")
+                if sim_object_pose is not None:
+                    self._publish_sim_object_pose(sim_object_pose)
+                    continue
                 # body 目标交给 500Hz 插值发布线程（quintic 斜坡 + hold）
                 self._update_body_target(action)
                 # 末端执行器（手/夹爪）走独立通路，保持事件驱动
                 self._publish_end_effector_command("left", action.get("left_hand", []))
                 self._publish_end_effector_command("right", action.get("right_hand", []))
+
+    def _publish_sim_object_pose(self, pose: Any) -> None:
+        if self._sim_object_pose_pub is None:
+            logger.warning("Ignoring sim_object_pose: no simulation object command topic configured")
+            return
+        if not isinstance(pose, (list, tuple)) or len(pose) < 3:
+            logger.warning("Ignoring invalid sim_object_pose payload: %r", pose)
+            return
+        msg = self._Point()
+        msg.x, msg.y, msg.z = (float(pose[0]), float(pose[1]), float(pose[2]))
+        self._sim_object_pose_pub.publish(msg)
 
     def _update_body_target(self, action: dict) -> None:
         """收到新 action：从当前插值位置 retarget 到新目标，启动新 quintic 斜坡。"""
@@ -534,7 +600,10 @@ class WalkerRealRobotBridge:
     def _publish_hand_command(self, hand_side: str, position: list) -> None:
         """Publish JointCommand for V4 hand joints."""
         joint_names = self._left_hand_joint_names if hand_side == "left" else self._right_hand_joint_names
-        position = v4_clip_position(position, joint_names)
+        if self._hand_type == "c1":
+            position = c1_clip_position(position, joint_names, self._hand_joint_limits)
+        else:
+            position = v4_clip_position(position, joint_names)
 
         if self._mc_msgs_available:
             msg = self._JointCommand()
@@ -666,14 +735,25 @@ class CameraRelay:
 
             byte_count = height * step
             if encoding == "bgr8":
-                img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width, 3))
+                rows = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, step))
+                img = rows[:, :width * 3].reshape((height, width, 3))
             elif encoding == "rgb8":
-                img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width, 3))
+                rows = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, step))
+                img = rows[:, :width * 3].reshape((height, width, 3))
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            elif encoding == "bgra8":
+                rows = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, step))
+                img = rows[:, :width * 4].reshape((height, width, 4))
+                img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+            elif encoding == "rgba8":
+                rows = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, step))
+                img = rows[:, :width * 4].reshape((height, width, 4))
+                img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
             elif encoding == "yuv422":
                 img = self._yuv422_to_bgr(img_data, width, height)
             elif encoding == "mono8":
-                img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width))
+                rows = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, step))
+                img = rows[:, :width]
                 img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
             else:
                 logger.debug("Camera relay: unsupported encoding %s for %s", encoding, cam_name)

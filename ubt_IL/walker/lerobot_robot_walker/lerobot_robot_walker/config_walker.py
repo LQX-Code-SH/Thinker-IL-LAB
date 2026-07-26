@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from lerobot.cameras.configs import CameraConfig
+from lerobot.cameras.configs import CameraConfig, ColorMode
 from lerobot.robots.config import RobotConfig
 
 from .camera.config_walker_camera import WalkerCameraConfig
@@ -145,6 +145,9 @@ class WalkerRobotConfig(RobotConfig):
     topic_body_state: str = TOPIC_BODY_STATE
     topic_left_hand_state: str = TOPIC_LEFT_HAND_STATE
     topic_right_hand_state: str = TOPIC_RIGHT_HAND_STATE
+    # Optional simulation-only object topics. They stay unset for real robots.
+    topic_sim_object_state: str | None = None
+    topic_sim_object_pose_cmd: str | None = None
 
     # Safety
     max_relative_target: float | None = None
@@ -217,7 +220,12 @@ class WalkerRobotConfig(RobotConfig):
 
         ee_cfg = cfg.get("end_effectors", {})
         self.end_effector_type = ee_cfg.get("type", self.end_effector_type)
-        self.hand_type = "v4" if self.end_effector_type == "v4_hand_7dof" else self.end_effector_type
+        if self.end_effector_type == "v4_hand_7dof":
+            self.hand_type = "v4"
+        elif self.end_effector_type == "c1_hand_6dof":
+            self.hand_type = "c1"
+        else:
+            self.hand_type = self.end_effector_type
         ee_groups = ee_cfg.get("groups", {})
         if not isinstance(ee_groups, dict):
             raise ValueError("end_effectors.groups must be an object")
@@ -244,6 +252,11 @@ class WalkerRobotConfig(RobotConfig):
         ee_limits = ee_cfg.get("limits", {})
         if self.end_effector_type == "v4_hand_7dof":
             self.hand_joint_limits = dict(V4_HAND_JOINT_LIMITS)
+        elif self.end_effector_type == "c1_hand_6dof":
+            self.hand_joint_limits = {
+                name: _as_float_tuple(limits, name=f"end_effectors.limits.{name}")
+                for name, limits in ee_limits.items()
+            }
         elif self.end_effector_type == "pgc_gripper_1dof":
             self.gripper_position_limits = _as_float_tuple(
                 ee_limits.get("position", self.gripper_position_limits), name="end_effectors.limits.position"
@@ -271,6 +284,12 @@ class WalkerRobotConfig(RobotConfig):
         self.cmd_namespace = ros_cfg.get("cmd_namespace", self.cmd_namespace)
         self.topic_body_cmd = ros_cfg.get("body_cmd_topic", self.topic_body_cmd)
         self.topic_body_state = ros_cfg.get("body_state_topic", self.topic_body_state)
+        self.topic_sim_object_state = ros_cfg.get(
+            "sim_object_state_topic", self.topic_sim_object_state
+        )
+        self.topic_sim_object_pose_cmd = ros_cfg.get(
+            "sim_object_pose_cmd_topic", self.topic_sim_object_pose_cmd
+        )
         ee_topics = ee_cfg.get("topics", {})
         self.topic_left_hand_cmd = ee_topics.get("left_cmd", self.topic_left_hand_cmd)
         self.topic_right_hand_cmd = ee_topics.get("right_cmd", self.topic_right_hand_cmd)
@@ -326,6 +345,7 @@ class WalkerRobotConfig(RobotConfig):
                 server_address=cam_cfg.get("server_address", self.zmq_host),
                 port=int(cam_cfg.get("port", self.zmq_image_port)),
                 camera_name=cam_cfg.get("camera_name", name),
+                color_mode=ColorMode(cam_cfg.get("color_mode", ColorMode.BGR)),
                 timeout_ms=int(cam_cfg.get("timeout_ms", 5000)),
                 warmup_s=int(cam_cfg.get("warmup_s", 3)),
             )
@@ -370,9 +390,9 @@ class WalkerRobotConfig(RobotConfig):
             if not name.endswith(".pos"):
                 raise ValueError(f"Walker action feature must end with .pos: {name}")
 
-        if self.end_effector_type not in ("v4_hand_7dof", "pgc_gripper_1dof"):
+        if self.end_effector_type not in ("v4_hand_7dof", "c1_hand_6dof", "pgc_gripper_1dof"):
             raise ValueError(f"Unsupported end_effector_type: {self.end_effector_type!r}")
-        if self.hand_type not in ("v4", "pgc_gripper_1dof"):
+        if self.hand_type not in ("v4", "c1", "pgc_gripper_1dof"):
             raise ValueError(f"Unsupported hand_type: {self.hand_type!r}")
 
         expected_home_dim = len(self.body_joint_names)
@@ -395,6 +415,9 @@ class WalkerRobotConfig(RobotConfig):
         if self.end_effector_type == "v4_hand_7dof":
             if len(self.left_hand_joints) != 7 or len(self.right_hand_joints) != 7:
                 raise ValueError("v4_hand_7dof requires 7 joints per hand")
+        if self.end_effector_type == "c1_hand_6dof":
+            if len(self.left_hand_joints) != 6 or len(self.right_hand_joints) != 6:
+                raise ValueError("c1_hand_6dof requires 6 joints per hand")
         if self.end_effector_type == "pgc_gripper_1dof":
             if len(self.left_hand_joints) != 1 or len(self.right_hand_joints) != 1:
                 raise ValueError("pgc_gripper_1dof requires exactly one actuator per side")
@@ -441,4 +464,6 @@ class WalkerRobotConfig(RobotConfig):
             "topic_body_state": self.topic_body_state,
             "topic_left_hand_state": self.topic_left_hand_state,
             "topic_right_hand_state": self.topic_right_hand_state,
+            "topic_sim_object_state": self.topic_sim_object_state,
+            "topic_sim_object_pose_cmd": self.topic_sim_object_pose_cmd,
         }

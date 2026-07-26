@@ -60,10 +60,19 @@ def clip_hand_value(
     joint_name: str,
     hand_type: str = "v4",
     gripper_limits: tuple[float, float] = (0.0, 0.05),
+    joint_limits: dict[str, tuple[float, float]] | None = None,
 ) -> float:
     """Single-value clipping dispatcher."""
     if hand_type == "v4":
         return v4_clip_value(pos, joint_name)
+    if hand_type == "c1":
+        limits = joint_limits or {}
+        short = joint_name.removeprefix("left_").removeprefix("right_")
+        if joint_name in limits:
+            return _clamp(pos, limits[joint_name])
+        if short in limits:
+            return _clamp(pos, limits[short])
+        return float(pos)
     if hand_type == "pgc_gripper_1dof":
         return gripper_clip_value(pos, gripper_limits)
     raise ValueError(f"Unsupported hand_type: {hand_type!r}")
