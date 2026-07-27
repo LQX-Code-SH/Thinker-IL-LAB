@@ -2,7 +2,7 @@
 
 UBTECH EDU 机器人仿真平台，基于 NVIDIA Isaac Sim 5.0 + Isaac Lab 2.2 支持多款机器人ROS2仿真控制，用于真机部署前的验证测试，模仿学习仿真数据采集等功能。
 
-当前支持双机器人（天工 Pro / Walker S2）、遥操作仿真、数据采集（HDF5/LeRobot 格式）、轨迹回放、零件随机化。容器化部署，内部桥接ROS2 Humble（Py 3.10）与 Isaac Sim（Py 3.11）通信。
+当前支持三款机器人（天工 Pro / Walker S2 / Walker C1）、遥操作仿真、数据采集（HDF5/LeRobot 格式）、轨迹回放、零件随机化。容器化部署，内部桥接ROS2 Humble（Py 3.10）与 Isaac Sim（Py 3.11）通信。
 
 ## Git Clone 注意事项
 
@@ -22,6 +22,7 @@ git lfs pull                             # 补全未下载的 LFS 文件
 |--------|-----|------|------|----------|
 | TienKung Pro | 50 | — | 12×2 (五指灵巧手) | `assets/robots/tienkung_pro/tienkung_pro_v2.usd` |
 | Walker S2 | 34 | 2×2 (PGC 两指) | — | `assets/robots/walker_s2/s2_v1.usd` |
+| Walker C1 (Astron) | 53 | — | 11×2 (五指灵巧手) | `assets/robots/walker_c1/Collected_walker_c1_v1_sensorKpkd/Collected_walker_astron_v1_sensorKpkd/walker_astron_v1_sensorKpkd_hands.usd` |
 
 ## 当前支持的任务
 
@@ -29,6 +30,7 @@ git lfs pull                             # 补全未下载的 LFS 文件
 |---------|--------|------|------|
 | `UBTSim-TienkungPro-Parlor-v0` | 天工 Pro | 客厅 | 基础遥操作，RGB + Depth 相机 |
 | `UBTSim-WalkerS2-PartSorting-v0` | Walker S2 | 仓库 | 零件分拣，含零件随机化 |
+| `UBTSim-WalkerC1-Parlor-v0` | Walker C1 | 客厅 | 在线 IK 苹果抓放，实时读物体位置现场规划，非轨迹回放 |
 
 任务通过 YAML 配置文件定义（`config/*.yaml`），Python 任务类从 YAML 自动加载场景、机器人、相机和仿真参数。
 
@@ -63,7 +65,14 @@ python3 /ubt_sim/teleoperation/image/image_client.py
 bash /ubt_sim/teleoperation/control/walker_s2/save_data.sh                     # 批量采集
 # （其他）测试walker S2 相机
 /usr/bin/python3 /ubt_sim/teleoperation/control/walker_s2/walker_s2_camera.py --save --count 
+
+# 6. Walker C1 数据采集与推理
+docker exec -it walker-c1-ubt-sim bash /ubt_sim/scripts/start_c1_pick_place_sim.sh   # 启动仿真+桥接
+docker exec -it walker-c1-ubt-sim bash -lc \
+  'ROS_DOMAIN_ID=146 /usr/bin/python3 /ubt_sim/teleoperation/control/walker_c1/reset.py'  # 回准备姿势
+docker exec -it walker-c1-ubt-sim bash /ubt_sim/scripts/run_c1_pick_place_once.sh    # 单次在线IK抓放+采集
 ```
+完整的采集/训练/推理流程、架构说明和安全须知见 [`README_C1_LEROBOT.md`](../README_C1_LEROBOT.md)。
 
 ## 项目结构
 

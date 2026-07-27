@@ -1,12 +1,71 @@
-# Walker C1：采集、训练与推理
+# Walker C1（Astron）：仿真采集、训练与推理
 
 以下命令均在仓库根目录执行。当前流程使用单个头部 RGB 相机、30 FPS、26维状态和26维动作。
+
+## 项目概览
+
+Walker C1 的目标是用**同一份控制代码**同时驱动 Isaac Sim 仿真和真机（切换
+`ROS_DOMAIN_ID` 146 ↔ 0）。当前任务：机器人从 `reset.py` 准备姿势出发，在线读取桌上
+苹果的真实位置，用 6D IK 现场规划抓取路径，抓起后放入盘子，再安全归位。
+
+**这是在线感知 + 现场 IK 规划，不是逐帧回放录制轨迹**：每一局都重新读取物体位置、重新
+解算关节角度。
+
+整条链路分两层：
+
+```text
+Isaac Sim（仿真物理 + 传感器）
+   │  ZMQ (127.0.0.1:5655-5658)
+   ▼
+ROS2-ZMQ Bridge（teleoperation/bridges/walker_c1/）—— 话题与真机 SDK 一致
+   │  ROS2 DDS（domain 146=仿真 / 0=真机）
+   ▼
+控制代码（teleoperation/control/walker_c1/）：
+   reset.py              安全分阶段回到准备姿势
+   robot_controller.py   ikpy 6D IK、仿真步同步 wait_sim_steps()、安全 z 下限
+   pick_place_controller.py  在线抓取主逻辑（读物体位置→IK→闭环对准→抓取→搬运→放盘→归位）
+   │
+   ▼
+LeRobot（ubt_IL/）：HDF5 → LeRobot 数据集转换 → Diffusion Policy 训练 → checkpoint 推理
+```
+
+
+## 目录结构（Walker C1 相关部分）
+
+```text
+ubt_sim/
+├── assets/robots/walker_c1/
+│   └── Collected_walker_c1_v1_sensorKpkd/Collected_walker_astron_v1_sensorKpkd/
+│       ├── walker_astron_v1_sensorKpkd_hands.usd  # 机器人 USD（身体+传感器+灵巧手）
+│       └── SubUSDs/                               # 双目/鱼眼/下巴相机子文件；上面的 USD 通过
+│                                                    # 相对路径引用它们，删除或挪动会导致相机加载失败
+├── scripts/
+│   ├── build_c1_apple_usd.py             # 重建任务苹果小型 USD
+│   ├── start_c1_mentor_sensor_sim.sh     # 启动仿真 + 五相机 viewport（+ --control 开 ROS）
+│   ├── start_c1_pick_place_sim.sh        # 启动仿真 + ROS bridge（无额外相机窗口）
+│   ├── run_c1_pick_place_once.sh         # 单次/多次在线 IK 抓放 + 数据采集
+│   └── run_c1_online_ik_batch.sh         # 批量运行，失败自动重启整个仿真栈
+├── source/ubt_sim/devices/walker_c1/     # Isaac Lab 侧机器人配置/controller
+└── teleoperation/
+    ├── bridges/walker_c1/                # ROS2-ZMQ 桥接，话题与真机 SDK 一致
+    └── control/walker_c1/
+        ├── reset.py                     # 安全回零
+        ├── robot_controller.py          # IK / 仿真步同步基础设施
+        └── pick_place_controller.py     # 在线抓取主实现
+
+ubt_IL/
+├── scripts/convert/configs/Walker_C1_26_1RGB.json   # HDF5 -> LeRobot 转换配置
+└── scripts/deploy/
+    ├── train_config_walker_c1_diffusion.json        # Diffusion Policy 训练配置
+    ├── infer_walker_c1_diffusion.py                  # 离线推理检查
+    └── rollout_walker_c1.sh                          # 仿真/真机闭环推理入口
+```
 
 ## 当前状态
 
 完整链路已经跑通：HDF5采集 → LeRobot转换 → Diffusion Policy训练 → checkpoint离线推理 → C1仿真闭环控制。
 
-当前正式数据为200条成功轨迹。初始 reset 和苹果落稳过程不录制，轨迹从准备姿势开始，并包含抓放结束后的右臂归位；左臂和头部在 reset 后保持固定。
+初始 reset 和苹果落稳过程不录制，轨迹从准备姿势开始，并包含抓放结束后的右臂归位；左臂和头部在 reset 后保持固定。
 
 当前 Diffusion Policy 使用 `horizon=64`、`n_action_steps=32`、`n_obs_steps=2`，训练默认 `batch_size=8`、`steps=50000`。
 
@@ -92,27 +151,9 @@ ubt_IL/model/Walker_C1_26_1RGB_diffusion/checkpoints/050000/pretrained_model
 
 训练未完成时，也可以把后续命令中的 `050000` 换成已经保存的 checkpoint，例如 `020000`。
 
-## 6. 离线推理检查
 
-加载正式 checkpoint，用数据集第0帧生成26维动作；该命令不会控制机器人。
 
-```bash
-docker exec -it lerobot-walker-c1 bash -lc '
-HF_HUB_OFFLINE=1 /lerobot/.venv/bin/python \
-  /ubt_IL/scripts/deploy/infer_walker_c1_diffusion.py \
-  --checkpoint /ubt_IL/model/Walker_C1_26_1RGB_diffusion/checkpoints/050000/pretrained_model \
-  --dataset /ubt_IL/dataset/Walker_C1_26_1RGB'
-```
-
-看到以下结果表示训练、保存和推理链路正常：
-
-```text
-policy=DiffusionPolicy
-action_shape=(1, 26)
-finite=True
-```
-
-## 7. C1仿真闭环推理
+## 6. C1仿真闭环推理
 
 终端1启动仿真：
 
@@ -162,3 +203,18 @@ bash /ubt_IL/scripts/deploy/rollout_walker_c1.sh \
 当前脚本可以自动放回苹果，但盘子没有独立的自动归位接口。
 
 如果使用其他 checkpoint，只需要替换 `POLICY_PATH`。reset 后头部和左臂保持固定，策略只实际驱动右臂及手部。
+
+## 已知限制
+
+1. 当前 CPU 仿真约为实时的 0.25 倍，控制器里的等待都是按仿真步数计时
+   （`wait_sim_steps()`），不是墙钟秒数；日志中看到的短暂停顿是正常的物理步等待。
+2. 盘子没有独立的自动归位接口；盘子被碰走后需要人工恢复场景再继续批量运行。
+3. 仿真进程长时间运行或经历剧烈失败后，PhysX 接触状态可能退化导致连续抓空；出现这种情况
+   应完整重启仿真栈，而不是在同一进程里继续调参数。
+4. 当前成果是 Isaac Sim + ROS2 控制链在仿真中的验证，尚未在真机上跑通，上真机前必须先完成
+   关节命名核对。
+
+## 参考文档
+
+- [`C1_joint_map.md`](C1_joint_map.md) — 关节分组、限位表、与真机 SDK 文档的逐项核对结果。
+- [`ubt_sim/README.md`](ubt_sim/README.md) — 仿真平台整体架构、多机器人支持、容器与扩展方式。

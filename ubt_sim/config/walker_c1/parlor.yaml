@@ -7,7 +7,7 @@ scene:
 
 robot:
   name: "walker_c1"
-  usd_path: "robots/walker_c1/walker_c1.usd"
+  usd_path: "robots/walker_c1/Collected_walker_c1_v1_sensorKpkd/Collected_walker_astron_v1_sensorKpkd/walker_astron_v1_sensorKpkd_hands.usd"
   init_state:
     pos: [7.80, 6.08257, 0.90]
     rot: [0.99939, 0.0, 0.0349, 0.0]

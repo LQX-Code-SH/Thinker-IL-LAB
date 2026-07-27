@@ -120,3 +120,9 @@ POLICY_PATH=/ubt_IL/model/test_model ZMQ_HOST=192.168.41.2 DURATION=60 \
 | `FPS` | `15` | 控制环频率（与训练 fps 对齐） |
 
 注意：`ubt_IL/docker/fastdds_no_shm.xml` 中的 IP 必须改为本机 IP，否则 ROS 无法与真机通信。详细架构图、26 维向量布局见 [ubt_IL/CLAUDE.md](ubt_IL/CLAUDE.md)；完整部署参数与 `lerobot-rollout` CLI 调用见 [ubt_IL/README.md](ubt_IL/README.md#4-模型部署)。
+
+## Walker C1（Astron）
+
+Walker C1 的仿真采集、训练与推理完整流程（在线 IK 苹果抓放，非轨迹回放）单独整理在
+[README_C1_LEROBOT.md](README_C1_LEROBOT.md)，关节命名与真机 SDK 核对结果见
+[C1_joint_map.md](C1_joint_map.md)，完整调试历史见 [C1_HANDOFF.md](C1_HANDOFF.md)。

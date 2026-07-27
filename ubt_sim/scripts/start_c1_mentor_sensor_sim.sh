@@ -6,7 +6,6 @@ set -euo pipefail
 
 ASSET_DIR=/ubt_sim/assets/robots/walker_c1/Collected_walker_c1_v1_sensorKpkd/Collected_walker_astron_v1_sensorKpkd
 MERGED_USD="$ASSET_DIR/walker_astron_v1_sensorKpkd_hands.usd"
-PXR_DIR=/isaac-sim/extscache/omni.usd.libs-1.0.1+8131b85d.lx64.r.cp311
 CONTROL_MODE=0
 C1_STEP_HZ="${UBT_SIM_C1_STEP_HZ:-100}"
 
@@ -16,9 +15,8 @@ if [ "${1:-}" = "--control" ]; then
 fi
 
 if [ ! -f "$MERGED_USD" ]; then
-    echo "[INFO] Building merged mentor-sensor C1 USD..."
-    PYTHONPATH="$PXR_DIR" LD_LIBRARY_PATH="$PXR_DIR/bin" \
-        /isaac-sim/python.sh /ubt_sim/scripts/merge_walker_c1_mentor_usd.py
+    echo "[ERROR] Merged C1 USD not found: $MERGED_USD" >&2
+    exit 1
 fi
 
 export UBT_SIM_WALKER_C1_USD_PATH="$MERGED_USD"
