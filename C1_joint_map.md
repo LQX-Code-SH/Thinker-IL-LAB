@@ -5,7 +5,7 @@
 来源 URDF：
 
 ```text
-ubt_sim/assets/robots/c1/walker_astron_v2_hand_v3.urdf
+ubt_sim/assets/robots/walker_c1/walker_astron_v2_hand_v3_no_sixforce_mesh.urdf
 ```
 
 当前 URDF 统计：
@@ -221,4 +221,5 @@ head 关节名，没有列臂关节名，所以臂名字必须以真机 `robot_s
 2. 仿真初期可以只控制双臂、双手、头和腰，腿部先用 home pose 固定。
 3. C1 手没有沿用 Tiankung 的 mimic 配置。后续 `devices/c1/action_process.py` 应该先按 22 个手指关节独立映射。
 4. 当前整机 URDF 还有两个缺失 mesh：`L_sixforce_link.STL` 和 `R_sixforce_link.STL`。它们影响腕部外观/碰撞，不影响 joint map。
-5. Isaac Lab 运行时通常加载 USD，所以后续还需要把 `walker_astron_v2_hand_v3.urdf` 转成 C1 USD。
+5. Isaac Lab 运行时加载的是 USD，不是这份 URDF；机器人当前使用的 USD 见
+   `README_C1_LEROBOT.md` 的目录结构说明。
