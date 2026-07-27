@@ -197,7 +197,8 @@ bash /ubt_IL/scripts/deploy/rollout_walker_c1.sh \
   --episodes 10 --duration 30 --seed 1000'
 ```
 
-不加 `--episodes` 时默认只运行1次。固定苹果在采集区域中心时增加 `--fixed-apple`。
+不加 `--episodes` 时默认只运行1次。默认苹果固定放在采集区域中心，需要随机化时加
+`--randomize-apple`（5cm×5cm 范围内采样）。
 多轮开始前只需手动执行一次 `reset.py`；每轮正常退出时，原生 rollout 会把机器人送回该轮
 启动时的姿势。如果某轮异常退出或盘子被碰走，应停止批量运行，恢复机器人/场景后再继续。
 当前脚本可以自动放回苹果，但盘子没有独立的自动归位接口。

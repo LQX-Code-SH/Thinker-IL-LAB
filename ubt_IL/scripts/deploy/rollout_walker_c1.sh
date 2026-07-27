@@ -20,7 +20,7 @@ export PREVIEW_CAMERA="${PREVIEW_CAMERA:-0}"
 
 EPISODES="${EPISODES:-1}"
 EVAL_SEED="${EVAL_SEED:-1000}"
-RANDOMIZE_APPLE="${RANDOMIZE_APPLE:-1}"
+RANDOMIZE_APPLE="${RANDOMIZE_APPLE:-0}"
 APPLE_CENTER_X="${APPLE_CENTER_X:-8.17}"
 APPLE_CENTER_Y="${APPLE_CENTER_Y:-5.86}"
 APPLE_HALF_EXTENT="${APPLE_HALF_EXTENT:-0.025}"
@@ -48,8 +48,8 @@ Options:
   --episodes N         Number of independently loaded rollouts (default: 1).
   --duration SECONDS   Maximum control time per rollout (default: 30).
   --seed N             Random apple-position seed (default: 1000).
-  --fixed-apple        Place at the collection-region center.
-  --randomize-apple    Randomize in the configured 5 cm x 5 cm square (default).
+  --fixed-apple        Place at the collection-region center (default).
+  --randomize-apple    Randomize in the configured 5 cm x 5 cm square.
   --success-radius M   Apple-to-plate XY success radius (default: 0.12).
   -h, --help           Show this help.
 EOF
