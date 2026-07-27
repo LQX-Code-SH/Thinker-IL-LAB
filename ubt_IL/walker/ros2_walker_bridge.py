@@ -210,7 +210,7 @@ class WalkerRealRobotBridge:
         self._gripper_mode = int(cfg.get("gripper_mode", 0))
         self._control_fps = float(cfg.get("control_fps", 15.0))  # 保留用于日志，不再用于插值
         self._max_safe_velocity = float(cfg.get("max_safe_velocity", 1.0))
-        self._body_control_mode = cfg.get("body_control_mode", "pvt")
+        self._body_control_mode = cfg.get("body_control_mode", "position")
         self._body_velocity_timeout = float(cfg.get("body_velocity_timeout", 0.3))
 
         ros_namespace = cfg.get("ros_namespace", "").rstrip("/")

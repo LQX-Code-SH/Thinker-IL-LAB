@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <string>
 #include <thread>
 
@@ -266,6 +267,12 @@ public:
                     msg_type_.c_str(), cfg.rgb_topic.c_str(), cfg.depth_topic.c_str(),
                     cfg.camera_topics.size());
 
+        // Keep rclcpp::spin() alive — the executor needs at least one timer/subscription
+        // as a work item, otherwise spin() returns immediately and the process exits.
+        // The actual frame processing happens in receive_loop (separate std::thread).
+        keepalive_timer_ = this->create_wall_timer(
+            std::chrono::seconds(60), []() {});
+
         receive_thread_ = std::thread(&ZmqImageBridge::receive_loop, this);
     }
 
@@ -301,8 +308,32 @@ private:
             } catch (const zmq::error_t& e) {
                 RCLCPP_ERROR(this->get_logger(), "ZMQ Error: %s", e.what());
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            } catch (const std::exception& e) {
+                RCLCPP_ERROR(this->get_logger(), "Unhandled exception in receive loop: %s", e.what());
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            } catch (...) {
+                RCLCPP_ERROR(this->get_logger(), "Unknown exception in receive loop");
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         }
+    }
+
+    // Helper: allocate a shm_msgs image on the heap and fill + publish it.
+    // shm_msgs::msg::Image*M contain multi-MB fixed arrays; they MUST live on
+    // the heap — stacking three of them (Image1m ~1 MB + Image2m ~2 MB +
+    // Image6m ~6 MB) blows past the default 8 MB pthread stack and segfaults.
+    template<typename MsgT>
+    bool _publish_shm(MsgT& msg, const std::string& cam_name,
+                      const rclcpp::Time& stamp, int w, int h,
+                      const void* data, size_t size,
+                      typename rclcpp::Publisher<MsgT>::SharedPtr pub)
+    {
+        if (fill_image_shm(msg, stamp, cam_name, w, h, "rgb8",
+                           static_cast<uint32_t>(w * 3), data, size)) {
+            pub->publish(msg);
+            return true;
+        }
+        return false;
     }
 
     void publish_images(zmq::message_t& meta_msg, zmq::message_t& rgb_msg,
@@ -322,7 +353,7 @@ private:
         // --- Path A: no "camera" field → fallback to default rgb_topic (old controller / 天工 Pro) ---
         if (cam_name.empty()) {
             if (msg_type_ == "Image" && pub_rgb_img_) {
-                sensor_msgs::msg::Image img_msg;
+                sensor_msgs::msg::Image img_msg;  // uses std::vector — OK on stack
                 if (fill_image(img_msg, current_time, "camera", w, h, "rgb8",
                                static_cast<uint32_t>(w * 3), rgb_msg.data(), rgb_msg.size())) {
                     pub_rgb_img_->publish(img_msg);
@@ -335,16 +366,16 @@ private:
                     }
                 }
             } else if (pub_rgb_2m_) {
-                shm_msgs::msg::Image2m img_msg;
-                if (fill_image2m(img_msg, current_time, "camera", w, h, "rgb8",
+                auto img_msg = std::make_unique<shm_msgs::msg::Image2m>();
+                if (fill_image2m(*img_msg, current_time, "camera", w, h, "rgb8",
                                  static_cast<uint32_t>(w * 3), rgb_msg.data(), rgb_msg.size())) {
-                    pub_rgb_2m_->publish(img_msg);
+                    pub_rgb_2m_->publish(*img_msg);
                 }
                 if (has_depth && depth_msg.size() > 0 && pub_depth_2m_) {
-                    shm_msgs::msg::Image2m d_msg;
-                    if (fill_image2m(d_msg, current_time, "camera_depth", w, h, "16UC1",
+                    auto d_msg = std::make_unique<shm_msgs::msg::Image2m>();
+                    if (fill_image2m(*d_msg, current_time, "camera_depth", w, h, "16UC1",
                                      static_cast<uint32_t>(w * 2), depth_msg.data(), depth_msg.size())) {
-                        pub_depth_2m_->publish(d_msg);
+                        pub_depth_2m_->publish(*d_msg);
                     }
                 }
             }
@@ -352,34 +383,29 @@ private:
         }
 
         // --- Path B: "camera" field present → route to per-camera publisher (type-aware) ---
+        // Allocate the heavy shm_msgs image on the heap (see class comment).
         bool published = false;
-        // Try Image1m publishers
         auto it1 = publishers_1m_.find(cam_name);
         if (it1 != publishers_1m_.end()) {
-            shm_msgs::msg::Image1m img_msg;
-            if (fill_image_shm(img_msg, current_time, cam_name, w, h, "rgb8",
-                               static_cast<uint32_t>(w * 3), rgb_msg.data(), rgb_msg.size())) {
-                it1->second->publish(img_msg);
+            auto img_msg = std::make_unique<shm_msgs::msg::Image1m>();
+            if (_publish_shm(*img_msg, cam_name, current_time, w, h,
+                            rgb_msg.data(), rgb_msg.size(), it1->second)) {
                 published = true;
             }
         }
-        // Try Image2m publishers
         auto it2 = publishers_2m_.find(cam_name);
         if (it2 != publishers_2m_.end()) {
-            shm_msgs::msg::Image2m img_msg;
-            if (fill_image_shm(img_msg, current_time, cam_name, w, h, "rgb8",
-                               static_cast<uint32_t>(w * 3), rgb_msg.data(), rgb_msg.size())) {
-                it2->second->publish(img_msg);
+            auto img_msg = std::make_unique<shm_msgs::msg::Image2m>();
+            if (_publish_shm(*img_msg, cam_name, current_time, w, h,
+                            rgb_msg.data(), rgb_msg.size(), it2->second)) {
                 published = true;
             }
         }
-        // Try Image6m publishers
         auto it6 = publishers_6m_.find(cam_name);
         if (it6 != publishers_6m_.end()) {
-            shm_msgs::msg::Image6m img_msg;
-            if (fill_image_shm(img_msg, current_time, cam_name, w, h, "rgb8",
-                               static_cast<uint32_t>(w * 3), rgb_msg.data(), rgb_msg.size())) {
-                it6->second->publish(img_msg);
+            auto img_msg = std::make_unique<shm_msgs::msg::Image6m>();
+            if (_publish_shm(*img_msg, cam_name, current_time, w, h,
+                            rgb_msg.data(), rgb_msg.size(), it6->second)) {
                 published = true;
             }
         }
@@ -390,10 +416,10 @@ private:
 
         // stereo_left also publishes to legacy stereo rgb_topic for backward compat
         if (cam_name == "stereo_left" && pub_rgb_2m_) {
-            shm_msgs::msg::Image2m stereo_msg;
-            if (fill_image2m(stereo_msg, current_time, cam_name, w, h, "rgb8",
+            auto stereo_msg = std::make_unique<shm_msgs::msg::Image2m>();
+            if (fill_image2m(*stereo_msg, current_time, cam_name, w, h, "rgb8",
                              static_cast<uint32_t>(w * 3), rgb_msg.data(), rgb_msg.size())) {
-                pub_rgb_2m_->publish(stereo_msg);
+                pub_rgb_2m_->publish(*stereo_msg);
             }
         }
     }
@@ -413,6 +439,7 @@ private:
     zmq::socket_t subscriber_;
     std::thread receive_thread_;
     std::atomic<bool> running_{true};
+    rclcpp::TimerBase::SharedPtr keepalive_timer_;
 };
 
 int main(int argc, char * argv[])

@@ -132,30 +132,21 @@ class TienkungProRosBridge(Node):
         cpp_dir = os.path.dirname(script_dir)  # 共享 C++ bridge 在上级 bridges/ 目录
         build_script = os.path.join(cpp_dir, "build_cpp_bridge.sh")
         executable = os.path.join(cpp_dir, "zmq_image_bridge")
-        cpp_source = os.path.join(cpp_dir, "zmq_image_bridge.cpp")
-        cmake_source = os.path.join(cpp_dir, "CMakeLists.txt")
 
-        # Skip build if executable exists and is newer than source files
-        need_build = True
-        if os.path.isfile(executable) and os.access(executable, os.X_OK):
-            exe_mtime = os.path.getmtime(executable)
-            src_mtime = max(os.path.getmtime(cpp_source), os.path.getmtime(cmake_source))
-            if exe_mtime > src_mtime:
-                need_build = False
-                self.get_logger().info("C++ Bridge binary is up-to-date, skipping build.")
-
-        if need_build:
-            self.get_logger().info(f"Building C++ Bridge: {build_script} ...")
-            subprocess.run(["chmod", "+x", build_script], cwd=cpp_dir)
-            res = subprocess.run([build_script], cwd=cpp_dir,
-                                 capture_output=True, text=True)
-            if res.returncode != 0:
-                self.get_logger().error(
-                    f"C++ Bridge build failed:\n{res.stderr}\n"
-                    "Image publishing will be unavailable. "
-                    "Set DISABLE_CPP_IMAGE_BRIDGE=1 to suppress."
-                )
-                return
+        # Always rebuild: the C++ file is small (427 lines) and compiles in seconds.
+        # Timestamp-based skipping has caused hard-to-diagnose "Unknown camera"
+        # warnings when a stale binary ignored new CLI flags like --camera-topics.
+        self.get_logger().info(f"Building C++ Bridge: {build_script} ...")
+        subprocess.run(["chmod", "+x", build_script], cwd=cpp_dir)
+        res = subprocess.run([build_script], cwd=cpp_dir,
+                             capture_output=True, text=True)
+        if res.returncode != 0:
+            self.get_logger().error(
+                f"C++ Bridge build failed:\n{res.stderr}\n"
+                "Image publishing will be unavailable. "
+                "Set DISABLE_CPP_IMAGE_BRIDGE=1 to suppress."
+            )
+            return
 
         if not os.path.isfile(executable):
             self.get_logger().error("C++ Bridge executable not found. Image publishing unavailable.")

@@ -173,7 +173,7 @@ class WalkerRobotConfig(RobotConfig):
 
     # Control
     control_fps: float = 15.0
-    body_control_mode: str = "pvt"          # "velocity" | "pvt" | "position"
+    body_control_mode: str = "position"     # "velocity" | "pvt" | "position"
     body_velocity_timeout: float = 0.3       # 速度模式超时（秒）
     body_pvt_kp: float | dict | None = None  # PVT Kp 覆盖
     body_pvt_kd: float | dict | None = None  # PVT Kd 覆盖

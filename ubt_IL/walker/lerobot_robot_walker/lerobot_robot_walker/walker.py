@@ -22,6 +22,7 @@ from lerobot.robots.robot import Robot
 from lerobot.types import RobotAction, RobotObservation
 from lerobot.utils.decorators import check_if_already_connected, check_if_not_connected
 
+from .action_recorder import ActionRecorder
 from .config_walker import WalkerRobotConfig
 from .hand_utils import clip_hand_value
 
@@ -132,6 +133,17 @@ class WalkerRobot(Robot):
 
         self._connected = False
 
+        # Action recorder (env-var gated, lightweight CSV + plot)
+        self._recorder: ActionRecorder | None = None
+        if os.environ.get("RECORD_ACTIONS", "0") == "1":
+            output_dir = os.environ.get("RECORD_OUTPUT_DIR", "/tmp/walker_rollout")
+            self._recorder = ActionRecorder(
+                output_dir,
+                group_features=self._group_features,
+                body_group_names=self._body_group_names,
+                hand_group_names=self._hand_group_names,
+            )
+
     @property
     def observation_features(self) -> dict[str, type | tuple]:
         motors_ft = {name: float for name in self._all_joints}
@@ -203,6 +215,10 @@ class WalkerRobot(Robot):
 
         if not self._state_ready.is_set():
             logger.warning("Timed out waiting for Walker Bridge2 status messages.")
+
+        # Start live plot if recorder is active
+        if self._recorder is not None:
+            self._recorder.start_live_plot()
 
         self._connected = True
         logger.info("WalkerRobot connected.")
@@ -316,6 +332,12 @@ class WalkerRobot(Robot):
                 for value, joint_name in zip(grouped[group], joint_names)
             ]
 
+        # Snapshot current state for recording (under lock)
+        current_state: dict[str, list[float]] = {}
+        if self._recorder is not None:
+            with self._state_lock:
+                current_state = {group: list(self._group_state[group]) for group in self._group_features}
+
         action_msg = {
             "left_arm": grouped["left_arm"],
             "right_arm": grouped["right_arm"],
@@ -325,6 +347,15 @@ class WalkerRobot(Robot):
             "right_hand": grouped["right_hand"],
             "ts": time.time(),
         }
+
+        if self._recorder is not None:
+            self._recorder.record(
+                action_input=action,
+                action_msg=action_msg,
+                current_state=current_state,
+                timestamp=action_msg["ts"],
+            )
+
         try:
             self._cmd_socket.send_json(action_msg, flags=zmq.NOBLOCK)
         except zmq.Again:
@@ -382,6 +413,15 @@ class WalkerRobot(Robot):
             except zmq.Again:
                 logger.warning("Home action send dropped: ZMQ send buffer full")
             time.sleep(1.0)
+
+        # Finalize action recorder (stop live plot → save CSV → plot PNG)
+        if self._recorder is not None:
+            try:
+                self._recorder.stop_live_plot()
+                self._recorder.save()
+                self._recorder.plot()
+            except Exception as e:
+                logger.error("ActionRecorder finalization failed: %s", e)
 
         # Stop receive thread
         self._running = False

@@ -22,6 +22,8 @@ PREVIEW_CAMERA_HEIGHT="${PREVIEW_CAMERA_HEIGHT:-0}"
 PREVIEW_CAMERA_TIMEOUT="${PREVIEW_CAMERA_TIMEOUT:-10.0}"
 PREVIEW_CAMERA_PRINT_FPS="${PREVIEW_CAMERA_PRINT_FPS:-1}"
 PREVIEW_CAMERA_WINDOW="${PREVIEW_CAMERA_WINDOW:-Walker camera}"
+RECORD_ACTIONS="${RECORD_ACTIONS:-0}"
+RECORD_OUTPUT_DIR="${RECORD_OUTPUT_DIR:-/ubt_IL/scripts/deploy/output/walker_rollout_$(date +%Y%m%d_%H%M%S)}"
 
 # ── Validation ───────────────────────────────────────────────────────────────
 
@@ -38,6 +40,11 @@ if [ -n "$ROBOT_CONFIG" ] && [ ! -f "$ROBOT_CONFIG" ]; then
 fi
 
 echo "[INFO] ROBOT_MODEL=$ROBOT_MODEL"
+if [ "$RECORD_ACTIONS" = "1" ]; then
+    echo "[INFO] RECORD_ACTIONS=1 → output dir: $RECORD_OUTPUT_DIR"
+    export RECORD_ACTIONS
+    export RECORD_OUTPUT_DIR
+fi
 
 # ── Preflight: validate policy ↔ robot config dimension match ────────────────
 
