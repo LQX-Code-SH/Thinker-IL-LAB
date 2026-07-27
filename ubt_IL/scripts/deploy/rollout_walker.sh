@@ -23,6 +23,11 @@ PREVIEW_CAMERA_HEIGHT="${PREVIEW_CAMERA_HEIGHT:-0}"
 PREVIEW_CAMERA_TIMEOUT_MS="${PREVIEW_CAMERA_TIMEOUT_MS:-5000}"
 PREVIEW_CAMERA_PRINT_FPS="${PREVIEW_CAMERA_PRINT_FPS:-1}"
 PREVIEW_CAMERA_WINDOW="${PREVIEW_CAMERA_WINDOW:-Walker camera}"
+C1_APPLE_X="${C1_APPLE_X:-}"
+C1_APPLE_Y="${C1_APPLE_Y:-}"
+C1_APPLE_Z="${C1_APPLE_Z:-}"
+C1_PLACEMENT_TOLERANCE="${C1_PLACEMENT_TOLERANCE:-0.02}"
+C1_SETTLE_SIM_STEPS="${C1_SETTLE_SIM_STEPS:-10}"
 
 if [ -z "$POLICY_PATH" ]; then
     echo "[ERROR] POLICY_PATH is required."
@@ -142,11 +147,28 @@ if [ "$PREVIEW_CAMERA" = "1" ]; then
     trap cleanup_preview EXIT INT TERM
 fi
 
-/lerobot/.venv/bin/lerobot-rollout \
-    --strategy.type="$STRATEGY" \
-    --policy.path="$POLICY_PATH" \
-    --robot.type=walker \
-    --robot.robot_config_path="$ROBOT_CONFIG" \
-    --task="$TASK" \
-    --fps="$FPS" \
+ROLLOUT_ARGS=(
+    --strategy.type="$STRATEGY"
+    --policy.path="$POLICY_PATH"
+    --robot.type=walker
+    --robot.robot_config_path="$ROBOT_CONFIG"
+    --task="$TASK"
+    --fps="$FPS"
     --duration="$DURATION"
+)
+
+if [ "$STRATEGY" = "walker_c1_once" ]; then
+    if [ -z "$C1_APPLE_X" ] || [ -z "$C1_APPLE_Y" ] || [ -z "$C1_APPLE_Z" ]; then
+        echo "[ERROR] walker_c1_once requires C1_APPLE_X, C1_APPLE_Y and C1_APPLE_Z."
+        exit 1
+    fi
+    ROLLOUT_ARGS+=(
+        --strategy.apple_x="$C1_APPLE_X"
+        --strategy.apple_y="$C1_APPLE_Y"
+        --strategy.apple_z="$C1_APPLE_Z"
+        --strategy.placement_tolerance="$C1_PLACEMENT_TOLERANCE"
+        --strategy.settle_sim_steps="$C1_SETTLE_SIM_STEPS"
+    )
+fi
+
+/lerobot/.venv/bin/lerobot-rollout "${ROLLOUT_ARGS[@]}"
