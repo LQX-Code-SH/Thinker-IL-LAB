@@ -35,9 +35,17 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 # ---- ROS2 子进程所需 Python 3.10 包 ----
-RUN apt-get update && apt-get install -y --no-install-recommends python3-pip && rm -rf /var/lib/apt/lists/* && \
+# python3-opencv 用 apt 安装（带 GTK GUI 支持，pip 的 manylinux wheel 不带 GUI）
+# 基础镜像预装了 sury/php PPA 的新版 libbrotli1(1.1.0)，与 Jammy 的 libbrotli-dev(依赖 1.0.9) 冲突
+# 需清掉冲突源 + 强制降级已安装的 libbrotli1 回 Jammy 版本
+RUN rm -rf /etc/apt/sources.list.d/* && \
+    apt-get update && \
+    apt-get install -y --allow-downgrades --no-install-recommends \
+    libbrotli1/jammy \
+    libfreetype6-dev python3-pip python3-opencv libgtk-3-dev && \
+    rm -rf /var/lib/apt/lists/* && \
     /usr/bin/python3 -m pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple \
-    "numpy<2" pyzmq h5py ikpy "pin<3" "opencv-python-headless<4.10" pyyaml empy lark protobuf
+    "numpy<2" pyzmq h5py ikpy "pin<3" pyyaml empy lark protobuf
 
 # ---- C++ 图像桥接编译依赖 ----
 RUN apt-get update && apt-get install -y --no-install-recommends g++ make libzmq3-dev && \

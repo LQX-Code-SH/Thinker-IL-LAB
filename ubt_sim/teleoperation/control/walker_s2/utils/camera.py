@@ -40,6 +40,7 @@ Walker S2 相机图像订阅与解码模块
 
     # 命令行：
     python3 walker_s2_camera.py                                          # 持续打印帧信息
+    python3 walker_s2_camera.py --preview                                # HTTP 实时预览 (浏览器打开 http://<host>:8080)
     python3 walker_s2_camera.py --save --count 5                         # 保存 5 帧 PNG
     python3 walker_s2_camera.py --topic /sensor/camera/stereo/color/raw  # 指定话题
 """
@@ -456,9 +457,18 @@ class Camera(Node):
 # CLI 入口
 # ============================================================================
 
-def cmd_print_info(cam, save=False, count=0, interval=1.0):
-    """持续打印/保存图像信息。"""
+def cmd_print_info(cam, save=False, preview=False, no_print=False, count=0, interval=1.0):
+    """持续打印/保存/预览图像信息。
+
+    preview 模式使用 cv2.imshow 实时显示相机画面，按 Q 或 ESC 退出。
+    """
     saved = 0
+    shown = 0
+
+    if preview:
+        cv2.namedWindow("Camera Preview", cv2.WINDOW_NORMAL)
+        print("  📷 Preview started — press Q or ESC in the preview window to exit\n")
+
     try:
         while rclpy.ok():
             if not cam.is_available():
@@ -471,13 +481,28 @@ def cmd_print_info(cam, save=False, count=0, interval=1.0):
                 continue
 
             # 打印帧信息
-            print(
-                f"[{time.strftime('%H:%M:%S')}] "
-                f"{info['width']}x{info['height']} "
-                f"encoding={info['encoding']} "
-                f"step={info['step']} "
-                f"ts={info['timestamp']:.3f}"
-            )
+            if not no_print:
+                print(
+                    f"[{time.strftime('%H:%M:%S')}] "
+                    f"{info['width']}x{info['height']} "
+                    f"encoding={info['encoding']} "
+                    f"step={info['step']} "
+                    f"ts={info['timestamp']:.3f}"
+                )
+
+            # cv2.imshow 实时预览
+            if preview:
+                img = cam.get_latest_image(encoding="bgr8")
+                if img is not None:
+                    cv2.imshow("Camera Preview", img)
+                    key = cv2.waitKey(1) & 0xFF
+                    if key in (27, ord("q"), ord("Q")):  # ESC / Q 退出
+                        print("Preview closed.")
+                        break
+                    shown += 1
+                    if count > 0 and shown >= count:
+                        print(f"  Previewed {shown} frames, done.")
+                        break
 
             # 保存为 PNG
             if save:
@@ -491,10 +516,18 @@ def cmd_print_info(cam, save=False, count=0, interval=1.0):
                         print(f"  Saved {saved} frames, done.")
                         break
 
+            # 同时开启 preview 和 save 时，count 对两者各自生效；任一达到即退出
+            if count > 0:
+                if (not preview or shown >= count) and (not save or saved >= count):
+                    break
+
             time.sleep(interval)
 
     except KeyboardInterrupt:
         print("\nInterrupted.")
+    finally:
+        if preview:
+            cv2.destroyAllWindows()
 
 
 def main(args=None):
@@ -510,12 +543,20 @@ def main(args=None):
         help="图像消息类型 (default: Image2m / shm_msgs.msg.Image2m)",
     )
     parser.add_argument(
+        "--preview", action="store_true",
+        help="cv2.imshow 实时预览 (按 Q 或 ESC 退出)",
+    )
+    parser.add_argument(
+        "--no-print", action="store_true",
+        help="预览模式下不打印帧信息",
+    )
+    parser.add_argument(
         "--save", action="store_true",
         help="保存图像为 PNG",
     )
     parser.add_argument(
         "--count", type=int, default=0,
-        help="保存帧数 (0=无限, default: 0)",
+        help="保存/预览帧数 (0=无限, default: 0)",
     )
     parser.add_argument(
         "--interval", type=float, default=1.0,
@@ -547,8 +588,10 @@ def main(args=None):
         rclpy.shutdown()
         return
 
-    print("Image received! Starting info display...\n")
-    cmd_print_info(cam, save=args.save, count=args.count, interval=args.interval)
+    mode = "preview" if args.preview else ("save" if args.save else "info display")
+    print(f"Image received! Starting {mode}...\n")
+    cmd_print_info(cam, save=args.save, preview=args.preview,
+                   no_print=args.no_print, count=args.count, interval=args.interval)
 
     cam.destroy_node()
     rclpy.shutdown()

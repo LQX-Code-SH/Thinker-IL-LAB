@@ -972,9 +972,15 @@ def main():
     if args.save:
         from utils.recorder import WalkerS2DataRecorder  # noqa: E402
 
+        def _parse_msg_type(name: str) -> type:
+            """将 'Image1m' / 'Image6m' 等字符串转为 shm_msgs.msg.* 类型。"""
+            import shm_msgs.msg
+            return getattr(shm_msgs.msg, name)
+
         cameras = {
-            name: Camera(topic=topic, node_name=f"walker_s2_save_{name}_camera")
-            for name, topic in CAMERA_TOPICS.items()
+            name: Camera(topic=cfg["topic"], msg_type=_parse_msg_type(cfg["msg_type"]),
+                         node_name=f"walker_s2_save_{name}_camera")
+            for name, cfg in CAMERA_TOPICS.items()
         }
         depth_camera = Camera(topic=DEFAULT_IMAGE_DEPTH_TOPIC, node_name="walker_s2_save_depth_camera")
         recorder = WalkerS2DataRecorder(cameras, depth_camera, save_hz=args.save_hz)

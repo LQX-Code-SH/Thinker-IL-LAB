@@ -17,7 +17,7 @@ from .driver import RealSenseD405Driver
 logger = logging.getLogger(__name__)
 
 # QoS profile matching Walker S2 camera topics (BEST_EFFORT + VOLATILE).
-# Compatible with ros2_walker_bridge.py CameraRelay subscriptions.
+# Compatible with walker_camera_relay.py subscriptions.
 SENSOR_QOS = QoSProfile(
     reliability=ReliabilityPolicy.BEST_EFFORT,
     history=HistoryPolicy.KEEP_LAST,

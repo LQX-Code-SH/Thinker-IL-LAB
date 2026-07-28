@@ -71,7 +71,7 @@ Config format (`configs/wrist_cameras.json`):
 
 ## Walker S2 Integration
 
-Publishes `shm_msgs/Image1m` on standard wrist topics. Bridge2 `CameraRelay` picks them up automatically — no extra config.
+Publishes `shm_msgs/Image1m` on standard wrist topics. `walker_camera_relay.py` picks them up automatically — no extra config.
 
 ```bash
 # Terminal 1

@@ -78,17 +78,16 @@ WALKER_S2_RIGHT_LEG_JOINTS = [
 # Position-control gains from the Walker S2 SDK joint parameter table.  Isaac Lab's
 # implicit actuator stiffness is the closest equivalent of the SDK pos_kp.
 #
-# Damping values are chosen to provide critical-to-slightly-overdamped response
-# (damping ratio ζ ≈ 0.8–1.2) for each joint group given its stiffness and typical
-# reflected inertia.  After the stiffness increase from 80–120 → 500–600, the
-# original damping of 40 gave a stiffness/damping ratio ≈ 15:1 which caused
-# underdamped overshoot ("bounce-back") on shoulder joints.  Current values target
-# stiffness/damping ≈ 6:1–8:1 for arms, ~10:1 for head/waist.
+# Damping is set to Kp/5 — matching the stiffness/damping ratio that Tienkung Pro
+# (80/20=4:1) empirically validates as stable in PhysX articulation drives.
+# Kd=0 causes persistent undamped oscillation; higher Kd ratios reduce overshoot
+# at the expense of slightly slower rise time.  effort_limit_sim + velocity_limit_sim
+# provide hard caps on top of the PD drive.
 WALKER_S2_HEAD_STIFFNESS = {
     "head_yaw_joint": 600,
     "head_pitch_joint": 600,
 }
-WALKER_S2_HEAD_DAMPING = {name: 60 for name in WALKER_S2_HEAD_STIFFNESS}
+WALKER_S2_HEAD_DAMPING = {name: 120 for name in WALKER_S2_HEAD_STIFFNESS}
 
 WALKER_S2_ARM_STIFFNESS = {
     "L_shoulder_pitch_joint": 600,
@@ -107,14 +106,14 @@ WALKER_S2_ARM_STIFFNESS = {
     "R_wrist_roll_joint": 600,
 }
 WALKER_S2_ARM_DAMPING = {
-    name: (70 if "roll" in name else 80) for name in WALKER_S2_ARM_STIFFNESS
+    name: (100 if "roll" in name else 120) for name in WALKER_S2_ARM_STIFFNESS
 }
 
 WALKER_S2_WAIST_STIFFNESS = {
     "waist_yaw_joint": 600,
     "waist_pitch_joint": 600,
 }
-WALKER_S2_WAIST_DAMPING = {name: 60 for name in WALKER_S2_WAIST_STIFFNESS}
+WALKER_S2_WAIST_DAMPING = {name: 120 for name in WALKER_S2_WAIST_STIFFNESS}
 
 WALKER_S2_LEG_STIFFNESS = {
     "L_hip_roll_joint": 1100,
@@ -131,13 +130,13 @@ WALKER_S2_LEG_STIFFNESS = {
     "R_ankle_roll_joint": 1600,
 }
 WALKER_S2_LEG_DAMPING = {
-    name: (55 if "hip_roll" in name or "hip_yaw" in name else 65 if "hip_pitch" in name or "knee" in name else 70)
+    name: (220 if "hip_roll" in name or "hip_yaw" in name else 300 if "hip_pitch" in name or "knee" in name else 320)
     for name in WALKER_S2_LEG_STIFFNESS
 }
 WALKER_S2_GRIPPER_STIFFNESS = {
-    name: 1200 for name in WALKER_S2_LEFT_HAND_JOINTS + WALKER_S2_RIGHT_HAND_JOINTS
+    name: 150 for name in WALKER_S2_LEFT_HAND_JOINTS + WALKER_S2_RIGHT_HAND_JOINTS
 }
-WALKER_S2_GRIPPER_DAMPING = {name: 60 for name in WALKER_S2_GRIPPER_STIFFNESS}
+WALKER_S2_GRIPPER_DAMPING = {name: 20 for name in WALKER_S2_GRIPPER_STIFFNESS}
 WALKER_S2_GRIPPER_HOME_POSE = {
     name: WALKER_S2_GRIPPER_JOINT_SIGNS[name]
     * ((WALKER_S2_GRIPPER_OPENING_MAX_M - WALKER_S2_GRIPPER_HOME_OPENING_M) / WALKER_S2_GRIPPER_OPENING_MAX_M)

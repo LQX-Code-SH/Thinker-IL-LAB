@@ -2,19 +2,25 @@
 
 ## Architecture Overview
 
-Dual-process bridge design (same pattern as TienKung): LeRobot (Python 3.12) communicates with `walker/ros2_walker_bridge.py` (Bridge2, Python 3.10) via ZMQ. Bridge2 interfaces with the Walker S2 robot hardware via ROS2 DDS using mc_task_msgs for body/V4 hand control and ecat_task_msgs for the 1-DOF PGC gripper variant. Camera images flow through the Bridge2 process via a separate ZMQ image port.
+Dual-process bridge design (same pattern as TienKung): LeRobot (Python 3.12) communicates with `walker/ros2_walker_bridge.py` (Bridge2, Python 3.10) via ZMQ for actions/status. Bridge2 interfaces with Walker S2 body/hand/gripper hardware via ROS2 DDS. Camera images flow through a **separate** `walker_camera_relay.py` process (Python 3.10), which subscribes to ROS2 `shm_msgs/Image*` topics and publishes JPEG over ZMQ to LeRobot's `WalkerCamera`.
 
 ```
 LeRobot Inference (Python 3.12)       Bridge2 (Python 3.10)
   ZMQ PUB → 5561 (actions)       →    ZMQ SUB ← 5561
   ZMQ SUB ← 5562 (status)        ←    ZMQ PUB → 5562
-  ZMQ SUB ← 5563 (images)        ←    ZMQ PUB → 5563
                                          │
                                     ROS2 DDS
                                          │
                                   ┌──────┴──────┐
                                   │             │
-                            Walker S2 HW    shm_msgs Camera
+                            Walker S2 HW    Body / Hand / Gripper
+
+LeRobot Inference (Python 3.12)       CameraRelay (Python 3.10, 独立进程)
+  ZMQ SUB ← 5563 (images)        ←    ZMQ PUB → 5563
+                                         │
+                                    ROS2 DDS
+                                         │
+                                  shm_msgs Camera Topics
 ```
 
 ## Deployment Configs
@@ -74,7 +80,7 @@ The plugin derives LeRobot features by appending `.pos`, e.g. `L_elbow_roll_join
 |------|-----------|---------|
 | 5561 | LeRobot PUB → Bridge2 SUB | action commands |
 | 5562 | Bridge2 PUB → LeRobot SUB | joint/gripper state |
-| 5563 | Bridge2 PUB → LeRobot SUB | Camera images (JPEG over JSON) |
+| 5563 | CameraRelay PUB → LeRobot SUB | Camera images (JPEG over JSON, via `walker_camera_relay.py`) |
 
 ## State/Action Layouts
 
@@ -144,7 +150,7 @@ V4 hand command uses `mode = [5, ...]` and clamps values by V4 joint limits.
 
 ### Camera
 
-Walker sim and real camera topics use different `shm_msgs/Image*` types per camera (Image1m/Image2m/Image6m). The Bridge2 camera relay subscribes to the configured `msg_type` and republishes JPEG frames over ZMQ 5563 for LeRobot.
+Walker sim and real camera topics use different `shm_msgs/Image*` types per camera (Image1m/Image2m/Image6m). The standalone `walker_camera_relay.py` process subscribes to the configured `msg_type`, resizes to the target resolution, and republishes JPEG frames over ZMQ 5563 for LeRobot.
 
 | Topic | Message Type | Purpose | QoS |
 |-------|-------------|---------|-----|

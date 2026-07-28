@@ -15,12 +15,13 @@ LeRobot (3.12) ──ZMQ 5559/5560──► Bridge2 (3.10) ──ROS2 DDS──�
 Walker S2:
 LeRobot (3.12) ──ZMQ 5561/5562──► Walker Bridge2 (3.10) ──ROS2 DDS──► Walker S2
                 │
-                └──ZMQ 5563 ◄── shm_msgs camera relay
+                └──ZMQ 5563──► CameraRelay (独立进程) ──ROS2 DDS──► shm_msgs Camera
 ```
 
 - **TienKung Bridge2** (`tienkung/ros2_deploy_bridge.py`): ZMQ 5559(action)/5560(state) <-> ROS2 DDS
 - **TienKung ImageServer** (`scripts/deploy/tienkung_pro/image_server.py`): 相机硬件 → ZMQ 5558 (JPEG) → ImageServerCamera
-- **Walker Bridge2** (`walker/ros2_walker_bridge.py`): ZMQ 5561(action)/5562(state)/5563(image) <-> ROS2 DDS
+- **Walker Bridge2** (`walker/ros2_walker_bridge.py`): ZMQ 5561(action)/5562(state) <-> ROS2 DDS（body + hand/gripper）
+- **Walker CameraRelay** (`walker/walker_camera_relay.py`): ZMQ 5563(image) ← ROS2 DDS shm_msgs camera topics
 
 ## 目录结构
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -171,14 +170,6 @@ class WalkerRobotConfig(RobotConfig):
     topic_left_hand_state: str = TOPIC_LEFT_HAND_STATE
     topic_right_hand_state: str = TOPIC_RIGHT_HAND_STATE
 
-    # Control
-    control_fps: float = 15.0
-    body_control_mode: str = "position"     # "velocity" | "pvt" | "position"
-    body_velocity_timeout: float = 0.3       # 速度模式超时（秒）
-    body_pvt_kp: float | dict | None = None  # PVT Kp 覆盖
-    body_pvt_kd: float | dict | None = None  # PVT Kd 覆盖
-    max_safe_velocity: float = 1.0           # 速度/PVT 最大关节速度 (rad/s)
-
     # Safety
     max_relative_target: float | None = None
     disable_torque_on_disconnect: bool = True
@@ -297,20 +288,6 @@ class WalkerRobotConfig(RobotConfig):
             self.right_hand_open_position = [0.0] * len(self.right_hand_joint_names)
         self.hand_open_position = list(self.left_hand_open_position or [])
 
-        # 环境变量覆盖控制模式（部署时无需完整 ROBOT_CONFIG JSON）
-        _env_mode = os.environ.get("BODY_CONTROL_MODE", "")
-        if _env_mode:
-            self.body_control_mode = _env_mode
-            import logging
-            _log = logging.getLogger(__name__)
-            _log.info("BODY_CONTROL_MODE=%s from environment", _env_mode)
-        _env_mvs = os.environ.get("BODY_MAX_SPEED", "")
-        if _env_mvs:
-            self.max_safe_velocity = float(_env_mvs)
-            import logging
-            _log = logging.getLogger(__name__)
-            _log.info("BODY_MAX_SPEED=%s from environment", _env_mvs)
-
     def _load_robot_config(self, path: Path) -> None:
         with path.open("r", encoding="utf-8") as f:
             cfg = json.load(f)
@@ -353,10 +330,6 @@ class WalkerRobotConfig(RobotConfig):
         self.body_joint_names = sum((self.body_groups[group] for group in _BODY_GROUPS), [])
 
         self.lock_joints = list(body_cfg.get("lock_joints", self.lock_joints))
-        self.body_control_mode = body_cfg.get("control_mode", self.body_control_mode)
-        self.body_velocity_timeout = float(body_cfg.get("velocity_timeout", self.body_velocity_timeout))
-        self.body_pvt_kp = body_cfg.get("pvt_kp", self.body_pvt_kp)
-        self.body_pvt_kd = body_cfg.get("pvt_kd", self.body_pvt_kd)
         body_home = body_cfg.get("home", {})
         if not isinstance(body_home, dict):
             raise ValueError("body.home must be an object keyed by real joint name")
