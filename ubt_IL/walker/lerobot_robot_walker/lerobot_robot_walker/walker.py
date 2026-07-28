@@ -68,6 +68,35 @@ def _kill_orphan_bridges() -> None:
         time.sleep(0.5)
 
 
+def _kill_orphan_camera_relays() -> None:
+    """Terminate any already-running walker_camera_relay.py processes."""
+    own_pid = os.getpid()
+    parent_pid = os.getppid()
+    pids = []
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        pid = int(entry)
+        if pid in (own_pid, parent_pid):
+            continue
+        try:
+            with open(f"/proc/{pid}/cmdline", "rb") as f:
+                parts = f.read().split(b"\x00")
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            continue
+        if len(parts) < 2:
+            continue
+        if parts[1].decode("utf-8", "replace").endswith("walker_camera_relay.py"):
+            pids.append(pid)
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    if pids:
+        time.sleep(0.5)
+
+
 class WalkerRobot(Robot):
     config_class = WalkerRobotConfig
     name = "walker"
@@ -119,6 +148,7 @@ class WalkerRobot(Robot):
         self._cmd_socket: zmq.Socket | None = None
         self._status_socket: zmq.Socket | None = None
         self._bridge_process: subprocess.Popen | None = None
+        self._camera_relay_process: subprocess.Popen | None = None
 
         # Thread-safe state caches (6 groups)
         self._state_lock = threading.Lock()
@@ -177,6 +207,8 @@ class WalkerRobot(Robot):
         # Start Bridge2 subprocess if enabled
         if self.config.bridge_enabled:
             self._start_bridge()
+            if self.config.camera_topics:
+                self._start_camera_relay()
 
         # Create ZMQ context and sockets
         self._zmq_context = zmq.Context()
@@ -251,6 +283,32 @@ class WalkerRobot(Robot):
 
         # Give bridge time to bind ZMQ ports
         time.sleep(1.0)
+
+    def _start_camera_relay(self) -> None:
+        """Start standalone camera relay subprocess (ROS2 shm_msgs → ZMQ JPEG)."""
+        from pathlib import Path
+
+        _kill_orphan_camera_relays()
+
+        camera_config = json.dumps({
+            "zmq_image_port": self.config.zmq_image_port,
+            "camera_topics": self.config.camera_topics,
+            "ros_namespace": self.config.ros_namespace,
+        })
+        script = Path(__file__).resolve().parent.parent.parent / "walker_camera_relay.py"
+        cmd = [
+            "bash", "-lc",
+            "source /opt/ros/humble/setup.bash 2>/dev/null || true; "
+            "source /ubt_IL/walker/walker_sdk_ros2/install/setup.bash 2>/dev/null || true; "
+            f"exec /usr/bin/python3 {shlex.quote(str(script))} --config {shlex.quote(camera_config)}",
+        ]
+
+        logger.info("Starting Walker Camera Relay: %s", script)
+        self._camera_relay_process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
     def _status_recv_loop(self) -> None:
         while self._running:
@@ -439,6 +497,17 @@ class WalkerRobot(Robot):
         if self._zmq_context is not None:
             self._zmq_context.term()
             self._zmq_context = None
+
+        # Terminate camera relay subprocess (before Bridge)
+        if self._camera_relay_process is not None:
+            logger.info("Stopping Walker Camera Relay...")
+            self._camera_relay_process.terminate()
+            try:
+                self._camera_relay_process.wait(timeout=5.0)
+            except subprocess.TimeoutExpired:
+                self._camera_relay_process.kill()
+                self._camera_relay_process.wait(timeout=2.0)
+            self._camera_relay_process = None
 
         # Terminate Bridge2 subprocess
         if self._bridge_process is not None:

@@ -476,7 +476,12 @@ class WalkerRobotConfig(RobotConfig):
         topics: dict[str, str] = spec["camera_topics"]
         per_camera_types: dict[str, str] = spec.get("camera_msg_types", {})
         self.camera_topics = {
-            k: {"topic": v, "msg_type": per_camera_types.get(k, DEFAULT_CAMERA_MSG_TYPE)}
+            k: {
+                "topic": v,
+                "msg_type": per_camera_types.get(k, DEFAULT_CAMERA_MSG_TYPE),
+                "width": 640,
+                "height": 360,
+            }
             for k, v in topics.items()
         }
         self.cameras = {
@@ -504,7 +509,12 @@ class WalkerRobotConfig(RobotConfig):
             if cam_type != "walker_camera":
                 raise ValueError(f"Unsupported Walker camera type for {name}: {cam_type!r}")
             ros_topic = cam_cfg.get("ros_topic", TOPIC_CAMERA_STEREO)
-            camera_topic_cfg = {"topic": ros_topic, "msg_type": cam_cfg.get("msg_type", "shm_msgs/Image2m")}
+            camera_topic_cfg = {
+                "topic": ros_topic,
+                "msg_type": cam_cfg.get("msg_type", "shm_msgs/Image2m"),
+                "width": int(cam_cfg.get("width", 640)),
+                "height": int(cam_cfg.get("height", 360)),
+            }
             self.camera_topics[name] = camera_topic_cfg
             cameras[name] = WalkerCameraConfig(
                 fps=int(cam_cfg["fps"]) if cam_cfg.get("fps") is not None else None,
@@ -603,16 +613,8 @@ class WalkerRobotConfig(RobotConfig):
         return {
             "robot_model": self.robot_model,
             "description": self.description,
-            "control_fps": self.control_fps,
-            "body_control_mode": self.body_control_mode,
-            "body_velocity_timeout": self.body_velocity_timeout,
-            "body_pvt_kp": self.body_pvt_kp,
-            "body_pvt_kd": self.body_pvt_kd,
-            "max_safe_velocity": self.max_safe_velocity,
             "zmq_cmd_port": self.zmq_cmd_port,
             "zmq_status_port": self.zmq_status_port,
-            "zmq_image_port": self.zmq_image_port,
-            "camera_topics": self.camera_topics,
             "ros_namespace": self.ros_namespace,
             "cmd_namespace": self.cmd_namespace,
             "body_groups": self.body_groups,
