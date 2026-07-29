@@ -69,7 +69,42 @@ ubt_IL/
 
 当前 Diffusion Policy 使用 `horizon=64`、`n_action_steps=32`、`n_obs_steps=2`，训练默认 `batch_size=8`、`steps=50000`。
 
-## 1. 启动仿真
+## 0. 首次构建容器
+
+首次使用需要分别构建仿真容器和 LeRobot 训练/推理容器。已经创建过容器时可跳过本节，
+直接从第 1 节开始。构建前请确认 Docker、NVIDIA 驱动和 NVIDIA Container Toolkit 可用。
+
+### 0.1 构建 Isaac Sim 仿真容器
+
+```bash
+cd ubt_sim/docker
+bash run.sh build
+bash run.sh start
+bash run.sh init
+bash run.sh check
+cd ../..
+```
+
+上述命令构建 `ubt-sim-isaac:latest` 镜像，创建并启动
+`walker-c1-ubt-sim` 容器，随后安装 `ubt_sim`、编译 Walker ROS 2 消息和图像桥接。
+`start` 是幂等操作：容器已存在时只会将其启动，不会重复创建。
+
+### 0.2 构建 LeRobot 训练与推理容器
+
+```bash
+cd ubt_IL/docker
+bash run.sh build
+CONTAINER_NAME=lerobot-walker-c1 DOMAIN_ID=146 bash run.sh start
+CONTAINER_NAME=lerobot-walker-c1 DOMAIN_ID=146 bash run.sh check
+cd ../..
+```
+
+必须显式设置 `CONTAINER_NAME=lerobot-walker-c1`，因为 `ubt_IL/docker/env.sh`
+的默认容器名是 `lerobot-tienkung`。`DOMAIN_ID=146` 表示连接 C1 仿真；
+后续连接真机时使用 `DOMAIN_ID=0`。首次启动会在容器入口中安装 LeRobot、
+Walker 插件并编译 ROS 2 消息，完成前不要中断。
+
+## 1. 启动已创建的仿真容器
 
 终端1：
 
@@ -106,7 +141,7 @@ docker exec -it walker-c1-ubt-sim \
 ubt_sim/dataset/walker_c1_ros/<episode_id>/trajectory.hdf5
 ```
 
-## 3. 启动训练容器
+## 3. 启动已创建的训练容器
 
 ```bash
 docker start lerobot-walker-c1
