@@ -86,15 +86,16 @@ DEFAULT_SIDE = "right"
 # 用 --grasp-rpy-deg 指定（度）；脚本会打印 target/achieved 位姿辅助调试。
 DEFAULT_GRASP_RPY_WORLD_DEG = None
 DEFAULT_PREGRASP_HEIGHT = 0.10          # pregrasp 在零件上方 world z 偏移
-DEFAULT_LIFT_HEIGHT = 0.10             # 抓起后 world z 抬升
-DEFAULT_GRASP_TARGET_OFFSET = (0.0, 0.0, 0.005)  # 抓取目标偏移（零件 world pos 的 xyz 偏移量）
-DEFAULT_PREGRASP_PITCH_DOWN_DEG = 10.0  # pregrasp 后 EE 局部 y 轴俯仰向下（度）
+DEFAULT_PREGRASP_Y_OFFSET = 0.10       # pregrasp 在零件后方 world -y 偏移
+DEFAULT_LIFT_HEIGHT = 0.20             # 抓起后 world z 抬升
+DEFAULT_GRASP_TARGET_OFFSET = (0.0, 0.0, -0.01)  # 抓取目标偏移（零件 world pos 的 xyz 偏移量）
+DEFAULT_PREGRASP_PITCH_DOWN_DEG = 20.0  # pregrasp 后 EE 局部 y 轴俯仰向下（度）
 DEFAULT_DURATION = 1.5               # 每段 delta 轨迹时长（s）
 DEFAULT_GRIPPER_DURATION = 1.0          # 夹爪开合等待超时（s）
 
 # ---- IK 默认 ----
 DEFAULT_ROT_WEIGHT = 0.10
-DEFAULT_UNLOCK_WAIST = True
+DEFAULT_UNLOCK_WAIST = False
 # IK 旋转轴权重（EE 局部系 x/y/z）：x=夹爪下方(≈世界/base z, 即 yaw)释放；
 # y=夹爪左方(俯仰)、z=夹爪前方(翻滚)约束。即"允许绕竖直轴旋转，减少俯仰/翻滚"。
 DEFAULT_ROT_AXIS_WEIGHTS = (0.0, 1.0, 1.0)
@@ -435,7 +436,7 @@ def randomize_part_positions(controller, part_monitor, part_names=DEFAULT_PART_S
 # ============================================================================
 def execute_pick_place(controller, part_monitor, part_name, *, side,
                        grasp_rpy_world, place_rpy_world,
-                       pregrasp_height, grasp_target_offset, lift_height,
+                       pregrasp_height, pregrasp_y_offset, grasp_target_offset, lift_height,
                        place_after_grasp, box_world_pos,
                        place_release_height, place_lift_height,
                        duration_per_step, gripper_duration,
@@ -462,11 +463,12 @@ def execute_pick_place(controller, part_monitor, part_name, *, side,
     box = np.asarray(box_world_pos, dtype=float)
     gto = np.asarray(grasp_target_offset, dtype=float)
     z_up = np.array([0.0, 0.0, 1.0], dtype=float)
+    y_back = np.array([0.0, -1.0, 0.0], dtype=float)
 
     # 所有路点统一放在可变容器 wp 中，lambda 闭包通过 wp[key] 访问；
     # 重试时更新 wp["<key>"] 即可，无需依赖 numpy 原地修改的隐式副作用。
     wp = {
-        "pregrasp": part_pos + z_up * float(pregrasp_height),
+        "pregrasp": part_pos + z_up * float(pregrasp_height) + y_back * float(pregrasp_y_offset),
         "grasp":    part_pos + gto,
         "lift":     part_pos + z_up * float(lift_height),
         "place_release": box + z_up * float(place_release_height),
@@ -491,6 +493,8 @@ def execute_pick_place(controller, part_monitor, part_name, *, side,
 
     # 放置到箱口时仅约束位置，不约束姿态（避免肘部触限位 R_elbow_yaw CLAMPED）
     place_ik = dict(ik_kwargs, rot_weight=0.0)
+    # 抬升时仅约束位置（同 place，不约束姿态）
+    lift_ik = dict(ik_kwargs, rot_weight=0.0)
 
     def move_to(label, target_xyz, target_rpy, ik_override=None):
         ik = ik_override if ik_override is not None else ik_kwargs
@@ -599,13 +603,12 @@ def execute_pick_place(controller, part_monitor, part_name, *, side,
             resync_grasp_target,
         ]),
         ("2: grasp", [lambda: move_to("grasp", wp["grasp"], grasp_rpy)]),
-        ("3: close+lift", [lambda: grip(False), lambda: move_to("lift", wp["lift"], grasp_rpy)]),
+        ("3: close+lift", [lambda: grip(False), lambda: (time.sleep(2.0), True)[-1], lambda: move_to("lift", wp["lift"], grasp_rpy, ik_override=lift_ik)]),
     ]
     if place_after_grasp:
         groups.append((
-            "4: ready+place_release",
-            [lambda: ready(1.0),
-             lambda: move_to("place_release", wp["place_release"], place_rpy, ik_override=place_ik)],
+            "4: place_release",
+            [lambda: move_to("place_release", wp["place_release"], place_rpy, ik_override=place_ik)],
         ))
         groups.append((
             "5: open(1s wait)+place_lift",
@@ -646,7 +649,7 @@ def execute_pick_place(controller, part_monitor, part_name, *, side,
                 break
             # 更新 wp 路点 dict（lambda 闭包通过 wp[key] 读取，无需 numpy 原地修改）
             part_pos = np.asarray(part_pose["pos"], dtype=float)
-            wp["pregrasp"] = part_pos + z_up * float(pregrasp_height)
+            wp["pregrasp"] = part_pos + z_up * float(pregrasp_height) + y_back * float(pregrasp_y_offset)
             resync_grasp_for_retry(part_pos)  # 更新 wp["grasp"] / wp["lift"]（含指尖偏移）
             logger.info(f"Retry part pos: {_fmt(part_pos)} grasp={_fmt(wp['grasp'])}")
 
@@ -729,6 +732,7 @@ def execute_pick_place(controller, part_monitor, part_name, *, side,
 def move_ee_by_waypoints(controller, part_monitor, part_name=DEFAULT_PART_NAME, *,
                          side=DEFAULT_SIDE, grasp_rpy_world=None, place_rpy_world=None,
                          pregrasp_height=DEFAULT_PREGRASP_HEIGHT,
+                         pregrasp_y_offset=DEFAULT_PREGRASP_Y_OFFSET,
                          grasp_target_offset=DEFAULT_GRASP_TARGET_OFFSET,
                          lift_height=DEFAULT_LIFT_HEIGHT,
                          place_after_grasp=DEFAULT_PLACE, box_world_pos=None,
@@ -770,7 +774,8 @@ def move_ee_by_waypoints(controller, part_monitor, part_name=DEFAULT_PART_NAME, 
     return execute_pick_place(
         controller, part_monitor, part_name,
         side=side, grasp_rpy_world=grasp_rpy_world, place_rpy_world=place_rpy_world,
-        pregrasp_height=pregrasp_height, grasp_target_offset=grasp_target_offset,
+        pregrasp_height=pregrasp_height, pregrasp_y_offset=pregrasp_y_offset,
+        grasp_target_offset=grasp_target_offset,
         lift_height=lift_height, place_after_grasp=place_after_grasp,
         box_world_pos=box_world_pos,
         place_release_height=place_release_height, place_lift_height=place_lift_height,
@@ -864,6 +869,8 @@ def parse_args():
                         help="仅覆盖 grasp RPY 的 yaw 分量（度）；需配合 --grasp-rpy-deg 使用")
     parser.add_argument("--pregrasp-height", type=float, default=DEFAULT_PREGRASP_HEIGHT,
                         help="pregrasp 在零件上方 world z 偏移 (m)")
+    parser.add_argument("--pregrasp-y-offset", type=float, default=DEFAULT_PREGRASP_Y_OFFSET,
+                        help="pregrasp 在零件后方 world -y 偏移 (m)")
     parser.add_argument("--grasp-target-offset", type=float, nargs=3, default=DEFAULT_GRASP_TARGET_OFFSET,
                         metavar=("X", "Y", "Z"), help="grasp 相对零件 world pos 的偏移 (m)")
     parser.add_argument("--pregrasp-pitch-down-deg", type=float, default=DEFAULT_PREGRASP_PITCH_DOWN_DEG,
@@ -932,6 +939,7 @@ def _build_move_kwargs(args):
         grasp_rpy_world=grasp_rpy_world,
         place_rpy_world=place_rpy_world,
         pregrasp_height=args.pregrasp_height,
+        pregrasp_y_offset=args.pregrasp_y_offset,
         grasp_target_offset=args.grasp_target_offset,
         lift_height=args.lift_height,
         place_after_grasp=args.place,

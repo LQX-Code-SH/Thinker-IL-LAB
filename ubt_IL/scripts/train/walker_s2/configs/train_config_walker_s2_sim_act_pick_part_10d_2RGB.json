@@ -1,10 +1,10 @@
 {
     "dataset": {
-        "repo_id": "Walker_S2_pick_part_real_30hz",
-        "root": "/ubt_IL/dataset/Walker_S2_pick_part_real_30hz",
+        "repo_id": "Walker_S2_sim_pick_part_10_2RGB",
+        "root": "/ubt_IL/dataset/Walker_S2_sim_pick_part_10_2RGB",
         "episodes": null,
         "image_transforms": {
-            "enable": true,
+            "enable": false,
             "max_num_transforms": 3,
             "random_order": false,
             "tfs": {
@@ -89,16 +89,16 @@
                 "type": "VISUAL",
                 "shape": [
                     3,
-                    256,
-                    320
+                    480,
+                    640
                 ]
             },
             "observation.images.camera_wrist_right": {
                 "type": "VISUAL",
                 "shape": [
                     3,
-                    240,
-                    320
+                    480,
+                    640
                 ]
             },
             "observation.state": {
@@ -117,16 +117,16 @@
             }
         },
         "device": "cuda",
-        "use_amp": true,
+        "use_amp": false,
         "use_peft": false,
         "push_to_hub": false,
-        "repo_id": "local/Walker_S2_pick_part_real_30hz_act",
+        "repo_id": "local/Walker_S2_sim_pick_part_10_2RGB_act",
         "private": null,
         "tags": null,
         "license": null,
         "pretrained_path": null,
-        "chunk_size": 50,
-        "n_action_steps": 50,
+        "chunk_size": 100,
+        "n_action_steps": 100,
         "normalization_mapping": {
             "VISUAL": "MEAN_STD",
             "STATE": "MEAN_STD",
@@ -146,28 +146,28 @@
         "latent_dim": 32,
         "n_vae_encoder_layers": 4,
         "temporal_ensemble_coeff": null,
-        "dropout": 0.15,
+        "dropout": 0.1,
         "kl_weight": 10.0,
         "optimizer_lr": 1e-04,
         "optimizer_weight_decay": 0.0001,
         "optimizer_lr_backbone": 1e-05
     },
     "reward_model": null,
-    "output_dir": "/ubt_IL/model/Walker_S2_pick_part_real_30hz_act",
-    "job_name": "Walker_S2_pick_part_real_30hz_act",
+    "output_dir": "/ubt_IL/model/Walker_S2_sim_pick_part_10_2RGB_act",
+    "job_name": "Walker_S2_sim_pick_part_10_2RGB_act",
     "resume": false,
     "seed": 1000,
     "cudnn_deterministic": false,
-    "num_workers": 8,
+    "num_workers": 4,
     "batch_size": 8,
     "prefetch_factor": 4,
     "persistent_workers": true,
-    "steps": 150000,
-    "eval_freq": 20000,
+    "steps": 50000,
+    "eval_freq": 10000,
     "log_freq": 200,
-    "tolerance_s": 0.0001,
+    "tolerance_s": 0.034,
     "save_checkpoint": true,
-    "save_freq": 20000,
+    "save_freq": 10000,
     "use_policy_training_preset": true,
     "optimizer": {
         "type": "adamw",

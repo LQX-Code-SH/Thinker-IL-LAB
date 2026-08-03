@@ -17,11 +17,30 @@ export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# PARTS=("part_a_ori" "part_a_red" "part_b_blue" "part_b_ori")
+PARTS=("part_a_red")
+
 for i in {1..400}
 do
-    echo "=================================="
-    echo "Starting iteration $i / 400"
-    echo "=================================="
-    python3 "$SCRIPT_DIR/pick_part.py" --save --all-parts --reset-scene --robot-init --no-unlock-waist
-    sleep 2
+    first=true
+    for part in "${PARTS[@]}"
+    do
+        if $first; then
+            extra_flags="--reset-scene --robot-init"
+            first=false
+        else
+            extra_flags=""
+        fi
+
+        echo "=================================="
+        echo "Iteration $i / 400 — Part: $part"
+        echo "=================================="
+        python3 "$SCRIPT_DIR/pick_part.py" \
+            --part "$part" \
+            --save \
+            --no-randomize-parts \
+            --no-unlock-waist \
+            $extra_flags
+        sleep 2
+    done
 done
