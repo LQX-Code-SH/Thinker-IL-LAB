@@ -1,5 +1,8 @@
 # Walker C1（Astron）：仿真采集、训练与推理
 
+> PICO 头部、双臂、双手遥操作入口见
+> [`ubt_sim/teleoperation/control/walker_c1/PICO_TELEOP.md`](ubt_sim/teleoperation/control/walker_c1/PICO_TELEOP.md)。
+
 以下命令均在仓库根目录执行。当前流程使用单个头部 RGB 相机、30 FPS、26维状态和26维动作。
 
 ## 项目概览
