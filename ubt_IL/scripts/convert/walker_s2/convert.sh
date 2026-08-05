@@ -33,6 +33,7 @@ usage() {
     echo "  HDF5_REL_PATH HDF5 相对于 episode 目录的路径 (默认: hdf5/metadata_aligned.hdf5)"
     echo "  RESAMPLE_FPS 目标帧率，启用重采样 (默认: 空=不启用)"
     echo "  TIMESTAMP_HDF5_KEY 时间戳 HDF5 路径 (默认: 空=自动探测)"
+    echo "  LABEL_ROOT    label.json 父目录 (默认: 空=不按标注分段)"
     echo ""
     echo "常用选项（透传）："
     echo "  --overwrite        覆盖已有输出数据集"
@@ -63,6 +64,7 @@ VCODEC="${VCODEC:-h264}"
 HDF5_REL_PATH="${HDF5_REL_PATH:-hdf5/metadata_aligned.hdf5}"
 RESAMPLE_FPS="${RESAMPLE_FPS:-}"
 TIMESTAMP_HDF5_KEY="${TIMESTAMP_HDF5_KEY:-}"
+LABEL_ROOT="${LABEL_ROOT:-}"
 PYTHON_SCRIPT="$SCRIPT_DIR/../common/convert_to_lerobot.py"
 
 # === 校验 ===
@@ -95,4 +97,5 @@ python "$PYTHON_SCRIPT" \
   --hdf5_rel_path "$HDF5_REL_PATH" \
   ${RESAMPLE_FPS:+--resample-fps "$RESAMPLE_FPS"} \
   ${TIMESTAMP_HDF5_KEY:+--timestamp-hdf5-key "$TIMESTAMP_HDF5_KEY"} \
+  ${LABEL_ROOT:+--label-root "$LABEL_ROOT"} \
   "$@"

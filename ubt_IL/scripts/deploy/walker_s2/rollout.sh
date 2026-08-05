@@ -22,7 +22,7 @@ PREVIEW_CAMERA_HEIGHT="${PREVIEW_CAMERA_HEIGHT:-0}"
 PREVIEW_CAMERA_TIMEOUT="${PREVIEW_CAMERA_TIMEOUT:-10.0}"
 PREVIEW_CAMERA_PRINT_FPS="${PREVIEW_CAMERA_PRINT_FPS:-1}"
 PREVIEW_CAMERA_WINDOW="${PREVIEW_CAMERA_WINDOW:-Walker camera}"
-RECORD_ACTIONS="${RECORD_ACTIONS:-0}"
+RECORD_ACTIONS="${RECORD_ACTIONS:-1}"
 RECORD_OUTPUT_DIR="${RECORD_OUTPUT_DIR:-/ubt_IL/scripts/deploy/output/walker_rollout_$(date +%Y%m%d_%H%M%S)}"
 
 # ── Validation ───────────────────────────────────────────────────────────────

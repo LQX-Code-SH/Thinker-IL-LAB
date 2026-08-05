@@ -354,6 +354,36 @@ def initialize_dataset(
     )
 
 
+def _load_label_segments(ep_dir_name: str, label_root: Path) -> list[tuple[int, int]] | None:
+    """Load segment ranges from label.json if it exists.
+
+    Returns a list of (start_frame, end_frame) tuples (end_frame is exclusive),
+    or None if no label file exists.
+    """
+    label_path = label_root / ep_dir_name / "label.json"
+    if not label_path.is_file():
+        logging.warning("No label.json found at %s — treating entire episode as one segment", label_path)
+        return None
+
+    with open(label_path, "r") as f:
+        label_data = json.load(f)
+
+    if label_data.get("result") != "pass":
+        logging.warning("Label result is '%s' (not 'pass') for %s — skipping segments",
+                        label_data.get("result"), ep_dir_name)
+        return []
+
+    datas = label_data.get("datas", [])
+    if not datas:
+        logging.warning("Label has no 'datas' entries for %s — treating entire episode as one segment", ep_dir_name)
+        return None
+
+    ranges = [(int(d["start_frame"]), int(d["end_frame"])) for d in datas]
+    # Sort by start_frame for safety; label.json is typically already sorted
+    ranges.sort(key=lambda r: r[0])
+    return ranges
+
+
 def process_episode(
     episode_path: Path,
     dataset: LeRobotDataset,
@@ -363,8 +393,16 @@ def process_episode(
     resample_fps: float | None = None,
     timestamp_hdf5_key: str | None = None,
     source_fps: float = 30,
-) -> bool:
-    """Process single episode from HDF5 into LeRobot dataset frames."""
+    segment_ranges: list[tuple[int, int]] | None = None,
+) -> int:
+    """Process single episode HDF5 into one or more LeRobot dataset episodes.
+
+    If *segment_ranges* is provided, each (start, end) pair produces a separate
+    episode (end is exclusive).  Otherwise the whole recording is saved as one
+    episode.
+
+    Returns the number of episodes saved (0 on failure).
+    """
     try:
         with h5py.File(episode_path, "r") as file:
             compose_fields = {}   # lerobot_key -> (parts_list, dtype)
@@ -434,7 +472,7 @@ def process_episode(
                         f"Frame count mismatch in {episode_path}: "
                         f"expected {num_frames}, got {len(p)}"
                     )
-                    return False
+                    return 0
 
         for arr in image_fields.values():
             if num_frames is None:
@@ -444,7 +482,7 @@ def process_episode(
                     f"Frame count mismatch in {episode_path}: "
                     f"expected {num_frames}, got {len(arr)} for image"
                 )
-                return False
+                return 0
 
         # --- frame-rate resampling (optional) ---
         if resample_fps is not None:
@@ -477,24 +515,51 @@ def process_episode(
 
     except (FileNotFoundError, OSError, KeyError) as e:
         logging.error(f"Skipped {episode_path}: {e}")
-        return False
+        return 0
 
+    # --- determine segment ranges ---
+    if segment_ranges is None:
+        ranges = [(0, num_frames)]
+    else:
+        # Validate and clamp ranges
+        ranges = []
+        for start, end in segment_ranges:
+            if start < 0 or end > num_frames or start >= end:
+                logging.warning(
+                    "Invalid segment range [%d, %d) for %d-frame episode %s — skipped",
+                    start, end, num_frames, episode_path.name,
+                )
+                continue
+            ranges.append((start, end))
+        if not ranges:
+            logging.warning("No valid segments for %s — skipping", episode_path.name)
+            return 0
+
+    # --- emit frames per segment ---
+    saved_count = 0
     try:
-        for i in tqdm(range(num_frames), desc=f"Processing {episode_path.name}"):
-            frame = {}
-            for lerobot_key, (parts, dtype) in compose_fields.items():
-                frame[lerobot_key] = np.concatenate(
-                    [p[i] for p in parts]
-                ).astype(dtype)
-            for lerobot_key, arr in image_fields.items():
-                frame[lerobot_key] = arr[i]
-            frame["task"] = task_name
-            dataset.add_frame(frame)
+        for seg_idx, (start, end) in enumerate(ranges):
+            seg_label = f"{episode_path.name}" if len(ranges) == 1 else f"{episode_path.name}/seg{seg_idx:02d}"
+            for i in tqdm(range(start, end), desc=f"Processing {seg_label}"):
+                frame = {}
+                for lerobot_key, (parts, dtype) in compose_fields.items():
+                    frame[lerobot_key] = np.concatenate(
+                        [p[i] for p in parts]
+                    ).astype(dtype)
+                for lerobot_key, arr in image_fields.items():
+                    frame[lerobot_key] = arr[i]
+                frame["task"] = task_name
+                dataset.add_frame(frame)
+            dataset.save_episode()
+            saved_count += 1
+            logging.info("Saved segment %d/%d: frames [%d, %d) (%d frames)",
+                         seg_idx + 1, len(ranges), start, end, end - start)
     except Exception as e:
         logging.error(f"Skipped {episode_path} during frame processing: {e}")
-        return False
+        dataset.clear_episode_buffer()
+        return saved_count
 
-    return True
+    return saved_count
 
 
 def str2bool(v: str) -> bool:
@@ -532,6 +597,11 @@ def main():
     parser.add_argument("--timestamp-hdf5-key", type=str, default=None,
                         help="Explicit HDF5 key for per-frame timestamps. "
                              "Auto-detected from known keys if omitted.")
+    parser.add_argument("--label-root", type=str, default=None,
+                        help="Root directory containing per-episode label.json files. "
+                             "Labels are looked up as <label-root>/<episode_dir_name>/label.json. "
+                             "When provided, each labeled segment becomes a separate episode; "
+                             "unlabeled frames between segments are dropped.")
     args = parser.parse_args()
 
     # Load configuration
@@ -583,26 +653,45 @@ def main():
     if skipped:
         logging.info(f"Skipping {len(skipped)} dir(s) without '{args.hdf5_rel_path}': {skipped}")
 
+    # --- load per-episode labels if --label-root is provided ---
+    label_root = Path(args.label_root) if args.label_root else None
+
     success_count = 0
+    total_segments = 0
     logging.info(f"Found {len(episode_pairs)} episodes to process...")
     for ep_dir, ep_path in episode_pairs:
-        if process_episode(
+        # Resolve segment ranges from label.json (if available)
+        segment_ranges = None  # None = treat whole episode as one segment
+        if label_root is not None:
+            segment_ranges = _load_label_segments(ep_dir.name, label_root)
+            if segment_ranges == []:
+                logging.warning("Skipping %s: label result is not 'pass'", ep_dir.name)
+                continue
+            if segment_ranges is not None:
+                logging.info("Label %s: %d segment(s)", ep_dir.name, len(segment_ranges))
+
+        n_saved = process_episode(
             ep_path, dataset, args.task_name, mapping, features,
             resample_fps=args.resample_fps,
             timestamp_hdf5_key=args.timestamp_hdf5_key,
             source_fps=source_fps,
-        ):
-            dataset.save_episode()
+            segment_ranges=segment_ranges,
+        )
+        if n_saved > 0:
             success_count += 1
-            logging.info(f"Saved episode: {ep_dir.name} ({success_count}/{len(episode_pairs)})")
+            total_segments += n_saved
+            logging.info(f"Saved episode: {ep_dir.name} → {n_saved} segment(s) ({success_count}/{len(episode_pairs)} source episodes, {total_segments} total segments)")
         else:
-            dataset.clear_episode_buffer()
+            logging.warning(f"No segments saved for {ep_dir.name}")
 
         if args.save_one:
             break
 
     dataset.finalize()
-    logging.info(f"Conversion complete: {success_count}/{len(episode_pairs)} episodes saved.")
+    if label_root is not None:
+        logging.info(f"Conversion complete: {success_count}/{len(episode_pairs)} source episodes → {total_segments} labeled segments.")
+    else:
+        logging.info(f"Conversion complete: {success_count}/{len(episode_pairs)} episodes saved.")
 
 
 if __name__ == "__main__":

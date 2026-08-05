@@ -368,6 +368,10 @@ def main():
         "--seed", type=int, default=0,
         help="Random seed for reproducibility (default: 0).",
     )
+    parser.add_argument(
+        "--save-predictions", action="store_true", default=False,
+        help="Include raw prediction and ground-truth arrays in output JSON (large file).",
+    )
 
     args = parser.parse_args()
 
@@ -489,6 +493,47 @@ def main():
     for r in all_results:
         print(f"  {r['episode']:8d}  {r['mse']:12.6f}  {r['n_steps']:8d}")
 
+    # ── Lag analysis ─────────────────────────────────────────────────────
+    if args.save_predictions:
+        print(f"\n{'='*60}")
+        print("Cross-correlation lag analysis")
+        print(f"{'='*60}")
+        for r in all_results:
+            preds = r["predictions"]  # [N, D]
+            gts = r["ground_truth"]
+            n_steps, n_dims = preds.shape
+            best_lags = []
+            max_search = min(150, n_steps // 4)  # search up to ±150 frames
+            for d in range(n_dims):
+                # Cross-correlation: slide pred over gt, find best match
+                best_corr = -np.inf
+                best_lag = 0
+                for lag in range(-max_search, max_search + 1):
+                    if lag < 0:
+                        # pred shifted left (earlier) relative to gt
+                        corr = np.corrcoef(preds[:lag, d], gts[-lag:, d])[0, 1]
+                    elif lag > 0:
+                        corr = np.corrcoef(preds[lag:, d], gts[:-lag, d])[0, 1]
+                    else:
+                        corr = np.corrcoef(preds[:, d], gts[:, d])[0, 1]
+                    if corr > best_corr:
+                        best_corr = corr
+                        best_lag = lag
+                best_lags.append(best_lag)
+            # Remove near-constant joints (head + grip) from summary
+            active_joints = [i for i in range(n_dims)
+                           if np.std(gts[:, i]) > 1e-4]
+            active_lags = [best_lags[i] for i in active_joints]
+            if active_lags:
+                mean_lag = np.mean(active_lags)
+                pos = "pred 比 GT 提前" if mean_lag < 0 else "pred 比 GT 滞后"
+                print(f"  Episode {r['episode']:4d}: mean lag = {mean_lag:+.1f} 帧  ({pos})")
+                print(f"  Per-joint lags:  " + "  ".join(
+                    f"{j:>6.0f}" for j in best_lags))
+                print(f"  Joint names:    " + "  ".join(
+                    f"{joint_names[i][:6]:>6s}" if i < len(joint_names) else f"{'':>6s}"
+                    for i in range(n_dims)))
+
     # Compute aggregate per-joint MSE
     all_mse_per_joint = np.array([r["mse_per_joint"] for r in all_results])  # [E, D]
     mean_mse_per_joint = np.mean(all_mse_per_joint, axis=0).tolist()
@@ -528,6 +573,14 @@ def main():
                     "mse": r["mse"],
                     "mse_per_joint": r["mse_per_joint"],
                     "n_steps": r["n_steps"],
+                    **(
+                        {
+                            "predictions": r["predictions"].tolist(),
+                            "ground_truth": r["ground_truth"].tolist(),
+                        }
+                        if args.save_predictions
+                        else {}
+                    ),
                 }
                 for r in all_results
             ],
