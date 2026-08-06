@@ -184,8 +184,29 @@ PY' >/dev/null 2>&1
         # Pass current SSH X11 auth cookie into the container.
         # xauth extract writes a binary Xauthority file — pipe via docker exec -i
         # to avoid shell null-byte issues inside $().
+        # 本机曾更名 (tegra-ubuntu -> vision) 且 SSH 会话反复开关，~/.Xauthority
+        # 同一 display 号会同时残留多条不同 cookie (vision/unix:N 与
+        # tegra-ubuntu:N)，sshd 的 X 代理 (TCP 601x，无 unix socket) 只接受其一，
+        # 且哪条 live 会随会话翻转。按名字 `xauth extract` 会随机抽到 live/过期
+        # 那条 -> 容器内 "X11 connection rejected because of wrong authentication"
+        # 或 cv2/libX11 连不上。故改用 xauth_live_cookie.py：逐条握手探测取 live
+        # cookie，写成 FamilyLocal+FamilyWild+FamilyInternet 多条条目 -- 既命中
+        # preview_camera._is_headless 的精确 _read_xauth (其 TCP 分支用 FamilyLocal
+        # 码查 host)，又命中 cv2/libX11 的 (family,address) 查找，无需关心 TCP/unix
+        # 或 127.0.0.1/127.0.1.1。
         _X11_DISPLAY="${DISPLAY:-}"
-        if [ -n "$_X11_DISPLAY" ] && command -v xauth &>/dev/null; then
+        if [ -n "$_X11_DISPLAY" ] && command -v xauth &>/dev/null && command -v python3 &>/dev/null; then
+            _XAUTH_TMP="$(mktemp)"
+            if python3 "$SCRIPT_DIR/xauth_live_cookie.py" "$_X11_DISPLAY" > "$_XAUTH_TMP" 2>/dev/null && [ -s "$_XAUTH_TMP" ]; then
+                sudo docker exec -i "$CONTAINER_NAME" sh -c "cat > /tmp/.xauth-docker" < "$_XAUTH_TMP" 2>/dev/null || true
+            else
+                # 探测失败 -> 退回按名字抽取
+                xauth extract - "$_X11_DISPLAY" 2>/dev/null | \
+                    sudo docker exec -i "$CONTAINER_NAME" sh -c "cat > /tmp/.xauth-docker" 2>/dev/null || true
+            fi
+            rm -f "$_XAUTH_TMP"
+        elif [ -n "$_X11_DISPLAY" ] && command -v xauth &>/dev/null; then
+            # 无 python3 -> 退回按名字抽取
             xauth extract - "$_X11_DISPLAY" 2>/dev/null | \
                 sudo docker exec -i "$CONTAINER_NAME" sh -c "cat > /tmp/.xauth-docker" 2>/dev/null || true
         fi

@@ -270,13 +270,13 @@ def _is_headless() -> bool:
         if host:
             port = 6000 + d
             sock = socket.create_connection((host, port), timeout=1.0)
-            family = b"\x01\x00"       # FamilyInternet
+            family = b"\x00\x00"       # FamilyInternet (0)
             conn_addr = host.encode()
         else:
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             sock.settimeout(1.0)
             sock.connect(f"/tmp/.X11-unix/X{d}")
-            family = b"\x00\x00"       # FamilyLocal
+            family = b"\x01\x00"       # FamilyLocal (256)
             conn_addr = socket.gethostname().encode()
 
         disp_bytes = str(d).encode()
