@@ -415,6 +415,14 @@ class Walker_S2_10D_2Camera(RobotConfig):
         "camera_wrist_right": "shm_msgs/Image1m",
     }
 
+    # 相机交付分辨率 (width, height)，必须与策略训练输入分辨率一致。
+    # relay 据此 resize ROS 帧、WalkerCamera 保持同尺寸(no-op)，模型直接收到训练分辨率。
+    # head  [3,256,320] -> H=256,W=320；wrist [3,240,320] -> H=240,W=320。
+    camera_sizes = {
+        "camera_head_right":  (320, 256),
+        "camera_wrist_right": (320, 240),
+    }
+
     camera_warmup_s = 10
 
 

@@ -46,6 +46,7 @@ case "${1:-}" in
                 --network=host \
                 --shm-size=16g \
                 --privileged \
+                --group-add video \
                 -v /dev:/dev \
                 -e DOMAIN_ID="$DOMAIN_ID" \
                 -e HF_HOME="$HF_HOME" \

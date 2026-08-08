@@ -104,7 +104,7 @@ Topic names can be overridden via `--cmd_namespace` CLI arg.
 | `dim_model` | 512 | Transformer dimension |
 | `use_vae` | true | VAE latent encoding |
 
-ACT produces 100-step action sequences per inference, executed fully before the next inference. At fps=15, one inference covers ~6.7s. GPU sync inference: ~50–100ms/step, real-world control rate ~5–10 Hz. Use `--inference.type=rtc` for async / higher frequency.
+ACT produces 100-step action sequences per inference, executed fully before the next inference. At fps=15, one inference covers ~6.7s. GPU sync inference (`--inference.type=sync`, default): ~50–100ms/step, real-world control rate ~5–10 Hz. Use `--inference.type=act_async` for ACT-specific async chunk inference (background daemon thread, latest-wins obs, whole-chunk pushed to bridge which fuses/interpolates/filters at 300 Hz). Note: `--inference.type=rtc` is diffusion-only (per-step denoising) and does NOT apply to ACT.
 
 ## Container Environment
 

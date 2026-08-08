@@ -87,6 +87,8 @@ RUN if ! id -u user_lerobot >/dev/null 2>&1; then \
         -i https://pypi.tuna.tsinghua.edu.cn/simple \
         "datasets>=4.7.0,<5.0.0" "pandas>=2.0.0,<3.0.0" \
         "pyarrow>=21.0.0,<30.0.0" "av>=15.0.0,<16.0.0" \
+        # ActionRecorder.plot() 部署对比曲线（cmd vs obs）依赖 matplotlib，Agg 后端免 X。
+        "matplotlib>=3.7.0,<3.10.0" \
     && chown -R user_lerobot:user_lerobot /lerobot /ubt_IL
 
 # Fast-DDS config: disable shared memory (fixes ROS2 data delivery inside Docker)

@@ -115,6 +115,7 @@ class CameraRelay:
         self._running = True
         self._latest_images: dict[str, tuple] = {}
         self._image_lock = threading.Lock()
+        self._logged_first: set[str] = set()
 
         # ZMQ image publisher
         self._zmq_context = zmq.Context()
@@ -128,6 +129,7 @@ class CameraRelay:
         from rclpy.executors import MultiThreadedExecutor
         from rclpy.node import Node
         from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+        from rclpy.callback_groups import ReentrantCallbackGroup
 
         if not rclpy.ok():
             rclpy.init()
@@ -140,6 +142,10 @@ class CameraRelay:
             depth=10,
             durability=DurabilityPolicy.VOLATILE,
         )
+
+        # Reentrant 组：允许各相机回调在 MultiThreadedExecutor 的多线程上并发执行，
+        # 避免 head(1920x1536 yuv422 重解码) 占满默认 MutuallyExclusive 组饿死其它相机。
+        cb_group = ReentrantCallbackGroup()
 
         # Dynamically resolve shm_msgs/Image* or sensor_msgs/Image type strings
         def _resolve_msg_type(msg_type_name: str):
@@ -170,6 +176,7 @@ class CameraRelay:
                 msg_type, topic,
                 lambda msg, name=cam_name: self._camera_callback(name, msg),
                 qos_sensor,
+                callback_group=cb_group,
             )
             target_w = cam_cfg.get("width", 640)
             target_h = cam_cfg.get("height", 360)
@@ -216,6 +223,10 @@ class CameraRelay:
             else:
                 logger.debug("Camera relay: unsupported encoding %s for %s", encoding, cam_name)
                 return
+
+            if cam_name not in self._logged_first:
+                self._logged_first.add(cam_name)
+                logger.info("Camera relay: first frame for %s, %dx%d %s", cam_name, width, height, encoding)
 
             # Resize to target resolution before JPEG encode (bandwidth optimization)
             cam_cfg = self._camera_topics.get(cam_name, {})

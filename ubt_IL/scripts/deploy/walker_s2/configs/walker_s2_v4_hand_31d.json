@@ -142,8 +142,20 @@
     "script": "/ubt_IL/walker/ros2_walker_bridge.py"
   },
   "safety": {
-    "max_relative_target": 0.02,
+    "max_relative_target": 0.2,
     "disable_torque_on_disconnect": true
+  },
+  "chunk_consumer": {
+    "enabled": true,
+    "blend_horizon": 10,
+    "blend_schedule": "smoothstep",
+    "interp_method": "hermite",
+    "smoothing_window": 1,
+    "transition_ramp_pts": 10,
+    "latency_compensation": true,
+    "control_hz": 300,
+    "publish_hz": 300,
+    "v_max": 2.0
   },
   "cameras": {
     "camera_head": {

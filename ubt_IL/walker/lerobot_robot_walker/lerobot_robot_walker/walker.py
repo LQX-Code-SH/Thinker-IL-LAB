@@ -149,6 +149,8 @@ class WalkerRobot(Robot):
         self._status_socket: zmq.Socket | None = None
         self._bridge_process: subprocess.Popen | None = None
         self._camera_relay_process: subprocess.Popen | None = None
+        # Relay subprocess stdout/stderr -> 文件（原 DEVNULL 会吞掉所有诊断信息）
+        self._camera_relay_log = None
 
         # Thread-safe state caches (6 groups)
         self._state_lock = threading.Lock()
@@ -304,10 +306,11 @@ class WalkerRobot(Robot):
         ]
 
         logger.info("Starting Walker Camera Relay: %s", script)
+        self._camera_relay_log = open("/tmp/walker_camera_relay.log", "ab", buffering=0)
         self._camera_relay_process = subprocess.Popen(
             cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=self._camera_relay_log,
+            stderr=subprocess.STDOUT,
         )
 
     def _status_recv_loop(self) -> None:
@@ -328,6 +331,9 @@ class WalkerRobot(Robot):
                 if len(values) >= len(features):
                     self._group_state[group][:] = values[:len(features)]
         self._state_ready.set()
+        # 路由实际位置到 recorder（60Hz 降采样落盘 actual.csv，供三轨迹对比绘图）
+        if self._recorder is not None:
+            self._recorder.record_actual(data)
 
     @check_if_not_connected
     def get_observation(self) -> RobotObservation:
@@ -425,6 +431,99 @@ class WalkerRobot(Robot):
                 sent_by_feature[name] = grouped[group][i]
         return {name: sent_by_feature[name] for name in self._all_joints}
 
+    @check_if_not_connected
+    def send_action_chunk(
+        self,
+        action_chunk: dict[str, list[float]],
+        *,
+        inference_time_sec: float = 0.0,
+        obs_time_sec: float = 0.0,
+        chunk_id: int = 0,
+        fps: float | None = None,
+        record: bool = True,
+    ) -> None:
+        """把整块 action chunk 推给桥接（chunk-to-bridge 模式）。
+
+        与 ``send_action`` 的区别：下发的是一整段 chunk（C 个时刻），而非单步动作。
+        桥接按消息含 ``n_points`` 字段分流到 chunk 消费路径（融合/插值/滤波/300Hz
+        下发）；不含 ``n_points`` 的旧消息仍走单动作 PD 路径（向后兼容）。
+
+        Args:
+            action_chunk: 键为 feature 名（.pos），值为该 feature 的 C 长度列。
+                非激活关节（不在 action_chunk 中的硬件关节）用 ``_inactive_fill``
+                填充为常量列，与单动作语义一致。
+            inference_time_sec: 本次推理耗时（桥接据此做延迟补偿，跳过过期前缀）。
+            obs_time_sec: obs 消费时刻（wall clock）；桥接用 L = ts - obs_time_sec 算精确
+                延迟（含后处理+发送，比 inference_time_sec 更全），并做 temporal ensemble
+                跨块时刻对齐。0 表示未知（退回用 inference_time_sec）。
+            chunk_id: chunk 序号（诊断用）。
+            fps: chunk 相邻点间距 = 1/fps（桥接据此加密到 300Hz）。
+            record: 是否落盘 chunks.csv（策略诊断）。关机回原点等非策略移动传 False，
+                避免污染 chunks.png predicted 段。
+
+        本方法只做分组 + 传输；安全 clamp（body 限位 / hand clip）由桥接在
+        chunk 消费时统一执行（与单动作路径的桥接 clamp 一致）。
+        """
+        import numpy as np
+
+        inactive = self._inactive_fill
+
+        # 确定 chunk 长度 C（从任意一个非空列取）
+        C = 0
+        for col in action_chunk.values():
+            if col is not None:
+                C = len(col)
+                break
+        if C == 0:
+            return None
+
+        def col_for(name: str) -> list[float]:
+            col = action_chunk.get(name)
+            if col is not None:
+                return [float(v) for v in col]
+            fill = float(inactive.get(name, 0.0))
+            return [fill] * C
+
+        # 每组构建 [C, len(group)]：每行是一个时刻该组所有关节的值
+        grouped: dict[str, list[list[float]]] = {}
+        for group, features in self._group_features.items():
+            cols = [col_for(name) for name in features]  # [len(group), C]
+            grouped[group] = np.array(cols, dtype=float).T.tolist()  # [C, len(group)]
+
+        action_msg = {
+            "left_arm": grouped["left_arm"],
+            "right_arm": grouped["right_arm"],
+            "head": grouped["head"],
+            "waist": grouped["waist"],
+            "left_hand": grouped["left_hand"],
+            "right_hand": grouped["right_hand"],
+            "n_points": C,
+            "fps": float(fps) if fps is not None else 0.0,
+            "inference_time_sec": float(inference_time_sec),
+            "obs_time_sec": float(obs_time_sec),
+            "chunk_id": int(chunk_id),
+            "ts": time.time(),
+        }
+
+        # 录制 chunk（act_async 诊断）：与单动作 record 互补，落盘 chunks.csv。
+        # act_async 模式下 rollout 期间只走本路径，单动作 record 不会触发，
+        # 故必须在此录制才能看到策略实际产出的 chunk（hold 还是真实轨迹）。
+        # record=False 用于关机回原点等非策略移动，避免污染 chunks.png predicted 段。
+        if record and self._recorder is not None:
+            with self._state_lock:
+                current_state = {group: list(self._group_state[group]) for group in self._group_features}
+            self._recorder.record_chunk(
+                action_msg=action_msg,
+                current_state=current_state,
+                timestamp=action_msg["ts"],
+            )
+
+        try:
+            self._cmd_socket.send_json(action_msg, flags=zmq.NOBLOCK)
+        except zmq.Again:
+            logger.warning("Chunk send dropped: ZMQ send buffer full (SNDHWM=1)")
+        return None
+
     @staticmethod
     def _clip_relative(
         goal: list[float], current: list[float], max_diff: float
@@ -461,25 +560,64 @@ class WalkerRobot(Robot):
             "ts": time.time(),
         }
 
+    def _send_home_chunk(self, duration_s: float = 2.0, fps: float = 50.0) -> None:
+        """平滑回 home：构造 current->home 插值 chunk 推桥接，300Hz densify 执行后 hold home。
+
+        关机回原点走 chunk 路径（而非单动作），与 act_async 的 300Hz 轨迹发布线程保持
+        单一指令源，避免双源拉锯抖动。复用 ``_home_action()`` 的分组目标：10d 等子集模型
+        下 left_arm/waist 为空组，桥接 ``_chunk_groups_to_body_array`` 跳过 -> SDK hold，
+        与单动作 home 语义一致。直连 ``_cmd_socket`` 发送（不经 send_action_chunk）-> 不污染
+        chunks.csv（predicted）；桥接 ``_handle_chunk`` 仍写 fused.csv（home 轨迹可诊断）。
+        ``chunk_id=-1`` 哨兵；``obs_time_sec=now`` -> 延迟补偿 L≈0、skip=0。
+        """
+        home = self._home_action()
+        C = max(int(duration_s * fps), 1)
+        with self._state_lock:
+            current = {g: list(self._group_state[g]) for g in self._group_features}
+        grouped: dict[str, list[list[float]]] = {}
+        for group, feats in self._group_features.items():
+            cur = current[group]
+            tgt = home.get(group, cur)
+            # [C, len(group)]：每行一个时刻该组所有关节的插值
+            grouped[group] = [
+                [cur[i] * (1 - t) + float(tgt[i]) * t for i in range(len(feats))]
+                for t in (s / C for s in range(1, C + 1))
+            ]
+        msg = {
+            **grouped,
+            "n_points": C,
+            "fps": float(fps),
+            "inference_time_sec": 0.0,
+            "obs_time_sec": time.time(),
+            "chunk_id": -1,
+            "ts": time.time(),
+        }
+        try:
+            self._cmd_socket.send_json(msg, flags=zmq.NOBLOCK)
+        except zmq.Again:
+            logger.warning("Home chunk send dropped: ZMQ send buffer full")
+
     @check_if_not_connected
     def disconnect(self) -> None:
-        # Optionally return to home position
+        # 平滑回 home：走 chunk 路径（300Hz densify 单源），避免与桥接 300Hz hold 线程
+        # 双源冲突抖动。recv 线程仍在运行 -> actual.csv 捕获 home 平滑段。
         if self.config.disable_torque_on_disconnect and self._state_ready.is_set():
-            logger.info("Returning to home position...")
+            logger.info("Returning to home position (smooth chunk)...")
             try:
-                self._cmd_socket.send_json(self._home_action(), flags=zmq.NOBLOCK)
-            except zmq.Again:
-                logger.warning("Home action send dropped: ZMQ send buffer full")
-            time.sleep(1.0)
+                self._send_home_chunk(duration_s=2.0, fps=50.0)
+                time.sleep(2.0)  # 等 300Hz densify 执行完
+            except Exception as e:
+                logger.warning("Home chunk failed: %s", e)
 
-        # Finalize action recorder (stop live plot → save CSV → plot PNG)
+        # 落盘 CSV（快）：在 kill 桥接前 save，actual.csv 含 home 平滑段。PNG 渲染
+        # （plot/plot_chunks，~22s）延后到桥接终止后，避免桥接 300Hz 线程存活期间
+        # 与 hold 指令长期冲突（旧实现在此处直接画图，拖 ~27s 抖动）。
         if self._recorder is not None:
             try:
                 self._recorder.stop_live_plot()
                 self._recorder.save()
-                self._recorder.plot()
             except Exception as e:
-                logger.error("ActionRecorder finalization failed: %s", e)
+                logger.error("ActionRecorder save failed: %s", e)
 
         # Stop receive thread
         self._running = False
@@ -508,6 +646,12 @@ class WalkerRobot(Robot):
                 self._camera_relay_process.kill()
                 self._camera_relay_process.wait(timeout=2.0)
             self._camera_relay_process = None
+        if self._camera_relay_log is not None:
+            try:
+                self._camera_relay_log.close()
+            except Exception:
+                pass
+            self._camera_relay_log = None
 
         # Terminate Bridge2 subprocess
         if self._bridge_process is not None:
@@ -519,6 +663,15 @@ class WalkerRobot(Robot):
                 self._bridge_process.kill()
                 self._bridge_process.wait(timeout=2.0)
             self._bridge_process = None
+
+        # PNG 渲染（慢，~22s）：桥接已终止、300Hz 线程死亡，机器人 SDK hold 在 home，
+        # 无双源冲突。读内存缓冲（save 后缓冲仍在），与桥接存活无关。
+        if self._recorder is not None:
+            try:
+                self._recorder.plot()
+                self._recorder.plot_chunks()
+            except Exception as e:
+                logger.error("ActionRecorder plot failed: %s", e)
 
         # Disconnect cameras
         for cam in self.cameras.values():

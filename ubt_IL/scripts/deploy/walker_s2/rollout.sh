@@ -11,10 +11,10 @@ POLICY_PATH="${POLICY_PATH:-}"
 ROBOT_MODEL="${ROBOT_MODEL:-walker_s2_31d}"
 # ROBOT_CONFIG 可选：指向自定义 JSON 覆盖文件（不使用 ROBOT_MODELS 默认参数时）。
 ROBOT_CONFIG="${ROBOT_CONFIG:-}"
-ALLOW_DIM_ONLY_POLICY="${ALLOW_DIM_ONLY_POLICY:-0}"
+ALLOW_DIM_ONLY_POLICY="${ALLOW_DIM_ONLY_POLICY:-1}"
 STRATEGY="${STRATEGY:-base}"
 FPS="${FPS:-13}"
-DURATION="${DURATION:-60}"
+DURATION="${DURATION:-30}"
 TASK="${TASK:-walker s2 rollout}"
 PREVIEW_CAMERA="${PREVIEW_CAMERA:-1}"
 PREVIEW_CAMERA_WIDTH="${PREVIEW_CAMERA_WIDTH:-0}"
@@ -24,6 +24,27 @@ PREVIEW_CAMERA_PRINT_FPS="${PREVIEW_CAMERA_PRINT_FPS:-1}"
 PREVIEW_CAMERA_WINDOW="${PREVIEW_CAMERA_WINDOW:-Walker camera}"
 RECORD_ACTIONS="${RECORD_ACTIONS:-1}"
 RECORD_OUTPUT_DIR="${RECORD_OUTPUT_DIR:-/ubt_IL/scripts/deploy/output/walker_rollout_$(date +%Y%m%d_%H%M%S)}"
+
+# 推理引擎类型：sync（默认，单动作）| act_async（异步产 chunk 整块推桥接，桥接做融合/插值/滤波）
+INFERENCE_TYPE="${INFERENCE_TYPE:-sync}"
+# act_async 参数（仅 INFERENCE_TYPE=act_async 时生效）
+INFERENCE_HZ="${INFERENCE_HZ:-0.6}"          # 重规划频率（每 ~1/INFERENCE_HZ 秒推一块新 chunk）。
+#   降频以扩大每块执行步数 = (1/INFERENCE_HZ)*fps，需 > chunk 静止前缀步数；否则只执行静止段、obs 不变陷入局部循环。
+#   0.6Hz@15fps -> 每块执行 ~25 步（过 onset）。推理耗时>周期时不睡（实际由延迟兜底）。
+EXECUTION_HORIZON="${EXECUTION_HORIZON:-0}"  # 截断 chunk 到前 N 步，0=不截断（推完整 chunk_size，如 10d 模型 50 步）
+# 桥接 chunk 消费者参数（透传给 bridge 子进程，需 export）
+BLEND_HORIZON="${BLEND_HORIZON:-10}"         # 动作块融合重叠点数：新 chunk 前缀与旧轨迹未执行后缀混合的步数。
+#   需 < 每块执行步数(exec=Δt×fps)的【下限】而非中位：exec 随 inference_time 波动(14-36)，
+#   取 10 < exec_min≈14，保证 纯新步数=exec-eff_blend≥4，快重规划时新预测仍能上纯(20 会让 exec 14 的块纯新为负)。
+#   过渡 0.67s@15fps(smoothstep+rate limit 足够平滑)。实际 eff_blend=min(本值,leftover)。
+export BLEND_HORIZON
+export INFERENCE_HZ                     # 桥接读它算固定执行步 E=round(fps/INFERENCE_HZ)（receding horizon）
+
+# ---- 桥接 300Hz 轨迹发布（chunk_consumer densify 后执行）----
+BODY_PUBLISH_HZ="${BODY_PUBLISH_HZ:-300}"             # body 发布线程频率（densify 后执行频率，与 control_hz 一致）
+BODY_V_MAX="${BODY_V_MAX:-2.0}"                       # rate_limit 单关节最大速度 rad/s
+export BODY_PUBLISH_HZ
+export BODY_V_MAX
 
 # ── Validation ───────────────────────────────────────────────────────────────
 
@@ -186,11 +207,25 @@ if [ -n "$ROBOT_CONFIG" ]; then
     ROBOT_CONFIG_ARG=(--robot.robot_config_path="$ROBOT_CONFIG")
 fi
 
+# 推理引擎参数（sync 不传；act_async 传 type + 异步参数）
+INFERENCE_ARGS=()
+if [ "$INFERENCE_TYPE" != "sync" ]; then
+    INFERENCE_ARGS+=(--inference.type="$INFERENCE_TYPE")
+fi
+if [ "$INFERENCE_TYPE" = "act_async" ]; then
+    INFERENCE_ARGS+=(
+        --inference.act_async.inference_hz="$INFERENCE_HZ"
+        --inference.act_async.execution_horizon="$EXECUTION_HORIZON"
+    )
+    echo "[INFO] act_async: inference_hz=$INFERENCE_HZ execution_horizon=$EXECUTION_HORIZON (chunk -> bridge 融合/插值/滤波)"
+fi
+
 /lerobot/.venv/bin/lerobot-rollout \
     --strategy.type="$STRATEGY" \
     --policy.path="$POLICY_PATH" \
     --robot.type=walker \
     "${ROBOT_CONFIG_ARG[@]}" \
+    "${INFERENCE_ARGS[@]}" \
     --robot.joint_config="$ROBOT_MODEL" \
     --task="$TASK" \
     --fps="$FPS" \

@@ -174,6 +174,10 @@ class WalkerRobotConfig(RobotConfig):
     max_relative_target: float | None = None
     disable_torque_on_disconnect: bool = True
 
+    # chunk 消费者配置（act_async 引擎整块 chunk 下发时透传给 ros2_walker_bridge.py：
+    # 融合/插值/滤波/300Hz 下发）。JSON 可只写需覆盖的字段，bridge 侧与默认合并。
+    chunk_consumer: dict = field(default_factory=dict)
+
     # Cameras (keyed by name matching policy's expected image key)
     cameras: dict[str, CameraConfig] = field(default_factory=dict)
     camera_topics: dict[str, dict[str, str]] = field(default_factory=dict)
@@ -422,6 +426,11 @@ class WalkerRobotConfig(RobotConfig):
             safety_cfg.get("disable_torque_on_disconnect", self.disable_torque_on_disconnect)
         )
 
+        # chunk_consumer 配置（透传 bridge；JSON 可只写需覆盖的字段，bridge 侧与默认合并）
+        chunk_consumer_cfg = cfg.get("chunk_consumer", {})
+        if chunk_consumer_cfg:
+            self.chunk_consumer = {**self.chunk_consumer, **chunk_consumer_cfg}
+
         self.cameras = self._load_cameras(cfg.get("cameras", {}))
         # JSON 配置不含 camera_to_image_key，默认恒等映射
         self._camera_to_image_key = {k: k for k in self.cameras}
@@ -448,19 +457,22 @@ class WalkerRobotConfig(RobotConfig):
         warmup = spec.get("camera_warmup_s", DEFAULT_CAMERA_WARMUP_S)
         topics: dict[str, str] = spec["camera_topics"]
         per_camera_types: dict[str, str] = spec.get("camera_msg_types", {})
+        # 每相机 (width, height)，须匹配策略训练输入分辨率：relay 据此 resize ROS 帧，
+        # WalkerCamera 保持同尺寸（no-op），模型收到训练分辨率。缺省回退 640x360。
+        camera_sizes: dict[str, tuple] = spec.get("camera_sizes", {})
         self.camera_topics = {
             k: {
                 "topic": v,
                 "msg_type": per_camera_types.get(k, DEFAULT_CAMERA_MSG_TYPE),
-                "width": 640,
-                "height": 360,
+                "width": camera_sizes.get(k, (640, 360))[0],
+                "height": camera_sizes.get(k, (640, 360))[1],
             }
             for k, v in topics.items()
         }
         self.cameras = {
             k: WalkerCameraConfig(
-                width=DEFAULT_CAMERA_WIDTH,
-                height=DEFAULT_CAMERA_HEIGHT,
+                width=camera_sizes.get(k, (DEFAULT_CAMERA_WIDTH, DEFAULT_CAMERA_HEIGHT))[0],
+                height=camera_sizes.get(k, (DEFAULT_CAMERA_WIDTH, DEFAULT_CAMERA_HEIGHT))[1],
                 fps=DEFAULT_CAMERA_FPS,
                 warmup_s=warmup,
                 timeout_ms=DEFAULT_CAMERA_TIMEOUT_MS,
@@ -617,4 +629,5 @@ class WalkerRobotConfig(RobotConfig):
             "topic_body_state": self.topic_body_state,
             "topic_left_hand_state": self.topic_left_hand_state,
             "topic_right_hand_state": self.topic_right_hand_state,
+            "chunk_consumer": self.chunk_consumer,
         }
