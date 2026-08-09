@@ -59,7 +59,7 @@ RUN /usr/bin/python3 -m pip install --upgrade pip \
     && /usr/bin/python3 -m pip install --no-cache-dir \
     --retries 5 --timeout 60 \
     -i https://pypi.tuna.tsinghua.edu.cn/simple \
-    pyzmq "numpy<2" "opencv-python<4.10" ikpy h5py \
+    pyzmq "numpy<2" "opencv-python<4.10" ikpy h5py pyrealsense2 \
     && ln -sf /usr/bin/python3 /usr/local/bin/rospython
 
 # LeRobot runtime venv. entrypoint.sh expects /lerobot/.venv and installs the
@@ -109,6 +109,17 @@ RUN mkdir -p /opt/jetson-wheels \
     && mv /tmp/jetson/torchvision.whl /opt/jetson-wheels/torchvision-0.22.1+59a3e1f-cp312-cp312-linux_aarch64.whl \
     && /lerobot/.venv/bin/pip install --no-deps --force-reinstall /opt/jetson-wheels/*.whl \
     && chown -R user_lerobot:user_lerobot /lerobot/.venv /opt/jetson-wheels
+
+# RealSense D405 wrist camera: 随镜像分发 pyrealsense2 驱动 + 注册插件(editable)到系统 Python 3.10。
+# 放在 venv/torch 之后,使相机包源码改动不致重建耗时的 venv 层。源码 COPY 仅为构建期 editable 注册
+# (.pth/CLI 入系统 site-packages,bind-mount 不覆盖);运行时 /ubt_IL 被 bind-mount 覆盖,
+# .pth 指向同一路径即解析到宿主机最新源码,保持 dev 可编辑。--no-deps:依赖已在系统 python。
+# -i 清华源:PEP 517 构建隔离需拉 setuptools>=61,基镜像默认 Jetson webredirect 索引不可达。
+COPY walker/realsense_wrist_camera /ubt_IL/walker/realsense_wrist_camera
+RUN /usr/bin/python3 -m pip install --no-cache-dir --no-deps \
+    --retries 5 --timeout 60 \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    -e /ubt_IL/walker/realsense_wrist_camera
 
 # Project code is bind-mounted at /ubt_IL; entrypoint performs editable installs.
 COPY docker/entrypoint.sh /opt/entrypoint.sh

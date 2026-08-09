@@ -145,12 +145,13 @@ if [ -d "/ubt_IL" ]; then
     fi
 
     # RealSense D405 wrist camera service (optional, on-demand install + start).
+    # arm64 镜像构建期已预装驱动+插件,此块仅作 x86/手动 fallback。
     # Set INSTALL_REALSENSE_WRIST_CAMERA=1 to auto-install at container startup.
     # Set REALSENSE_WRIST_CAMERA_CONFIG=/path/to/config.json to auto-start the service.
     if [ "${INSTALL_REALSENSE_WRIST_CAMERA:-0}" = "1" ]; then
-        if [ -f "/ubt_IL/realsense_wrist_camera/scripts/install.sh" ]; then
+        if [ -f "/ubt_IL/walker/realsense_wrist_camera/scripts/install.sh" ]; then
             echo "[entrypoint] Installing realsense_wrist_camera..."
-            bash /ubt_IL/realsense_wrist_camera/scripts/install.sh || \
+            bash /ubt_IL/walker/realsense_wrist_camera/scripts/install.sh || \
                 echo "[entrypoint] WARNING: realsense_wrist_camera install failed"
         fi
         export PATH="$HOME/.local/bin:$PATH"

@@ -152,6 +152,18 @@ PY' >/dev/null 2>&1
         show_new_logs
         echo "[INFO] Environment setup completed (${ELAPSED}s)"
 
+        # 自动启动 RealSense 腕部相机服务（驱动+插件已在 arm64 镜像构建期预装）。
+        # 设 ENABLE_WRIST_CAMERA=0 可跳过（纯训练/调试场景）。
+        # start.sh 自身后台化（nohup+PID 文件）；无相机时 --discover 退出非 0，用 || warn 兜底，
+        # 避免 set -e 中断 start。相机进程 reparent 到 PID 1（tail -f /dev/null）存活。
+        ENABLE_WRIST_CAMERA="${ENABLE_WRIST_CAMERA:-1}"
+        if [ "$ENABLE_WRIST_CAMERA" = "1" ]; then
+            echo "[INFO] Starting RealSense wrist camera service..."
+            sudo docker exec "$CONTAINER_NAME" \
+                bash /ubt_IL/walker/realsense_wrist_camera/scripts/start.sh \
+                || echo "[WARN] wrist camera did not start (相机未连接？进容器执行 'bash /ubt_IL/walker/realsense_wrist_camera/scripts/start.sh --fg' 排查)"
+        fi
+
         echo ""
         echo "Next steps:"
         echo "  Enter container:  bash run.sh bash"

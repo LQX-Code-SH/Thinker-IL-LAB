@@ -268,8 +268,7 @@ bash run.sh bash
 /usr/bin/python3 /ubt_IL/scripts/deploy/tienkung_pro/reset.py
 
 # 2. 启动推理（推荐脚本方式）
-POLICY_PATH=/ubt_IL/model/test_model DURATION=60 \
-  bash /ubt_IL/scripts/deploy/tienkung_pro/rollout.sh
+ROBOT_MODEL=walker_s2_10d POLICY_PATH=/ubt_IL/model/Pick_part_real_10d_2RGB_act/checkpoints/100000/pretrained_model INFERENCE_TYPE=act_async INFERENCE_HZ=2 FPS=15 DURATION=30 bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 ```
 
 也可使用 `lerobot-rollout` CLI 直接调用（真机需修改 `server_address` 为机器人实际 IP）：

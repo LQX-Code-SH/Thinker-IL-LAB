@@ -6,16 +6,16 @@ Intel RealSense D405 wrist camera ROS2 publisher for Walker S2.
 
 ```bash
 # 1. Install (auto-discovers cameras, generates config, persists PATH)
-bash /ubt_IL/realsense_wrist_camera/scripts/install.sh
+bash /ubt_IL/walker/realsense_wrist_camera/scripts/install.sh
 
 # 2. Start (background by default)
-bash /ubt_IL/realsense_wrist_camera/scripts/start.sh
+bash /ubt_IL/walker/realsense_wrist_camera/scripts/start.sh
 
 # 3. Check status
-bash /ubt_IL/realsense_wrist_camera/scripts/start.sh --status
+bash /ubt_IL/walker/realsense_wrist_camera/scripts/start.sh --status
 
 # 4. Stop
-bash /ubt_IL/realsense_wrist_camera/scripts/start.sh --stop
+bash /ubt_IL/walker/realsense_wrist_camera/scripts/start.sh --stop
 ```
 
 Run in foreground for debugging: `bash start.sh --fg`. All extra arguments
@@ -75,7 +75,7 @@ Publishes `shm_msgs/Image1m` on standard wrist topics. `walker_camera_relay.py` 
 
 ```bash
 # Terminal 1
-bash /ubt_IL/realsense_wrist_camera/scripts/start.sh
+bash /ubt_IL/walker/realsense_wrist_camera/scripts/start.sh
 
 # Terminal 2 — rollout as usual
 POLICY_PATH=/ubt_IL/model/<policy>/checkpoints/last/pretrained_model \

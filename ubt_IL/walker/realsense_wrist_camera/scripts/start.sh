@@ -62,6 +62,14 @@ if [ -f "${WALKER_WS}/install/setup.bash" ]; then
     source "${WALKER_WS}/install/setup.bash"
 fi
 
+# Docker 环境自洽：docker exec 新会话不继承 entrypoint 的 export，这里显式补齐。
+# ROS_DOMAIN_ID 优先用已有值，否则取容器 env 的 DOMAIN_ID（run.sh -e 传入），否则 0。
+# FastRTPS 禁用共享内存传输（Docker 内必需，即使 --network=host）。
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-${DOMAIN_ID:-0}}"
+if [ -f /opt/fastdds_no_shm.xml ]; then
+    export FASTRTPS_DEFAULT_PROFILES_FILE=/opt/fastdds_no_shm.xml
+fi
+
 # Ensure --user install CLI scripts are on PATH
 if [ -d "$HOME/.local/bin" ]; then
     export PATH="$HOME/.local/bin:$PATH"

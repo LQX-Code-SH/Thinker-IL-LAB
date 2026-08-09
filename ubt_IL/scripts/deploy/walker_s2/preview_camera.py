@@ -434,7 +434,18 @@ def main() -> int:
     executor = MultiThreadedExecutor(num_threads=max(2, len(entries) + 1))
     for e in entries:
         executor.add_node(e.node)
-    spin_thread = threading.Thread(target=executor.spin, daemon=True)
+
+    # Wrap executor.spin: on shutdown the signal handler invalidates the rclpy
+    # context asynchronously, and the spin thread's next spin_once() raises
+    # RCLError ("rcl_shutdown() was called"). Swallow it so the daemon thread
+    # exits quietly instead of printing "Exception in thread Thread-1 (spin)".
+    def _spin(exec: MultiThreadedExecutor) -> None:
+        try:
+            exec.spin()
+        except Exception:
+            pass
+
+    spin_thread = threading.Thread(target=_spin, args=(executor,), daemon=True)
     spin_thread.start()
 
     # ── Main loop ────────────────────────────────────────────────────────
@@ -565,8 +576,10 @@ def main() -> int:
         # rclpy.shutdown() asynchronously — the context may already be
         # invalid by the time we reach this block.  Guard every ROS2 call.
         if not rclpy.ok():
-            # Already shut down by signal handler; spin_thread is a daemon
-            # so it won't block process exit.
+            # Already shut down by signal handler. _spin swallows the RCLError
+            # raised on the invalid context, so join lets the daemon thread
+            # exit cleanly before we return (avoids a stray stderr trace).
+            spin_thread.join(timeout=2.0)
             return return_code
 
         try:

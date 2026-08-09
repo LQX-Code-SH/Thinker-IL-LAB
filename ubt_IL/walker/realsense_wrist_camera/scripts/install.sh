@@ -109,7 +109,7 @@ fi
 echo ""
 echo "[realsense_wrist_camera] Installation complete."
 echo ""
-echo "  One-command start: bash /ubt_IL/realsense_wrist_camera/scripts/start.sh"
+echo "  One-command start: bash /ubt_IL/walker/realsense_wrist_camera/scripts/start.sh"
 echo ""
 echo "  Config:            $PKG_DIR/configs/wrist_cameras.json"
 echo "  Re-discover:       find-realsense-cameras"
