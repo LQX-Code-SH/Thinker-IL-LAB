@@ -41,7 +41,7 @@ case "${1:-}" in
             if [ -n "$DOCKER_GPU_ARGS" ]; then
                 read -r -a GPU_ARGS <<< "$DOCKER_GPU_ARGS"
             fi
-            sudo docker run -d --name "$CONTAINER_NAME" \
+            sudo docker run -d --init --name "$CONTAINER_NAME" \
                 "${GPU_ARGS[@]}" \
                 --network=host \
                 --shm-size=16g \

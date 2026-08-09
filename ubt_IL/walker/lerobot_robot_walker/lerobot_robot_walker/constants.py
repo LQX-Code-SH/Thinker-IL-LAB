@@ -96,14 +96,14 @@ V4_HAND_JOINT_LIMITS = {
 
 # ── 归位位姿（17-dim body，按 BODY_JOINT_NAMES 顺序）──
 READY_POSE = {
-    "L_elbow_roll_joint":       -1.5600,
+    "L_elbow_roll_joint":       -1.7000,
     "L_elbow_yaw_joint":        2.8800,
     "L_shoulder_pitch_joint":   0.0000,
     "L_shoulder_roll_joint":    -0.1500,
     "L_shoulder_yaw_joint":     -1.5600,
     "L_wrist_pitch_joint":      0.0000,
     "L_wrist_roll_joint":       0.0000,
-    "R_elbow_roll_joint":       -1.5600,
+    "R_elbow_roll_joint":       -1.7000,
     "R_elbow_yaw_joint":        -2.8800,
     "R_shoulder_pitch_joint":   0.0000,
     "R_shoulder_roll_joint":    -0.1500,
