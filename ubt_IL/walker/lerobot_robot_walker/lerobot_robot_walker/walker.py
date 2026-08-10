@@ -524,6 +524,20 @@ class WalkerRobot(Robot):
             logger.warning("Chunk send dropped: ZMQ send buffer full (SNDHWM=1)")
         return None
 
+    def hold_trajectory(self) -> None:
+        """通知桥接立即 hold 当前位姿(stop 用)：发 hold 控制消息，桥接截断轨迹。
+
+        stop 经此让桥接把 _body_traj 截断为单点当前 _q_cmd + 标记耗尽，300Hz 线程 hold、
+        不再 drain 已入队 chunk(最坏 ~6.7s)。下块 chunk 走首帧平滑重启。
+        """
+        sock = self._cmd_socket
+        if sock is None:
+            return
+        try:
+            sock.send_json({"hold": 1, "ts": time.time()}, flags=zmq.NOBLOCK)
+        except zmq.Again:
+            logger.warning("Hold send dropped: ZMQ send buffer full (SNDHWM=1)")
+
     @staticmethod
     def _clip_relative(
         goal: list[float], current: list[float], max_diff: float

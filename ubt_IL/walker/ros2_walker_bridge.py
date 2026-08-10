@@ -500,6 +500,11 @@ class WalkerRealRobotBridge:
             if action is None:
                 time.sleep(0.001)                # 避免忙循环 100% CPU
                 continue
+            # hold 控制消息（stop 立即停）：截断轨迹为单点当前位 + 标记耗尽，300Hz hold。
+            # 须在 n_points/单动作分流之前截出（hold 消息无 n_points，否则误入单动作路径）。
+            if action.get("hold"):
+                self._handle_hold()
+                continue
             # chunk 消息（act_async 引擎整块下发）
             if action.get("n_points"):
                 if self._chunk_consumer_enabled:
@@ -638,6 +643,22 @@ class WalkerRealRobotBridge:
         pps = max(1, int(round(self._chunk_control_hz * self._traj_point_dt)))
         return remaining[::pps]
 
+    def _handle_hold(self) -> None:
+        """立即 hold 当前位姿(stop 用)：轨迹截断为单点 _q_cmd + 标记耗尽。
+
+        300Hz 线程见 idx>=len -> hold 末帧(=当前 _q_cmd)、不推进；_chunk_mode 仍 True、
+        _body_traj 非空 -> 稳定 hold，不触发单动作双源。hand 状态清空避免冻结后
+        cp 回跳误发 hand[0]。下一块 chunk 因 traj_exhausted=True 走首帧平滑重启
+        (插 _body_pos 实际位 + hermite)，与 start/stop 突变修复一致。
+        """
+        with self._pd_lock:
+            if self._q_cmd is None:
+                return
+            self._body_traj = np.array([self._q_cmd], dtype=float)  # [1, n_body]
+            self._body_traj_index = 1                               # 标记耗尽 -> hold + 下块首帧
+            self._hand_traj = {"left": None, "right": None}         # 避免冻结后 hand cp 回跳
+            self._last_hand_cp = -1
+
     def _handle_chunk(self, msg: dict) -> None:
         """消费整块 chunk：延迟补偿 -> 融合 -> 插值加密 -> 滤波 -> 过渡 ramp -> 设轨迹。
 
@@ -661,13 +682,33 @@ class WalkerRealRobotBridge:
         consume_ts = time.time()
         obs_ts = float(msg.get("obs_time_sec", 0.0))
 
-        # 首帧判断：无前驱轨迹（首次 chunk 或轨迹已执行完）。首块推理 warmup 耗时大，
-        # skip 会跳过整块 chunk 大部分点 -> 执行起点远离实际位置。改为不 skip，插当前点。
+        # 首帧判断：无前驱轨迹，或前驱轨迹【已执行完】（stop 暂停后 hold 末帧）。
+        # 首块推理 warmup 耗时大，skip 会跳过整块 chunk 大部分点 -> 执行起点远离实际位置，
+        # 改为不 skip、插当前点。exhausted 判定是关键：stop(pause) 不通知桥接，_chunk_mode
+        # 仍 True、_body_traj 仍指向已耗尽旧轨迹；若不判 exhausted，resume 后首块误走「后续帧」
+        # 延迟补偿 skip 路径，从 hold 位突跳到 chunk[l] -> 与首帧同款突变。exhausted 即视作
+        # 首帧，插当前实际位、hermite 平滑重启。常态重规划时新块到达前旧轨迹总有剩余
+        # （chunk ~6.7s@100pts/15fps ≫ 1/inference_hz），exhausted 仅在 pause/停滞命中，不影响 blend。
+        # 先在 _pd_lock 外快照实际位置 _body_pos（_body_state_lock 保护），避免锁嵌套。
+        with self._body_state_lock:
+            actual_pos = list(self._body_pos)
         with self._pd_lock:
-            is_first = self._body_traj is None or not self._chunk_mode
+            traj_exhausted = (
+                self._body_traj is None
+                or len(self._body_traj) == 0
+                or self._body_traj_index >= len(self._body_traj)
+            )
+            is_first = traj_exhausted or not self._chunk_mode
             prev_leftover = self._current_body_traj_leftover() if not is_first else None
-            current_q = (np.array(self._q_cmd, dtype=float)
-                         if self._q_cmd is not None else body[0].copy())
+            if is_first:
+                # 首帧/停启后首块：从【实际位置】过渡。_q_cmd 在无 publishing 间隙
+                # （preheat/READY 期未 start）冻结为首次 state 值、可能陈旧；actual_pos 恒新鲜。
+                q_src = actual_pos if self._body_state_ready.is_set() else self._q_cmd
+                current_q = (np.array(q_src, dtype=float)
+                             if q_src is not None else body[0].copy())
+            else:
+                current_q = (np.array(self._q_cmd, dtype=float)
+                             if self._q_cmd is not None else body[0].copy())
 
         if is_first:
             # 首帧：不 skip，把当前实际位置插到 chunk 最前方，hermite 从实际位置平滑过渡
