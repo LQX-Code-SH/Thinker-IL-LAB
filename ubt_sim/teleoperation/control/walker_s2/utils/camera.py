@@ -53,7 +53,7 @@ import time
 from typing import Optional
 
 import yaml
-from collections import deque
+from collections import deque, namedtuple
 
 import cv2
 import numpy as np
@@ -86,6 +86,12 @@ _KNOWN_ENCODINGS = [
     "8UC1", "8UC3", "8UC4",
     "8SC1", "8SC3", "8SC4",
 ]
+
+# 已解码帧的统一结构。Camera._get_latest_frame 返回 img=ndarray(源 encoding/dtype);
+# camera_worker.CameraShmClient 返回 img=JPEG bytes。recorder 据 isinstance 分支处理。
+_Frame = namedtuple(
+    "_Frame", ["img", "ts", "height", "width", "encoding", "step", "frame_id"]
+)
 
 
 class Camera(Node):
@@ -416,6 +422,35 @@ class Camera(Node):
             if len(self._buffer) > 0:
                 return self._buffer[-1]
         return None
+
+    def _get_latest_frame(self):
+        """返回最新帧的 _Frame(img=已解码 ndarray, ts=header.stamp, ...)。
+
+        一次取已解码图像 + 元信息,消除 recorder 原 get_latest_image() + get_image_info()
+        的双锁双取,且去重命中时下游不再白 decode 一帧。保持源 dtype(深度 16UC1/32FC1
+        不被压成 uint8)。供 recorder / camera_worker 共用 _Frame 接口。
+        """
+        with self._buffer_lock:
+            msg = self._buffer[-1] if len(self._buffer) > 0 else None
+        if msg is None:
+            return None
+        try:
+            img = np.ascontiguousarray(self.decode_image(msg))  # 保持源 dtype
+        except Exception as e:
+            self.get_logger().error(f"Failed to decode image: {e}")
+            return None
+        frame_id = msg.header.frame_id
+        if hasattr(frame_id, 'data'):
+            frame_id = ''.join(chr(c) for c in frame_id.data if c != 0)
+        return _Frame(
+            img=img,
+            ts=msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9,
+            height=msg.height,
+            width=msg.width,
+            encoding=self.resolve_encoding(msg),
+            step=msg.step,
+            frame_id=frame_id,
+        )
 
     def get_image_info(self):
         """获取最新帧的元信息。

@@ -979,26 +979,38 @@ def main():
     # ---- --save 分支：录制 HDF5 ----
     if args.save:
         from utils.recorder import WalkerS2DataRecorder  # noqa: E402
+        from utils.camera_worker import create_camera_source  # noqa: E402
 
         def _parse_msg_type(name: str) -> type:
             """将 'Image1m' / 'Image6m' 等字符串转为 shm_msgs.msg.* 类型。"""
             import shm_msgs.msg
             return getattr(shm_msgs.msg, name)
 
-        cameras = {
-            name: Camera(topic=cfg["topic"], msg_type=_parse_msg_type(cfg["msg_type"]),
-                         node_name=f"walker_s2_save_{name}_camera")
-            for name, cfg in CAMERA_TOPICS.items()
-        }
+        # stereo(Image6m, 6MB/帧)隔离到子进程避免 GIL 饿死 wrist;wrist/depth 留主进程
+        camera_workers = []
+        cameras = {}
+        for name, cfg in CAMERA_TOPICS.items():
+            if cfg.get("isolate", name.startswith("stereo")):
+                worker, client = create_camera_source(cfg["topic"], cfg["msg_type"], name)
+                worker.start()
+                camera_workers.append(worker)
+                cameras[name] = client
+            else:
+                cameras[name] = Camera(
+                    topic=cfg["topic"], msg_type=_parse_msg_type(cfg["msg_type"]),
+                    node_name=f"walker_s2_save_{name}_camera",
+                )
         depth_camera = Camera(topic=DEFAULT_IMAGE_DEPTH_TOPIC, node_name="walker_s2_save_depth_camera")
         recorder = WalkerS2DataRecorder(cameras, depth_camera, save_hz=args.save_hz)
 
-        # controller + part_monitor + 4 cameras + depth_camera + recorder
+        # controller + part_monitor + wrist/depth cameras + recorder
+        # (stereo 已隔离到子进程，CameraShmClient 非 Node，不 add_node)
         executor = MultiThreadedExecutor(num_threads=3 + len(cameras) + 1)
         executor.add_node(controller)
         executor.add_node(part_monitor)
         for cam in cameras.values():
-            executor.add_node(cam)
+            if isinstance(cam, Camera):   # 仅主进程 Camera(wrist)；stereo client 跳过
+                executor.add_node(cam)
         executor.add_node(depth_camera)
         executor.add_node(recorder)
         spin_thread = threading.Thread(target=executor.spin, daemon=True)
@@ -1063,6 +1075,8 @@ def main():
         except KeyboardInterrupt:
             controller.get_logger().warning("Interrupted by user")
         finally:
+            for w in camera_workers:
+                w.stop()
             try:
                 recorder.save_timer.cancel()
             except Exception:
@@ -1072,7 +1086,10 @@ def main():
             recorder.destroy_node()
             depth_camera.destroy_node()
             for cam in cameras.values():
-                cam.destroy_node()
+                if isinstance(cam, Camera):
+                    cam.destroy_node()
+                else:
+                    cam.cleanup()        # stereo CameraShmClient: SharedMemory close+unlink
             part_monitor.destroy_node()
             controller.destroy_node()
             rclpy.shutdown()

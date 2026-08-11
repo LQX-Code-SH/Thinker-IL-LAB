@@ -28,10 +28,10 @@ DEFAULT_IMAGE_WRIST_LEFT_TOPIC = "/sensor/camera/wrist_left/color/raw"
 DEFAULT_IMAGE_WRIST_RIGHT_TOPIC = "/sensor/camera/wrist_right/color/raw"
 
 CAMERA_TOPICS = {
-    "stereo_left":  {"topic": DEFAULT_IMAGE_STEREO_LEFT_TOPIC,  "msg_type": "Image6m"},
-    "stereo_right": {"topic": DEFAULT_IMAGE_STEREO_RIGHT_TOPIC, "msg_type": "Image6m"},
-    "wrist_left":   {"topic": DEFAULT_IMAGE_WRIST_LEFT_TOPIC,   "msg_type": "Image1m"},
-    "wrist_right":  {"topic": DEFAULT_IMAGE_WRIST_RIGHT_TOPIC,  "msg_type": "Image1m"},
+    "stereo_left":  {"topic": DEFAULT_IMAGE_STEREO_LEFT_TOPIC,  "msg_type": "Image6m", "isolate": True},
+    "stereo_right": {"topic": DEFAULT_IMAGE_STEREO_RIGHT_TOPIC, "msg_type": "Image6m", "isolate": True},
+    "wrist_left":   {"topic": DEFAULT_IMAGE_WRIST_LEFT_TOPIC,   "msg_type": "Image1m", "isolate": False},
+    "wrist_right":  {"topic": DEFAULT_IMAGE_WRIST_RIGHT_TOPIC,  "msg_type": "Image1m", "isolate": False},
 }
 
 DEFAULT_CONTROL_HZ = 200

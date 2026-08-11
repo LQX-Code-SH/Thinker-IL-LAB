@@ -342,9 +342,10 @@ class WalkerS2DataRecorder(Node):
                     "timestamp": self.get_clock().now().nanoseconds / 1e9,
                 }
 
-            # 多路相机图像采集（含帧去重）
+            # 多路相机图像采集（含帧去重）；_get_rgb_image 统一返回 (JPEG bytes, ts)
             for cam_name, cam in self.cameras.items():
-                snapshot[f"img_{cam_name}"] = self._get_rgb_image(cam, cam_name)
+                img_bytes, _ts = self._get_rgb_image(cam, cam_name)
+                snapshot[f"img_{cam_name}"] = img_bytes
 
             snapshot["depth"] = self._get_depth_image()
         except Exception as e:
@@ -356,62 +357,67 @@ class WalkerS2DataRecorder(Node):
             self.data_buffer[key].append(value)
 
     def _get_rgb_image(self, cam, cam_name):
-        """获取单路 RGB 图像，含帧去重和时间戳校验。
+        """获取单路 RGB 图像 + 真实相机时间戳，统一输出 JPEG bytes。
 
+        cam 可是主进程 Camera（_Frame.img=ndarray，wrist/depth）或
+        camera_worker.CameraShmClient（_Frame.img=JPEG bytes，stereo 子进程）。
         无新帧时复用上一帧（而非返回 None），避免低帧率相机出现黑帧。
+
+        返回 (img_bytes, ts)；img_bytes 为 JPEG bytes，无数据且未知分辨率时为 None。
         """
-        img = cam.get_latest_image()
-        if img is None:
-            # 无相机数据 → 用上一帧或黑色占位
+        frame = cam._get_latest_frame()
+        if frame is None:
             cached = self._last_img.get(cam_name)
             if cached is not None:
-                return cached
-            if self._img_shape is None:
-                return None
-            return np.zeros(self._img_shape, dtype=np.uint8)
+                return cached, self._last_frame_ts.get(cam_name, 0.0)
+            return (b"" if self._img_shape is not None else None), 0.0
 
-        info = cam.get_image_info() or {}
-        ts = info.get("timestamp", 0.0)
+        ts = frame.ts
 
-        # 帧去重：时间戳未前进 → 复用上一帧
+        # 帧去重：时间戳未前进 -> 复用上一帧
         if ts <= self._last_frame_ts.get(cam_name, -1.0):
             cached = self._last_img.get(cam_name)
             if cached is not None:
-                return cached
-            if self._img_shape is None:
-                return None
-            return np.zeros(self._img_shape, dtype=np.uint8)
+                return cached, self._last_frame_ts.get(cam_name, 0.0)
+            return (b"" if self._img_shape is not None else None), 0.0
 
         self._last_frame_ts[cam_name] = ts
-
-        # 从第一帧推断分辨率
-        if self._img_shape is None and img is not None:
-            self._img_shape = img.shape[:2] + (3,) if img.ndim == 3 else img.shape + (3,)
-
-        encoding = info.get("encoding", "rgb8")
-        if img.ndim == 2:
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-        elif encoding in ("bgr8", "yuv422"):
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        result = np.asarray(img, dtype=np.uint8).copy()
-        self._last_img[cam_name] = result  # 缓存最新有效帧
-        return result
+        img = frame.img
+        if isinstance(img, np.ndarray):
+            # wrist 主进程 Camera：ndarray -> BGR JPEG（与原 save_data 产出一致）
+            if self._img_shape is None:
+                self._img_shape = img.shape[:2] + (3,) if img.ndim == 3 else img.shape + (3,)
+            if img.ndim == 2:
+                img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+            elif frame.encoding == "rgb8":
+                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            # bgr8 / yuv422 -> 已是 BGR
+            ok, enc = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            result = enc.tobytes() if ok else b""
+        else:
+            # stereo 子进程：已是 BGR JPEG bytes，透传
+            result = bytes(img)
+            if self._img_shape is None:
+                self._img_shape = (frame.height, frame.width, 3)
+        self._last_img[cam_name] = result
+        return result, ts
 
     def _get_depth_image(self):
-        """获取深度图像，无数据时使用哨兵值 65535。"""
-        depth = self.depth_camera.get_latest_image()
-        if depth is None:
-            if self._depth_shape is None:
-                return None
-            return np.full(self._depth_shape, DEPTH_SENTINEL, dtype=np.uint16)
+        """获取深度图像并编码为 PNG bytes。无新帧/无数据时返回 None（由 save_data 填哨兵）。
 
-        info = self.depth_camera.get_image_info() or {}
-        ts = info.get("timestamp", 0.0)
+        用 depth_camera._get_latest_frame() 一次取已解码 img + ts，消除原
+        get_latest_image() + get_image_info() 的双锁双取。去重语义不变（无新帧返回 None）。
+        """
+        frame = self.depth_camera._get_latest_frame()
+        if frame is None:
+            return None
+
+        ts = frame.ts
         if ts <= self._last_depth_ts:
             return None
         self._last_depth_ts = ts
 
-        depth = np.asarray(depth)
+        depth = np.asarray(frame.img)
         if self._depth_shape is None:
             self._depth_shape = depth.shape
 
@@ -420,7 +426,8 @@ class WalkerS2DataRecorder(Node):
             depth = np.clip(depth * 1000.0, 0, 65535).astype(np.uint16)
         elif depth.dtype != np.uint16:
             depth = np.clip(depth, 0, 65535).astype(np.uint16)
-        return depth.copy()
+        ok, enc = cv2.imencode(".png", np.ascontiguousarray(depth))
+        return enc.tobytes() if ok else None
 
     def save_data(self):
         """保存数据到 HDF5 文件。"""
@@ -490,32 +497,30 @@ class WalkerS2DataRecorder(Node):
             f.create_dataset("action/grip_left_position/data", data=np.array(self.data_buffer["action_grip_left_position"]))
             f.create_dataset("observation/timestamp/data", data=np.array(self.data_buffer["timestamp"]))
 
-            # ---- Multi-camera color images (JPEG) ----
+            # ---- Multi-camera color images (JPEG bytes，采集时已编码) ----
             dt = h5py.special_dtype(vlen=np.dtype("uint8"))
             for cam_name in self.cameras:
                 key = f"img_{cam_name}"
                 ds = f.create_dataset(f"camera_observations/color_images/{cam_name}", (length,), dtype=dt)
-                for i, img_rgb in enumerate(self.data_buffer[key]):
-                    if img_rgb is None:
-                        self.get_logger().warning(f"Frame {i} missing for camera {cam_name}, using placeholder")
-                        img_rgb = np.zeros(self._img_shape or (480, 640, 3), dtype=np.uint8)
-                    img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
-                    success, encoded_img = cv2.imencode(".jpg", img_bgr, [cv2.IMWRITE_JPEG_QUALITY, 95])
-                    if success:
-                        ds[i] = encoded_img.flatten()
-                    else:
-                        self.get_logger().error(f"Failed to encode {cam_name} image {i}")
+                for i, img_bytes in enumerate(self.data_buffer[key]):
+                    if not img_bytes:
+                        self.get_logger().warning(f"Frame {i} empty for camera {cam_name}")
+                        img_bytes = b""
+                    ds[i] = np.frombuffer(img_bytes, dtype=np.uint8)
 
-            # ---- Depth images (PNG) ----
+            # ---- Depth images (PNG bytes，采集时已编码；None -> 哨兵) ----
             depth_ds = f.create_dataset("camera_observations/depth_images/camera_head", (length,), dtype=dt)
-            for i, depth_mm in enumerate(self.data_buffer["depth"]):
-                if depth_mm is None:
-                    depth_mm = np.full(self._depth_shape or (480, 640), DEPTH_SENTINEL, dtype=np.uint16)
-                success, encoded_depth = cv2.imencode(".png", depth_mm)
-                if success:
-                    depth_ds[i] = encoded_depth.flatten()
-                else:
-                    self.get_logger().error(f"Failed to encode depth {i}")
+            sentinel_png = None
+            for i, depth_bytes in enumerate(self.data_buffer["depth"]):
+                if depth_bytes is None:
+                    if sentinel_png is None:
+                        sentinel_arr = np.full(
+                            self._depth_shape or (480, 640), DEPTH_SENTINEL, dtype=np.uint16
+                        )
+                        _, sentinel_png = cv2.imencode(".png", sentinel_arr)
+                        sentinel_png = sentinel_png.tobytes()
+                    depth_bytes = sentinel_png
+                depth_ds[i] = np.frombuffer(depth_bytes, dtype=np.uint8)
 
             # ---- Episode metadata as HDF5 root attributes ----
             f.attrs["robot_type"] = "walker_s2"
