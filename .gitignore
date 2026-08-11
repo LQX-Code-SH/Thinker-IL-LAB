@@ -72,3 +72,4 @@ ubt_IL/walker/**/*.egg-info/
 ubt_sim/teleoperation/control/walker/camera_*.png
 .claude/plans/
 ubt_IL/scripts/deploy/output/*
+.codebuddy/*

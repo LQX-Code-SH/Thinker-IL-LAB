@@ -53,22 +53,22 @@ cameras:
   stereo_left:
     prim_path: "{ENV_REGEX_NS}/Robot/head_pitch_link/head_stereo_left/head_stereo_left_Camera_01"
     data_types: ["rgb"]
-    resolution: [640, 480]
+    resolution: [320, 240]
   stereo_right:
     prim_path: "{ENV_REGEX_NS}/Robot/head_pitch_link/head_stereo_right/head_stereo_right_Camera_01"
     data_types: ["rgb"]
-    resolution: [640, 480]
+    resolution: [320, 240]
   wrist_left:
     prim_path: "{ENV_REGEX_NS}/Robot/L_camera_link/L_camera_link/L_wrist_camera/L_wrist_Camera"
     data_types: ["rgb"]
-    resolution: [640, 480]
+    resolution: [320, 240]
   wrist_right:
     prim_path: "{ENV_REGEX_NS}/Robot/R_camera_link/R_camera_link/R_wrist_camera/R_wrist_Camera"
     data_types: ["rgb"]
-    resolution: [640, 480]
+    resolution: [320, 240]
 
 simulation:
   dt: 0.01
   decimation: 1
-  render_interval: 3
+  render_interval: 1
   episode_length_s: 1000
