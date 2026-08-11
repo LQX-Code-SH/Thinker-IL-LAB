@@ -19,18 +19,23 @@ case "$ARCH" in
         DEFAULT_DOCKERFILE="$SCRIPT_DIR/Dockerfile.arm64"
         DEFAULT_BASE_IMAGE="swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/dustynv/l4t-pytorch:r36.4.0-linuxarm64"
         DEFAULT_DOCKER_GPU_ARGS="--runtime nvidia"
+        # 真机直连 D405 腕部相机，默认自启动（驱动+插件已在镜像构建期预装）
+        DEFAULT_ENABLE_WRIST_CAMERA=1
         ;;
     x86_64|amd64)
         DEFAULT_IMAGE="lerobot-tienkung:humble"
         DEFAULT_DOCKERFILE="$SCRIPT_DIR/Dockerfile"
         DEFAULT_BASE_IMAGE="swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/huggingface/lerobot-gpu:latest"
         DEFAULT_DOCKER_GPU_ARGS="--gpus all"
+        # x86 工作站在机器人外部运行，无腕部相机，默认不自启动（镜像也未装驱动）
+        DEFAULT_ENABLE_WRIST_CAMERA=0
         ;;
     *)
         DEFAULT_IMAGE="lerobot-tienkung:humble-${ARCH}"
         DEFAULT_DOCKERFILE="$SCRIPT_DIR/Dockerfile"
         DEFAULT_BASE_IMAGE="swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/huggingface/lerobot-gpu:latest"
         DEFAULT_DOCKER_GPU_ARGS="--gpus all"
+        DEFAULT_ENABLE_WRIST_CAMERA=0
         ;;
 esac
 

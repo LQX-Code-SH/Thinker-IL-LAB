@@ -78,11 +78,11 @@
     ],
     "action": [
       {
-        "hdf5_key": "action/joint_state/position/data",
+        "hdf5_key": "observation/joint_state/position/data",
         "indices": [7, 8, 9, 10, 11, 12, 13]
       },
       {
-        "hdf5_key": "action/joint_state/position/data",
+        "hdf5_key": "observation/joint_state/position/data",
         "indices": [14, 15]
       },
       {

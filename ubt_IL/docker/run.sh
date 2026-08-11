@@ -37,6 +37,21 @@ case "${1:-}" in
             echo "[INFO] Creating container '$CONTAINER_NAME'..."
             mkdir -p "${PROJECT_ROOT}/.cache/huggingface"
 
+            # 容器级 .Xauthority 挂载源必须是稳定存在的普通文件。
+            # 宿主 $XAUTHORITY 常是 SSH/X11 每会话生成的临时文件 /tmp/xauth_XXXXXX，
+            # 会话结束被清理后，docker 在下次 `docker start` 时发现源不存在会自动建目录，
+            # 导致 "mount a directory onto a file" 启动失败。故复制到 $HOME 下稳定路径再挂载。
+            # 交互式 X11 鉴权仍由 `bash` 子命令经 xauth_live_cookie.py 实时探测 live cookie
+            # 写入容器内 /tmp/.xauth-docker，此处挂载仅为容器提供默认 .Xauthority。
+            _DOCKER_XAUTH="$HOME/.docker-xauth.lerobot"
+            if [ -n "${XAUTHORITY:-}" ] && [ -f "$XAUTHORITY" ]; then
+                cp -f "$XAUTHORITY" "$_DOCKER_XAUTH"
+            elif [ -f "$HOME/.Xauthority" ]; then
+                cp -f "$HOME/.Xauthority" "$_DOCKER_XAUTH"
+            else
+                : > "$_DOCKER_XAUTH"   # 无 X11 时建空文件，保证挂载源是普通文件
+            fi
+
             GPU_ARGS=()
             if [ -n "$DOCKER_GPU_ARGS" ]; then
                 read -r -a GPU_ARGS <<< "$DOCKER_GPU_ARGS"
@@ -55,7 +70,7 @@ case "${1:-}" in
                 -v "$PROJECT_ROOT":/ubt_IL \
                 -e DISPLAY="${_HOST_DISPLAY}" \
                 -v /tmp/.X11-unix:/tmp/.X11-unix \
-                -v "${XAUTHORITY:-$HOME/.Xauthority}":/home/user_lerobot/.Xauthority:ro \
+                -v "$_DOCKER_XAUTH":/home/user_lerobot/.Xauthority:ro \
                 -w /ubt_IL \
                 "$IMAGE" \
                 tail -f /dev/null
@@ -153,15 +168,18 @@ PY' >/dev/null 2>&1
         echo "[INFO] Environment setup completed (${ELAPSED}s)"
 
         # 自动启动 RealSense 腕部相机服务（驱动+插件已在 arm64 镜像构建期预装）。
-        # 设 ENABLE_WRIST_CAMERA=0 可跳过（纯训练/调试场景）。
+        # arm64 真机默认启动；x86 工作站无相机默认跳过（见 env.sh DEFAULT_ENABLE_WRIST_CAMERA）。
+        # 设 ENABLE_WRIST_CAMERA=1/0 可强制覆盖。
         # start.sh 自身后台化（nohup+PID 文件）；无相机时 --discover 退出非 0，用 || warn 兜底，
         # 避免 set -e 中断 start。相机进程 reparent 到 PID 1（tail -f /dev/null）存活。
-        ENABLE_WRIST_CAMERA="${ENABLE_WRIST_CAMERA:-1}"
+        ENABLE_WRIST_CAMERA="${ENABLE_WRIST_CAMERA:-$DEFAULT_ENABLE_WRIST_CAMERA}"
         if [ "$ENABLE_WRIST_CAMERA" = "1" ]; then
             echo "[INFO] Starting RealSense wrist camera service..."
             sudo docker exec "$CONTAINER_NAME" \
                 bash /ubt_IL/walker/realsense_wrist_camera/scripts/start.sh \
                 || echo "[WARN] wrist camera did not start (相机未连接？进容器执行 'bash /ubt_IL/walker/realsense_wrist_camera/scripts/start.sh --fg' 排查)"
+        else
+            echo "[INFO] Wrist camera auto-start skipped (ENABLE_WRIST_CAMERA=${ENABLE_WRIST_CAMERA})."
         fi
 
         echo ""
