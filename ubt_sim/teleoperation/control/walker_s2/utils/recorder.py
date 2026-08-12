@@ -37,7 +37,11 @@ from .controller import (  # noqa: E402
     V4_HAND_JOINT_MAP,
 )
 
-SAVE_HZ = 30.0
+# 主进程取帧/轮询频率: 15Hz 时 stereo 只能采到子进程帧的 78%(13.4/17.3Hz),
+# 25Hz 时采到 98.4%(16.9/17.8Hz)。取帧与采集分离后, 建议 ≥ 相机帧率 1.5×。
+SAVE_HZ = 25.0
+# 写入 HDF5 的采集频率(独立于取帧频率), 建议 ≤ 相机实际帧率以避免重复帧。
+CAPTURE_HZ = 15.0
 PLACEHOLDER_IMG_SHAPE = None   # 从第一帧实际分辨率推断
 PLACEHOLDER_DEPTH_SHAPE = None
 DEPTH_SENTINEL = 65535         # uint16 最大值，表示无效深度
@@ -63,26 +67,35 @@ class WalkerS2DataRecorder(Node):
     def __init__(
         self,
         cameras,
-        depth_camera,
+        depth_camera=None,
         save_hz=SAVE_HZ,
+        capture_hz=CAPTURE_HZ,
         node_name="walker_s2_pick_part_save_data_recorder",
     ):
         super().__init__(node_name)
         self.cameras = cameras              # {"stereo_left": Camera(...), ...}
-        self.depth_camera = depth_camera
-        self.save_hz = float(save_hz)
+        self.depth_camera = depth_camera    # None 表示不采集 depth
+        self.save_hz = float(save_hz)       # 主进程取帧/轮询频率
+        self.capture_hz = float(capture_hz)  # 写 buffer/HDF5 的采集频率
 
         # 动态 buffer keys：基础 keys + 每路相机的 img_<name>
+        # depth_camera 为 None 时剔除 "depth"，HDF5 中不再生成 depth_images 数据集
         cam_img_keys = tuple(f"img_{name}" for name in cameras)
-        self._BUFFER_KEYS = self._BASE_BUFFER_KEYS + cam_img_keys
+        base_keys = self._BASE_BUFFER_KEYS
+        if depth_camera is None:
+            base_keys = tuple(k for k in base_keys if k != "depth")
+        self._BUFFER_KEYS = base_keys + cam_img_keys
         self.data_buffer = {k: [] for k in self._BUFFER_KEYS}
         self.is_saving = False
         self.dropped_frames = 0
 
         # 帧去重：每个相机的最近时间戳 + 上一帧缓存
         self._last_frame_ts = {name: -1.0 for name in cameras}
-        self._last_img = {}        # cam_name → 最近一次有效帧（复用去重帧）
+        self._last_img = {}        # cam_name → 最近一次有效帧 JPEG bytes（poll 层刷新）
         self._last_depth_ts = -1.0
+        self._last_depth_img = None  # 最近一次有效深度 PNG bytes（poll 层刷新）
+        # 每相机新帧计数（仅"真正取到新帧"时累加），save 时用于输出重复帧统计
+        self._fresh_frames = {name: 0 for name in cameras}
 
         # 图像分辨率从第一帧推断
         self._img_shape = None
@@ -185,9 +198,16 @@ class WalkerS2DataRecorder(Node):
             qos_cmd, callback_group=MutuallyExclusiveCallbackGroup(),
         )
 
+        # 取帧与采集分离: poll_timer 以 save_hz 高频刷新最新帧缓存,
+        # capture_timer 以 capture_hz 组装快照写入 buffer(决定 HDF5 帧率)。
         self.save_interval = 1.0 / self.save_hz
-        self.save_timer = self.create_timer(
-            self.save_interval, self._timer_save_callback,
+        self.poll_timer = self.create_timer(
+            self.save_interval, self._timer_poll_callback,
+            callback_group=ReentrantCallbackGroup(),
+        )
+        self.capture_interval = 1.0 / self.capture_hz
+        self.capture_timer = self.create_timer(
+            self.capture_interval, self._timer_capture_callback,
             callback_group=ReentrantCallbackGroup(),
         )
 
@@ -300,7 +320,14 @@ class WalkerS2DataRecorder(Node):
         self._img_shape = None
         self._depth_shape = None
         self.is_saving = True
-        self.get_logger().info(f"Started recording Walker S2 data at {self.save_hz:.0f}Hz")
+        self._fresh_frames = {name: 0 for name in self.cameras}
+        # 同步预热一次帧缓存：消除 capture_timer 首个 tick 早于 poll_timer 的竞态
+        # （25/20Hz 组合下曾偶发 Frame 0 empty 警告，即首帧写入 None）。
+        self._poll_frames()
+        self.get_logger().info(
+            f"Started recording Walker S2 data at {self.capture_hz:.0f}Hz "
+            f"(poll {self.save_hz:.0f}Hz)"
+        )
 
     def stop_save_data(self):
         """停止录制。"""
@@ -342,12 +369,13 @@ class WalkerS2DataRecorder(Node):
                     "timestamp": self.get_clock().now().nanoseconds / 1e9,
                 }
 
-            # 多路相机图像采集（含帧去重）；_get_rgb_image 统一返回 (JPEG bytes, ts)
-            for cam_name, cam in self.cameras.items():
-                img_bytes, _ts = self._get_rgb_image(cam, cam_name)
-                snapshot[f"img_{cam_name}"] = img_bytes
+                # 图像取自 poll_timer 高频刷新的最新帧缓存(JPEG/PNG bytes),
+                # 取帧频率与采集频率解耦, 此处仅读缓存(锁内, 与 poll 写互斥)。
+                for cam_name in self.cameras:
+                    snapshot[f"img_{cam_name}"] = self._last_img.get(cam_name)
 
-            snapshot["depth"] = self._get_depth_image()
+                if self.depth_camera is not None:
+                    snapshot["depth"] = self._last_depth_img
         except Exception as e:
             self.dropped_frames += 1
             self.get_logger().error(f"Error recording snapshot (dropped={self.dropped_frames}): {e}")
@@ -400,6 +428,7 @@ class WalkerS2DataRecorder(Node):
             if self._img_shape is None:
                 self._img_shape = (frame.height, frame.width, 3)
         self._last_img[cam_name] = result
+        self._fresh_frames[cam_name] += 1
         return result, ts
 
     def _get_depth_image(self):
@@ -407,6 +436,7 @@ class WalkerS2DataRecorder(Node):
 
         用 depth_camera._get_latest_frame() 一次取已解码 img + ts，消除原
         get_latest_image() + get_image_info() 的双锁双取。去重语义不变（无新帧返回 None）。
+        仅当 self.depth_camera 不为 None 时调用。
         """
         frame = self.depth_camera._get_latest_frame()
         if frame is None:
@@ -508,26 +538,27 @@ class WalkerS2DataRecorder(Node):
                         img_bytes = b""
                     ds[i] = np.frombuffer(img_bytes, dtype=np.uint8)
 
-            # ---- Depth images (PNG bytes，采集时已编码；None -> 哨兵) ----
-            depth_ds = f.create_dataset("camera_observations/depth_images/camera_head", (length,), dtype=dt)
-            sentinel_png = None
-            for i, depth_bytes in enumerate(self.data_buffer["depth"]):
-                if depth_bytes is None:
-                    if sentinel_png is None:
-                        sentinel_arr = np.full(
-                            self._depth_shape or (480, 640), DEPTH_SENTINEL, dtype=np.uint16
-                        )
-                        _, sentinel_png = cv2.imencode(".png", sentinel_arr)
-                        sentinel_png = sentinel_png.tobytes()
-                    depth_bytes = sentinel_png
-                depth_ds[i] = np.frombuffer(depth_bytes, dtype=np.uint8)
+            # ---- Depth images (可选；depth_camera=None 时不生成) ----
+            if self.depth_camera is not None:
+                depth_ds = f.create_dataset("camera_observations/depth_images/camera_head", (length,), dtype=dt)
+                sentinel_png = None
+                for i, depth_bytes in enumerate(self.data_buffer["depth"]):
+                    if depth_bytes is None:
+                        if sentinel_png is None:
+                            sentinel_arr = np.full(
+                                self._depth_shape or (480, 640), DEPTH_SENTINEL, dtype=np.uint16
+                            )
+                            _, sentinel_png = cv2.imencode(".png", sentinel_arr)
+                            sentinel_png = sentinel_png.tobytes()
+                        depth_bytes = sentinel_png
+                    depth_ds[i] = np.frombuffer(depth_bytes, dtype=np.uint8)
 
             # ---- Episode metadata as HDF5 root attributes ----
             f.attrs["robot_type"] = "walker_s2"
             f.attrs["task"] = "part_sorting"
             f.attrs["part_name"] = str(part_name)
             f.attrs["side"] = str(meta.get("side", "right"))
-            f.attrs["fps"] = float(self.save_hz)
+            f.attrs["fps"] = float(self.capture_hz)
             f.attrs["auto_grasp"] = str(meta.get("auto_grasp", False))
             f.attrs["success"] = str(meta.get("success", False))
             f.attrs["camera_names"] = json.dumps(list(self.cameras.keys()))
@@ -539,6 +570,16 @@ class WalkerS2DataRecorder(Node):
         except (PermissionError, OSError):
             self.get_logger().warning(f"Cannot chmod {filename}, file may be owned by root")
         self.get_logger().info(f"Data saved: {length} frames, dropped={self.dropped_frames}.")
+        # 每相机重复帧统计：fresh = 录制期间缓存到的不同帧数，
+        # duplicated ≈ max(0, length - fresh)（fresh 可能略大于 length，
+        # 表示部分新帧未赶上采集 tick，属正常；此时重复帧按 0 计）。
+        for cam_name in self.cameras:
+            fresh = self._fresh_frames.get(cam_name, 0)
+            dup = max(0, length - fresh)
+            pct = 100.0 * dup / length if length else 0.0
+            self.get_logger().info(
+                f"Camera {cam_name}: {fresh} fresh, {dup} duplicated ({pct:.1f}%)"
+            )
         return filename
 
     @staticmethod
@@ -556,5 +597,38 @@ class WalkerS2DataRecorder(Node):
             project_dir = parent
         return project_dir
 
-    def _timer_save_callback(self):
+    def _poll_frames(self):
+        """刷新各相机最新帧缓存(含 JPEG/PNG 编码)，仅新帧才编码。
+
+        由 poll_timer 周期性调用；也在 start_save_data 时同步预热一次，
+        消除首个采集 tick 早于首个 poll tick 导致的 Frame 0 为空竞态。
+        """
+        try:
+            with self._lock:
+                for cam_name, cam in self.cameras.items():
+                    self._get_rgb_image(cam, cam_name)
+                if self.depth_camera is not None:
+                    depth = self._get_depth_image()
+                    if depth is not None:
+                        self._last_depth_img = depth
+        except Exception as e:
+            self.dropped_frames += 1
+            self.get_logger().error(f"Error polling frames (dropped={self.dropped_frames}): {e}")
+
+    def _timer_poll_callback(self):
+        """高频取帧 timer 入口。"""
+        if not self.is_saving:
+            return
+        self._poll_frames()
+
+    def _timer_capture_callback(self):
         self.record_snapshot()
+
+    def cancel_timers(self):
+        """取消取帧/采集两个 timer（进程退出时调用）。"""
+        for t in (getattr(self, "poll_timer", None), getattr(self, "capture_timer", None)):
+            try:
+                if t is not None:
+                    t.cancel()
+            except Exception:
+                pass
