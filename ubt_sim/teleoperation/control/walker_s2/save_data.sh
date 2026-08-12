@@ -38,6 +38,8 @@ do
         python3 "$SCRIPT_DIR/pick_part.py" \
             --part "$part" \
             --save \
+            --capture-hz 15 \
+            --zmq-image-port 5657 \
             --no-randomize-parts \
             --no-unlock-waist \
             $extra_flags

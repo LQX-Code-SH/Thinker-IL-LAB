@@ -53,7 +53,6 @@ if _dir not in sys.path:
 from utils.camera import Camera  # noqa: E402
 from utils.controller import (  # noqa: E402
     CAMERA_TOPICS,
-    DEFAULT_IMAGE_DEPTH_TOPIC,
     READY_POSE,
     ROBOT_WORLD_POS,
     ROBOT_WORLD_ROT_WXYZ,
@@ -914,9 +913,15 @@ def parse_args():
                         help="分步执行（place 启用 1..6；关闭 1..4），便于逐阶段调试")
     parser.add_argument("--dry-run", action="store_true", help="只打印路点，不下发控制")
     parser.add_argument("--save", action="store_true", help="录制 HDF5 数据")
-    parser.add_argument("--save-hz", type=float, default=30.0, help="数据录制频率 Hz")
+    parser.add_argument("--save-hz", type=float, default=25.0,
+                        help="主进程取帧/轮询频率 Hz(建议≥相机帧率1.5×, 采样层无损)")
+    parser.add_argument("--capture-hz", type=float, default=15.0,
+                        help="写入 HDF5 的采集频率 Hz(建议≤相机实际帧率, 避免重复帧)")
     parser.add_argument("--save-only-success", action=argparse.BooleanOptionalAction, default=True,
                         help="仅任务成功时保存 HDF5")
+    parser.add_argument("--zmq-image-port", type=int, default=5657, metavar="PORT",
+                        help="sim 直连 ZMQ 图像通道端口(默认 5657 启用，绕过 ROS bridge 的 Image6m "
+                             "UDP 丢帧瓶颈；TCP loopback 物理不丢)。传 0 回退到原 ROS shm_msgs 路径")
     return parser.parse_args()
 
 
@@ -979,39 +984,54 @@ def main():
     # ---- --save 分支：录制 HDF5 ----
     if args.save:
         from utils.recorder import WalkerS2DataRecorder  # noqa: E402
-        from utils.camera_worker import create_camera_source  # noqa: E402
 
-        def _parse_msg_type(name: str) -> type:
-            """将 'Image1m' / 'Image6m' 等字符串转为 shm_msgs.msg.* 类型。"""
-            import shm_msgs.msg
-            return getattr(shm_msgs.msg, name)
+        zmq_source = None
+        if args.zmq_image_port:
+            # ZMQ 直连通道：绕过 bridge 的 6MB UDP 分片丢帧；sim/桥接零改动。
+            # recorder 的 _get_rgb_image 对 ndarray(rgb8) 分支已存在，取帧路径完全复用。
+            from utils.zmq_camera_client import ZMQCameraSource  # noqa: E402
 
-        # stereo(Image6m, 6MB/帧)隔离到子进程避免 GIL 饿死 wrist;wrist/depth 留主进程
-        camera_workers = []
-        cameras = {}
-        for name, cfg in CAMERA_TOPICS.items():
-            if cfg.get("isolate", name.startswith("stereo")):
-                worker, client = create_camera_source(cfg["topic"], cfg["msg_type"], name)
-                worker.start()
-                camera_workers.append(worker)
-                cameras[name] = client
-            else:
-                cameras[name] = Camera(
-                    topic=cfg["topic"], msg_type=_parse_msg_type(cfg["msg_type"]),
-                    node_name=f"walker_s2_save_{name}_camera",
-                )
-        depth_camera = Camera(topic=DEFAULT_IMAGE_DEPTH_TOPIC, node_name="walker_s2_save_depth_camera")
-        recorder = WalkerS2DataRecorder(cameras, depth_camera, save_hz=args.save_hz)
+            zmq_source = ZMQCameraSource(
+                camera_names=list(CAMERA_TOPICS.keys()), port=args.zmq_image_port,
+            )
+            cameras = {name: zmq_source.get_client(name) for name in CAMERA_TOPICS}
+            camera_workers = []
+        else:
+            from utils.camera_worker import create_camera_source  # noqa: E402
 
-        # controller + part_monitor + wrist/depth cameras + recorder
+            def _parse_msg_type(name: str) -> type:
+                """将 'Image1m' / 'Image6m' 等字符串转为 shm_msgs.msg.* 类型。"""
+                import shm_msgs.msg
+                return getattr(shm_msgs.msg, name)
+
+            # stereo(Image6m, 6MB/帧)隔离到子进程避免 GIL 饿死 wrist;wrist/depth 留主进程
+            camera_workers = []
+            cameras = {}
+            for name, cfg in CAMERA_TOPICS.items():
+                if cfg.get("isolate", name.startswith("stereo")):
+                    worker, client = create_camera_source(cfg["topic"], cfg["msg_type"], name)
+                    worker.start()
+                    camera_workers.append(worker)
+                    cameras[name] = client
+                else:
+                    cameras[name] = Camera(
+                        topic=cfg["topic"], msg_type=_parse_msg_type(cfg["msg_type"]),
+                        node_name=f"walker_s2_save_{name}_camera",
+                    )
+        # depth 暂未使用，关闭采集（recorder.depth_camera=None，HDF5 不含 depth_images）
+        recorder = WalkerS2DataRecorder(
+            cameras, depth_camera=None,
+            save_hz=args.save_hz, capture_hz=args.capture_hz,
+        )
+
+        # controller + part_monitor + wrist cameras + recorder
         # (stereo 已隔离到子进程，CameraShmClient 非 Node，不 add_node)
-        executor = MultiThreadedExecutor(num_threads=3 + len(cameras) + 1)
+        executor = MultiThreadedExecutor(num_threads=3 + len(cameras))
         executor.add_node(controller)
         executor.add_node(part_monitor)
         for cam in cameras.values():
             if isinstance(cam, Camera):   # 仅主进程 Camera(wrist)；stereo client 跳过
                 executor.add_node(cam)
-        executor.add_node(depth_camera)
         executor.add_node(recorder)
         spin_thread = threading.Thread(target=executor.spin, daemon=True)
         spin_thread.start()
@@ -1023,7 +1043,6 @@ def main():
             if not part_monitor.wait_for_part_states(timeout=timeout):
                 raise SystemExit(1)
             if not args.dry_run:
-                recorder.depth_camera.wait_for_image(timeout=timeout)
                 for cam in cameras.values():
                     cam.wait_for_image(timeout=timeout)
 
@@ -1078,18 +1097,19 @@ def main():
             for w in camera_workers:
                 w.stop()
             try:
-                recorder.save_timer.cancel()
+                recorder.cancel_timers()
             except Exception:
                 pass
             executor.shutdown()
             spin_thread.join(timeout=2.0)
             recorder.destroy_node()
-            depth_camera.destroy_node()
             for cam in cameras.values():
                 if isinstance(cam, Camera):
                     cam.destroy_node()
                 else:
                     cam.cleanup()        # stereo CameraShmClient: SharedMemory close+unlink
+            if zmq_source is not None:
+                zmq_source.cleanup()     # ZMQ 直连: 停接收线程 + 释放 socket
             part_monitor.destroy_node()
             controller.destroy_node()
             rclpy.shutdown()
