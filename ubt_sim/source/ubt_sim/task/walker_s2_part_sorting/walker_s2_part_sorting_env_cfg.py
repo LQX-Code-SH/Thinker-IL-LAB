@@ -50,7 +50,10 @@ def _make_tiled_camera(name: str) -> TiledCameraCfg:
             rot=(1.0, 0.0, 0.0, 0.0),
             convention="ros",
         ),
-        update_period=0.0333,
+        # update_period=0.0: 每步 readback，内容更新频率与发送频率同步。
+        # 原 0.0333 按仿真 dt(0.01) 累积，每 4 仿真步才 readback 一次，
+        # 导致主循环墙钟 ~20Hz 时内容仅 5Hz 刷新，3/4 帧为重复画面。
+        update_period=0.0,
         height=int(res[1]),
         width=int(res[0]),
         data_types=cfg.get("data_types", ["rgb"]),

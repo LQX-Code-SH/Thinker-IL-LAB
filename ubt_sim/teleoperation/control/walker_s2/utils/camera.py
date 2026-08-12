@@ -287,7 +287,10 @@ class Camera(Node):
         numpy.ndarray
             BGR 格式图像，形状 (height, width, 3)，dtype uint8。
         """
-        yuv = np.frombuffer(yuv_data, dtype=np.uint8).reshape((height, width // 2, 4))
+        if isinstance(yuv_data, np.ndarray):
+            yuv = yuv_data.reshape((height, width // 2, 4))
+        else:
+            yuv = np.frombuffer(yuv_data, dtype=np.uint8).reshape((height, width // 2, 4))
         y = np.zeros((height, width), dtype=np.uint8)
         u = np.zeros((height, width // 2), dtype=np.uint8)
         v = np.zeros((height, width // 2), dtype=np.uint8)
@@ -338,28 +341,35 @@ class Camera(Node):
         width = msg.width
         step = msg.step
         src_encoding = Camera.resolve_encoding(msg)
-        img_data = bytes(msg.data)
-
-        # 有效像素字节数 = step × height，不是 len(data)
-        # shm_msgs 的 data 是固定大小数组（如 uint8[2097152]），需截取有效部分
         byte_count = height * step
 
-        if src_encoding == "bgr8":
-            img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width, 3))
-        elif src_encoding == "rgb8":
-            img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width, 3))
-            if encoding == "bgr8":
-                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-        elif src_encoding == "mono8":
-            img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width))
-        elif src_encoding == "yuv422":
-            img = Camera.yuv422_to_bgr(img_data[:byte_count], width, height, order="UYVY")
-        elif src_encoding == "16UC1":
-            img = np.frombuffer(img_data, dtype=np.uint16)[:byte_count].reshape((height, width))
-        elif src_encoding == "32FC1":
-            img = np.frombuffer(img_data, dtype=np.float32)[:byte_count].reshape((height, width))
+        # uint8 像素路径: 用 numpy 视图替代 bytes() 全量拷贝。
+        # shm_msgs 的 data 是固定大小数组(如 uint8[6291456]), 但有效像素只有
+        # height*step(320x240x3≈230KB)。rclpy 固定数组字段 .data 是 numpy ndarray,
+        # np.frombuffer 直接引用其内存(零拷贝), 只取前 byte_count 个元素。
+        if src_encoding in ("bgr8", "rgb8", "mono8", "yuv422"):
+            raw = msg.data
+            data = raw.ravel() if isinstance(raw, np.ndarray) else np.frombuffer(raw, dtype=np.uint8)
+            view = data[:byte_count]  # 视图, 不拷贝
+
+            if src_encoding == "bgr8":
+                img = view.reshape((height, width, 3))
+            elif src_encoding == "rgb8":
+                img = view.reshape((height, width, 3))
+                if encoding == "bgr8":
+                    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            elif src_encoding == "mono8":
+                img = view.reshape((height, width))
+            else:  # yuv422
+                img = Camera.yuv422_to_bgr(view, width, height, order="UYVY")
         else:
-            raise ValueError(f"Unsupported encoding: {src_encoding}")
+            img_data = bytes(msg.data)  # 16UC1/32FC1 等罕见路径保持原样
+            if src_encoding == "16UC1":
+                img = np.frombuffer(img_data, dtype=np.uint16)[:byte_count].reshape((height, width))
+            elif src_encoding == "32FC1":
+                img = np.frombuffer(img_data, dtype=np.float32)[:byte_count].reshape((height, width))
+            else:
+                raise ValueError(f"Unsupported encoding: {src_encoding}")
 
         return img
 

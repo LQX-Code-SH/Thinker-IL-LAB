@@ -64,7 +64,10 @@ class TienkungProParlorSceneCfg(InteractiveSceneCfg):
             rot=(0.430457, -0.560985, 0.560987, -0.430459),
             convention="ros",
         ),
-        update_period=0.0333,
+        # update_period=0.0: 每步 readback，内容更新频率与发送频率同步。
+        # 原 0.0333 按仿真 dt(0.01) 累积，每 4 仿真步才 readback 一次，
+        # 导致主循环墙钟 ~20Hz 时内容仅 5Hz 刷新，3/4 帧为重复画面。
+        update_period=0.0,
         height=360,
         width=640,
         data_types=["rgb"],
@@ -85,7 +88,10 @@ class TienkungProParlorSceneCfg(InteractiveSceneCfg):
             rot=(0.430457, -0.560985, 0.560987, -0.430459),
             convention="ros",
         ),
-        update_period=0.0333,
+        # update_period=0.0: 每步 readback，内容更新频率与发送频率同步。
+        # 原 0.0333 按仿真 dt(0.01) 累积，每 4 仿真步才 readback 一次，
+        # 导致主循环墙钟 ~20Hz 时内容仅 5Hz 刷新，3/4 帧为重复画面。
+        update_period=0.0,
         height=360,
         width=640,
         data_types=["depth"],

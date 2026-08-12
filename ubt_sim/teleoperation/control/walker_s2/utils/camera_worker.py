@@ -79,7 +79,9 @@ def _run_subprocess(name, topic, msg_type_name, shm_name, shm_size, seq, lock, j
         node = Node(f"cam_worker_{name}")
         msg_type = _resolve_msg_type(msg_type_name)
         qos = QoSProfile(
-            depth=10,
+            # depth=50: 6MB 消息反序列化偶发超过发布周期(~51ms)时,
+            # 大缓冲吸收突发积压, 显著减少过载丢帧(原 10 在 6MB 话题上丢帧~12%)
+            depth=50,
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.VOLATILE,
         )
@@ -110,8 +112,9 @@ def _run_subprocess(name, topic, msg_type_name, shm_name, shm_size, seq, lock, j
         executor.add_node(node)
         try:
             # 轮询 stop_event 优雅退出;SIGTERM 仅作 stop() 兜底
+            # timeout 0.01: 事件驱动, 不影响消息处理延迟, 只加快 stop 响应
             while not stop_event.is_set():
-                executor.spin_once(timeout_sec=0.1)
+                executor.spin_once(timeout_sec=0.01)
         finally:
             try:
                 node.destroy_node()
