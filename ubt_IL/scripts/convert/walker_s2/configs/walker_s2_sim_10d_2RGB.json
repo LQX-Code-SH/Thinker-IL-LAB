@@ -1,12 +1,12 @@
 {
   "observation.images.camera_head_right": {
     "dtype": "video",
-    "shape": [3, 480, 640],
+    "shape": [3, 240, 320],
     "names": ["channel", "height", "width"]
   },
   "observation.images.camera_wrist_right": {
     "dtype": "video",
-    "shape": [3, 480, 640],
+    "shape": [3, 240, 320],
     "names": ["channel", "height", "width"]
   },
   "observation.state": {
@@ -93,12 +93,12 @@
     "observation.images.camera_head_right": {
       "hdf5_key": "camera_observations/color_images/stereo_right",
       "encoding": "jpeg",
-      "image_size": [640, 480]
+      "image_size": [320, 240]
     },
     "observation.images.camera_wrist_right": {
       "hdf5_key": "camera_observations/color_images/wrist_right",
       "encoding": "jpeg",
-      "image_size": [640, 480]
+      "image_size": [320, 240]
     }
   }
 }
