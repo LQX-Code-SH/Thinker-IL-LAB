@@ -57,7 +57,18 @@ class PicoRosSmokeTest(unittest.TestCase):
                 rclpy.spin_once(teleop, timeout_sec=0.02)
 
             frame = MockPicoSource().read()
+            # The first frame establishes per-controller liveness baselines;
+            # a changed pose is required before the deadman can arm.
             teleop.step(frame)
+            live_frame = PicoFrame(
+                frame.headset_pose,
+                [frame.left_controller_pose[0] + 1e-4, *frame.left_controller_pose[1:]],
+                [frame.right_controller_pose[0] + 1e-4, *frame.right_controller_pose[1:]],
+                frame.controls,
+                frame.timestamp_ns + 1,
+            )
+            teleop.step(live_frame)
+            frame = live_frame
             deadline = time.monotonic() + 1.0
             while time.monotonic() < deadline and not all(received.values()):
                 rclpy.spin_once(observer, timeout_sec=0.02)

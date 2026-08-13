@@ -19,14 +19,17 @@ class PicoFrame:
 class PicoSource:
     def __init__(self):
         try:
-            import xrobottoolkit_sdk as sdk
+            import xrobotoolkit_sdk as sdk
         except ImportError as exc:
             raise RuntimeError(
-                "xrobottoolkit_sdk is not installed for this Python; install the cp310 wheel "
+                "xrobotoolkit_sdk is not installed for this Python; install the cp310 wheel "
                 "from xgmr_tmp/pico/pico_teleop/deps first"
             ) from exc
         self.sdk = sdk
         self.sdk.init()
+
+    def close(self) -> None:
+        self.sdk.close()
 
     def read(self) -> PicoFrame:
         sdk = self.sdk
@@ -66,6 +69,9 @@ class MockPicoSource:
 
     def __init__(self):
         self.started = time.monotonic()
+
+    def close(self) -> None:
+        pass
 
     @staticmethod
     def _pose(position, quaternion=(0.0, 0.0, 0.0, 1.0)):

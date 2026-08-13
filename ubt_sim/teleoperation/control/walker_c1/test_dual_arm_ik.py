@@ -30,6 +30,5 @@ class DualArmIKTest(unittest.TestCase):
                 reached = solver.fk(moved)
                 self.assertLess(float(np.linalg.norm(reached[:3, 3] - target)), 0.005)
 
-
 if __name__ == "__main__":
     unittest.main()

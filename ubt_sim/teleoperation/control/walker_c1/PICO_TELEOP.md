@@ -21,6 +21,7 @@
 - IK 解相对上一帧跳变超过 0.35 rad 时拒绝该帧，防止冗余关节分支切换。
 - 双肘没有弯到 `-0.40 rad` 以下时拒绝使能，避免从全零伸直奇异姿态开始。
 - PICO 时间戳连续 0.25 秒不更新时自动解除使能并停止发布。
+- 进程启动后，左右手柄必须分别产生过有效 pose 更新才允许使能；全零/非法 pose 会被拒绝。
 - `--source mock` 禁止用于真机模式。
 - 真机命令同时要求 `--enable-command --confirm-real-robot`。
 
@@ -56,7 +57,8 @@ ROS_DOMAIN_ID=146 /usr/bin/python3 reset.py --mode task
 
 ## Ubuntu + PICO 设备验证
 
-XRoboToolkit 依赖 CPython 3.10。仓库中的 wheel 是 Linux x86_64 版本：
+XRoboToolkit 依赖 CPython 3.10。厂家 wheel 是 Linux x86_64 版本；Python 导入名是
+`xrobotoolkit_sdk`（`robot` 后只有一个 `t`）。
 
 ```text
 xgmr_tmp/pico/pico_teleop/deps/xrobotoolkit_sdk-1.0.2-cp310-cp310-linux_x86_64.whl
@@ -64,17 +66,40 @@ xgmr_tmp/pico/pico_teleop/deps/xrobotoolkit_sdk-1.0.2-cp310-cp310-linux_x86_64.w
 
 在最终 Ubuntu 环境中安装该 wheel，并确保 `libPXREARobotSDK.so` 可由动态链接器找到。启动 Thinker Studio/`xrobotoolkit-pc-service` 和 PICO 串流后，先运行：
 
+容器内不要用 Isaac Python 3.11。把 wheel 和 `libPXREARobotSDK.so` 放到
+`/opt/pico-sdk` 后，可不用 pip，直接准备隔离 runtime：
+
+```bash
+cd /ubt_sim/teleoperation/control/walker_c1
+./prepare_pico_runtime.sh /opt/pico-sdk /opt/pico-runtime
+```
+
+`run_pico_teleop.sh` 会自动发现 `/opt/pico-runtime` 并设置动态库路径和
+`PYTHONPATH`：
+
 ```bash
 ROS_DOMAIN_ID=146 ./run_pico_teleop.sh --mode preview --source sdk
 ```
 
-如果 SDK 动态库不在仓库默认位置，可设置：
+如果 SDK runtime 不在默认位置，可设置：
 
 ```bash
-export PICO_SDK_LIB_DIR=/path/to/directory/containing/libPXREARobotSDK.so
+export PICO_SDK_LIB_DIR=/path/to/runtime
+export PICO_SDK_PYTHON_DIR=/path/to/runtime/python
 ```
 
+PICO 应用只需开启 `Head`、`Controller` 和 `Data & Control -> Send`；`Hand` 可选。
+当前控制链不读取腰部或腿部绑带，`PICO Motion Tracker` 保持 `None`，不需要
+Full Body 校准。
+
 真实 PICO 的第一轮工作只检查 `/pico/joint_states`、坐标方向、按钮、频率和断连，不发送机器人命令。确认后再在仿真中加 `--mode sim --enable-command`。
+
+注意：preview 只发布 `/pico/joint_states`，不会让 Isaac Sim 机器人运动。控制仿真前必须先
+执行 `reset.py --mode task`，随后使用：
+
+```bash
+ROS_DOMAIN_ID=146 ./run_pico_teleop.sh --mode sim --source sdk --enable-command
+```
 
 ## 真机前置条件
 

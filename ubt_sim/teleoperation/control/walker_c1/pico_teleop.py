@@ -33,7 +33,15 @@ try:
         RIGHT_HAND_JOINT_NAMES,
     )
     from .dual_arm_ik import ArmIK, DEFAULT_FULL_URDF
-    from .pico_math import Pose, pose7_to_robot, relative_target, slew, yaw_pitch_delta
+    from .pico_math import (
+        ControllerPoseLiveness,
+        Pose,
+        horizontal_heading,
+        pose7_to_robot,
+        relative_target,
+        slew,
+        yaw_pitch_delta,
+    )
     from .pico_source import MockPicoSource, PicoFrame, PicoSource
 except ImportError:
     from constants import (
@@ -43,7 +51,15 @@ except ImportError:
         RIGHT_HAND_JOINT_NAMES,
     )
     from dual_arm_ik import ArmIK, DEFAULT_FULL_URDF
-    from pico_math import Pose, pose7_to_robot, relative_target, slew, yaw_pitch_delta
+    from pico_math import (
+        ControllerPoseLiveness,
+        Pose,
+        horizontal_heading,
+        pose7_to_robot,
+        relative_target,
+        slew,
+        yaw_pitch_delta,
+    )
     from pico_source import MockPicoSource, PicoFrame, PicoSource
 
 
@@ -59,6 +75,7 @@ PREVIEW_JOINT_NAMES = (
 @dataclass
 class TeleopAnchors:
     headset: Pose
+    operator_to_tracking: np.ndarray
     left_controller: Pose
     right_controller: Pose
     left_palm: Pose
@@ -132,6 +149,10 @@ class WalkerC1PicoTeleop(Node):
         self.last_head: Optional[list[float]] = None
         self.last_warning_time = 0.0
         self.emergency_latched = False
+        self.controller_liveness = {
+            "left": ControllerPoseLiveness(),
+            "right": ControllerPoseLiveness(),
+        }
 
         action = "COMMAND" if self.command_enabled else "PREVIEW ONLY"
         self.get_logger().info(f"PICO teleop mode={mode}, {action}; hold right B to move")
@@ -177,6 +198,7 @@ class WalkerC1PicoTeleop(Node):
         right_fk = self.right_ik.fk(right_joints)
         self.anchors = TeleopAnchors(
             headset=head,
+            operator_to_tracking=horizontal_heading(head),
             left_controller=left,
             right_controller=right,
             left_palm=Pose(left_fk[:3, 3].copy(), left_fk[:3, :3].copy()),
@@ -239,6 +261,15 @@ class WalkerC1PicoTeleop(Node):
         controls = frame.controls
         left_controls = controls.get("LeftController", {})
         right_controls = controls.get("RightController", {})
+        now = time.monotonic()
+        controllers_live = {
+            "left": self.controller_liveness["left"].update(
+                frame.left_controller_pose, now
+            ),
+            "right": self.controller_liveness["right"].update(
+                frame.right_controller_pose, now
+            ),
+        }
         if bool(left_controls.get("axis_click", False)):
             self.emergency_latched = True
             self.disarm("left stick emergency latch")
@@ -253,6 +284,13 @@ class WalkerC1PicoTeleop(Node):
         deadman = bool(right_controls.get("key_two", False))
         if not deadman:
             self.disarm("right B released")
+            return
+        stale_controllers = [side for side, live in controllers_live.items() if not live]
+        if stale_controllers:
+            self.disarm("controller pose stopped")
+            self._warn_throttled(
+                "controller pose has not updated since startup: " + ", ".join(stale_controllers)
+            )
             return
         if not self._state_ready():
             self.disarm()
@@ -275,6 +313,7 @@ class WalkerC1PicoTeleop(Node):
             self.config["translation_scale"],
             self.config["max_controller_displacement_m"],
             self.config["left_workspace"],
+            anchors.operator_to_tracking,
         )
         right_target = relative_target(
             anchors.right_palm,
@@ -283,6 +322,7 @@ class WalkerC1PicoTeleop(Node):
             self.config["translation_scale"],
             self.config["max_controller_displacement_m"],
             self.config["right_workspace"],
+            anchors.operator_to_tracking,
         )
         left_solution = self.left_ik.solve(
             left_target.position,
@@ -291,6 +331,9 @@ class WalkerC1PicoTeleop(Node):
             self.config["max_ik_position_error_m"],
             self.config["max_ik_rotation_error_rad"],
             self.config["max_ik_solution_jump_rad"],
+            self.config["ik_orientation_weight_m_per_rad"],
+            self.config["ik_seed_regularization_weight"],
+            self.config["ik_max_nfev"],
         )
         right_solution = self.right_ik.solve(
             right_target.position,
@@ -299,15 +342,27 @@ class WalkerC1PicoTeleop(Node):
             self.config["max_ik_position_error_m"],
             self.config["max_ik_rotation_error_rad"],
             self.config["max_ik_solution_jump_rad"],
+            self.config["ik_orientation_weight_m_per_rad"],
+            self.config["ik_seed_regularization_weight"],
+            self.config["ik_max_nfev"],
         )
         if left_solution is None or right_solution is None:
-            self._warn_throttled("IK rejected this frame; holding the previous command")
+            reasons = []
+            if left_solution is None:
+                reasons.append(f"left: {self.left_ik.last_rejection_reason or 'unknown'}")
+            if right_solution is None:
+                reasons.append(f"right: {self.right_ik.last_rejection_reason or 'unknown'}")
+            self._warn_throttled(
+                "IK rejected this frame; holding the previous command; " + "; ".join(reasons)
+            )
             return
 
         max_joint_step = float(self.config["max_joint_step_rad"])
         left_command = slew(self.last_left, left_solution, max_joint_step)
         right_command = slew(self.last_right, right_solution, max_joint_step)
-        yaw_delta, pitch_delta = yaw_pitch_delta(anchors.headset, headset)
+        yaw_delta, pitch_delta = yaw_pitch_delta(
+            anchors.headset, headset, anchors.operator_to_tracking
+        )
         head_target = [
             anchors.head[0] + self.config["head_yaw_scale"] * yaw_delta,
             anchors.head[1] + self.config["head_pitch_scale"] * pitch_delta,
@@ -379,6 +434,7 @@ def main() -> int:
     status = StatusWriter()
     rclpy.init()
     node: Optional[WalkerC1PicoTeleop] = None
+    source = None
     try:
         node = WalkerC1PicoTeleop(config, args.mode, args.enable_command, args.urdf)
         source = _make_source(args.source, args.mode)
@@ -396,7 +452,9 @@ def main() -> int:
                     last_source_timestamp = frame.timestamp_ns
                     last_source_change = now
                 stale_for = now - last_source_change
-                if frame.timestamp_ns <= 0 or stale_for > float(config["source_stale_timeout_s"]):
+                stale_timeout = float(config["source_stale_timeout_s"])
+                timed_out = stale_timeout > 0.0 and stale_for > stale_timeout
+                if frame.timestamp_ns <= 0 or timed_out:
                     node.disarm("PICO timestamp stopped")
                     node._warn_throttled(f"PICO data stale for {stale_for:.3f} s")
                 else:
@@ -411,6 +469,11 @@ def main() -> int:
         return 0
     finally:
         status.update(False, False, args.mode, force=True)
+        if source is not None:
+            try:
+                source.close()
+            except Exception as exc:
+                print(f"warning: cannot close PICO source cleanly: {exc}", file=sys.stderr)
         if node is not None:
             node.destroy_node()
         if rclpy.ok():
