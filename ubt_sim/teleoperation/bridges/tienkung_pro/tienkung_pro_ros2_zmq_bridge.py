@@ -219,8 +219,10 @@ class TienkungProRosBridge(Node):
                         f = Float32()
                         f.data = float(msg["task_dist"])
                         self.pubs["task_dist"].publish(f)
+                except zmq.Again:
+                    pass  # poll 竞态：消息已被消费，无害
                 except Exception as e:
-                    pass
+                    self.get_logger().error(f"status poll: publish failed: {e}")
 
     def publish_status(self, data):
         # Support both old list format and new dict format

@@ -309,8 +309,10 @@ class WalkerS2RosBridge(Node):
                 try:
                     msg = self.status_socket.recv_json(flags=zmq.NOBLOCK)
                     self.publish_status(msg)
-                except Exception:
-                    pass
+                except zmq.Again:
+                    pass  # poll 竞态：消息已被消费，无害
+                except Exception as e:
+                    self.get_logger().error(f"status poll: publish failed: {e}")
 
     def publish_status(self, data: dict):
         header = self.get_clock().now().to_msg()

@@ -4,7 +4,10 @@ import time
 import struct
 from collections import deque
 import numpy as np
-# import pyrealsense2 as rs
+try:
+    import pyrealsense2 as rs
+except ImportError:
+    rs = None  # pyrealsense2 未安装；RealSenseCamera 实例化时会抛清晰错误
 import pyorbbecsdk as ob
 import logging
 
@@ -18,6 +21,11 @@ class RealSenseCamera(object):
         img_shape: [height, width]
         serial_number: serial number
         """
+        if rs is None:
+            raise RuntimeError(
+                "RealSenseCamera 需要 pyrealsense2，但未安装。"
+                "请 pip install pyrealsense2，或将 camera_type 改为 'opencv'/'orbbec'。"
+            )
         self.img_shape = img_shape
         self.fps = fps
         self.serial_number = serial_number

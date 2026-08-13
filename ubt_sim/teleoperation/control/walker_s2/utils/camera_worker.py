@@ -104,8 +104,13 @@ def _run_subprocess(name, topic, msg_type_name, shm_name, shm_size, seq, lock, j
                     struct.pack_into(_HEADER_FMT, shm.buf, 0, len(data), ts, h, w)
                     shm.buf[_HEADER_SIZE:_HEADER_SIZE + len(data)] = data
                     seq.value += 1
-            except Exception:
-                pass
+            except Exception as e:
+                # 不再静默吞：持续解码失败会让整集相机冻结。
+                # throttle 防止每帧刷屏（~15-30Hz）。
+                node.get_logger().error(
+                    f"camera_worker decode/encode failed: {e}",
+                    throttle_duration_sec=5.0,
+                )
 
         node.create_subscription(msg_type, topic, cb, qos, callback_group=cb_group)
         executor = SingleThreadedExecutor()
@@ -182,11 +187,12 @@ class CameraShmClient:
     像主进程 Camera 一样使用(img 字段为 JPEG bytes 而非 ndarray)。
     """
 
-    def __init__(self, shm, seq, lock, name):
+    def __init__(self, shm, seq, lock, name, worker=None):
         self.shm = shm              # SharedMemory(create=True) 句柄
         self.seq = seq
         self.lock = lock
         self.name = name
+        self._worker = worker       # CameraWorker，用于 stall 时检测子进程是否已死
         self._last_seq = -1
         self._cached: Optional[_Frame] = None
         self._stall = 0
@@ -196,8 +202,14 @@ class CameraShmClient:
         if cur == self._last_seq:
             self._stall += 1
             if self._stall == _STALL_WARN_THRESH:
-                print(f"[CameraShmClient] WARNING: camera '{self.name}' stalled "
-                      f"(seq unchanged for {_STALL_WARN_THRESH} polls, subprocess may have crashed)")
+                dead = self._worker is not None and not self._worker.is_alive()
+                if dead:
+                    print(f"[CameraShmClient] ERROR: camera '{self.name}' subprocess is DEAD "
+                          f"(no new frames for {_STALL_WARN_THRESH} polls) - check subprocess logs",
+                          flush=True)
+                else:
+                    print(f"[CameraShmClient] WARNING: camera '{self.name}' stalled "
+                          f"(seq unchanged for {_STALL_WARN_THRESH} polls, subprocess may have crashed)")
             return self._cached
         with self.lock:
             length, ts, h, w = struct.unpack_from(_HEADER_FMT, self.shm.buf, 0)
@@ -256,5 +268,5 @@ def create_camera_source(topic, msg_type_name, name, jpeg_quality=95,
         shm_name=shm_name, shm_size=shm.size, seq=seq, lock=lock,
         stop_event=stop_event, jpeg_quality=jpeg_quality, start_method=start_method,
     )
-    client = CameraShmClient(shm=shm, seq=seq, lock=lock, name=name)
+    client = CameraShmClient(shm=shm, seq=seq, lock=lock, name=name, worker=worker)
     return worker, client
