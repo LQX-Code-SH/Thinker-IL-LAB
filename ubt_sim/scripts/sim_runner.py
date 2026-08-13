@@ -258,6 +258,12 @@ def main():
                     teleop_interface.reset()
                     keyboard_reset.reset_requested = False
 
+                if keyboard_reset.episode_complete_requested:
+                    if ROBOT == "walker_c1":
+                        teleop_interface.request_episode_complete()
+                        print("[INFO] Space pressed: requesting episode save and reset...")
+                    keyboard_reset.episode_complete_requested = False
+
                 if perf_monitor is not None:
                     t_0 = time.perf_counter()
                     actions = teleop_interface.advance()

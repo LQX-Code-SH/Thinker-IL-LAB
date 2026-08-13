@@ -1,12 +1,13 @@
-# Walker C1 PICO 遥操作（头、双臂、双手）
+# Walker C1 PICO 遥操作与数据采集
 
-该实现不使用 GMR，也不会向腰部或腿部发送命令。
+该实现不使用 GMR，也不会向腰部或腿部发送命令。当前任务配置只控制右臂和右手；头部、
+左臂和左手持续保持 `reset.py --mode task` 的标准姿态，不读取按 B 瞬间的反馈值作为固定目标。
 
 ## 数据与控制链路
 
-- PICO 头显相对姿态 → `head_yaw_joint`、`head_pitch_joint`
-- 左右手柄相对位姿 → 左右手掌目标 → C1 双臂 IK
-- 左右手柄扳机 → 两只手的 6D Walker SDK 手指命令
+- PICO 头显水平朝向 → 只用于建立操作者坐标基准，机器人头部不跟随
+- 右手柄相对位姿 → 右手掌目标 → C1 右臂 IK
+- 右手柄扳机 → 右手 6D Walker SDK 手指命令
 - `/pico/joint_states` → Thinker Studio 预览
 - `/mc/sdk/robot_command`、`/mc/{left,right}_hand/command` → 仿真或真机
 
@@ -19,11 +20,41 @@
 - 左手柄摇杆按下会锁定急停。松开所有按钮后按右 A 清除锁定，但不会自动恢复运动。
 - PICO 位姿非法、机器人反馈不完整或 IK 残差超限时保持上一目标。
 - IK 解相对上一帧跳变超过 0.35 rad 时拒绝该帧，防止冗余关节分支切换。
-- 双肘没有弯到 `-0.40 rad` 以下时拒绝使能，避免从全零伸直奇异姿态开始。
-- PICO 时间戳连续 0.25 秒不更新时自动解除使能并停止发布。
-- 进程启动后，左右手柄必须分别产生过有效 pose 更新才允许使能；全零/非法 pose 会被拒绝。
+- 受控右肘没有弯到 `-0.40 rad` 以下时拒绝使能，避免从全零伸直奇异姿态开始。
+- PICO 时间戳必须有效；当前允许操作者主动静止，静止时保持现有姿态，不按短超时断开。
+- 进程启动后，右手柄必须产生过有效 pose 更新才允许使能；全零/非法 pose 会被拒绝。
 - `--source mock` 禁止用于真机模式。
 - 真机命令同时要求 `--enable-command --confirm-real-robot`。
+
+## 连续采集多个 episode
+
+Space 事件由 Isaac Sim 主窗口捕获，因此新增功能第一次使用前必须重启仿真。启动带录制的遥
+操作：
+
+```bash
+ROS_DOMAIN_ID=146 ./run_pico_teleop.sh \
+  --mode sim --source sdk --enable-command --record
+```
+
+推荐操作循环：
+
+1. reset 完成后按住右手柄 B，开始右臂/右手遥操作，同时自动开始录制。
+2. 完成一次任务后松开 B，在 Isaac Sim 主窗口按一次空格；无需连续按第二次。
+3. 程序停止当前条、保存 HDF5，然后依次执行场景 reset 和标准 task reset。
+4. 等日志显示 `ready for next episode`，再按 B 开始下一条；保存和 reset 期间的空格会被忽略。
+
+默认保存目录：
+
+```text
+/ubt_sim/dataset/walker_c1_pico/<毫秒时间戳>/trajectory.hdf5
+```
+
+每条文件包含以头部 RGB 帧同步的左右臂/手反馈和对应 command action，字段与
+`Walker_C1_26_1RGB.json` 的 26 维 LeRobot 转换配置一致。当前左侧 action 恒为标准 reset
+姿态，右侧 action 是仿真实际收到的遥操作命令。若误按空格且尚无相机帧，则不会生成空文件，
+但仍会 reset。HDF5 的 `record_hz` 是根据图像时间戳测得的实际采样率，
+`requested_record_hz` 是采样上限；CPU 仿真中实际速率可能明显低于 30 Hz，转换数据时应使用
+实际速率，不能仅把数据硬标为 30 Hz。R 键保留为原来的纯仿真 reset，不保存 episode。
 
 ## 云端无 PICO 验证
 
@@ -53,7 +84,8 @@ ROS_DOMAIN_ID=146 ./run_pico_teleop.sh --mode sim --source mock --enable-command
 ROS_DOMAIN_ID=146 /usr/bin/python3 reset.py --mode task
 ```
 
-模拟数据会从当前机器人姿态捕获锚点，做小幅、限速的对称双臂运动，同时测试头部和手指命令。
+模拟数据会从当前机器人姿态捕获右臂锚点，做小幅、限速的右臂和右手运动；头部与左侧保持
+标准 task reset 姿态。
 
 ## Ubuntu + PICO 设备验证
 

@@ -45,7 +45,7 @@ ubt_sim/
 ├── scripts/
 │   ├── build_c1_apple_usd.py             # 重建任务苹果小型 USD
 │   ├── start_c1_mentor_sensor_sim.sh     # 启动仿真 + 五相机 viewport（+ --control 开 ROS）
-│   ├── start_c1_pick_place_sim.sh        # 启动仿真 + ROS bridge（无额外相机窗口）
+│   ├── start_c1_pick_place_sim.sh        # 启动仿真 + ROS bridge（GUI 默认，--headless 可选）
 │   ├── run_c1_pick_place_once.sh         # 单次/多次在线 IK 抓放 + 数据采集
 │   └── run_c1_online_ik_batch.sh         # 批量运行，失败自动重启整个仿真栈
 ├── source/ubt_sim/devices/walker_c1/     # Isaac Lab 侧机器人配置/controller

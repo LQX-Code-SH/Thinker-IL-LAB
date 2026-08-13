@@ -28,6 +28,7 @@ class WalkerC1Controller(DeviceBase):
         self.reset_requested = False
         self._action: dict[str, Any] | list[float] = {}
         self._jpeg_frame_count = 0
+        self._episode_complete_id = 0
         self.jpeg_unit_test = kwargs.get("jpeg_unit_test", True)
 
         self.cmd_port = int(kwargs.get("cmd_port", 5655))
@@ -69,6 +70,10 @@ class WalkerC1Controller(DeviceBase):
         self._action = {}
         self.reset_requested = False
         reset_hold_targets()
+
+    def request_episode_complete(self) -> None:
+        """Send a monotonic event to the ROS recorder through status ZMQ."""
+        self._episode_complete_id += 1
 
     def _apply_pending_object_pose(self) -> None:
         pos = getattr(self, "_pending_object_pos", None)
@@ -137,6 +142,7 @@ class WalkerC1Controller(DeviceBase):
 
     def _send_status(self) -> None:
         status = to_ros_data(self.env, self._action if isinstance(self._action, dict) else {"walker_c1": self._action})
+        status["episode_complete_id"] = self._episode_complete_id
         self._sim_step = getattr(self, "_sim_step", 0) + 1
         status["sim_step"] = self._sim_step
         self.pub_socket.send_json(status, flags=zmq.NOBLOCK)

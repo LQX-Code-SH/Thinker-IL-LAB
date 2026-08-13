@@ -18,7 +18,9 @@ class KeyboardResetController:
                 self._on_keyboard_event,
             )
         self.reset_requested = False
+        self.episode_complete_requested = False
         self._last_reset_time = 0.0
+        self._last_episode_complete_time = 0.0
 
     def __del__(self):
         if self._keyboard is not None and self._keyboard_sub is not None:
@@ -33,6 +35,10 @@ class KeyboardResetController:
                 if current_time - self._last_reset_time > 1.0:
                     self.reset_requested = True
                     self._last_reset_time = current_time
+            elif event.input.name == "SPACE":
+                if current_time - self._last_episode_complete_time > 1.0:
+                    self.episode_complete_requested = True
+                    self._last_episode_complete_time = current_time
         return True
 
 

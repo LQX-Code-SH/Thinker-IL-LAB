@@ -22,5 +22,6 @@ topics:
     left_hand_state: {topic: "/mc/left_hand/joint_states", type: "JointState", qos: 10}
     right_hand_state: {topic: "/mc/right_hand/joint_states", type: "JointState", qos: 10}
     object_state: {topic: "/sim/object_state", type: "String", qos: 10}
+    episode_complete: {topic: "/sim/episode_complete", type: "Bool", qos: 1}
     image_rgb: {topic: "/sensor/camera/head/color/raw", type: "Image", compressed: true}
     image_depth: {topic: "/sensor/camera/head/depth/raw", type: "Image", compressed: true}

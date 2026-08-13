@@ -85,6 +85,7 @@ class ArmIK:
 
         link_names = [link.name for link in self.chain.links]
         self.indices = [link_names.index(name) for name in self.joint_names]
+        self.elbow_pitch_index = self.joint_names.index(f"{prefix}_elbow_pitch_joint")
         mask = np.zeros(len(self.chain.links), dtype=bool)
         mask[self.indices] = True
         self.chain.active_links_mask = mask
@@ -118,14 +119,58 @@ class ArmIK:
         orientation_weight: float = 0.10,
         seed_regularization_weight: float = 0.02,
         max_nfev: int = 60,
+        max_target_position_step: float = float("inf"),
+        max_target_rotation_step: float = float("inf"),
+        max_elbow_pitch: float = float("inf"),
     ) -> Optional[list[float]]:
         self.last_rejection_reason = ""
         target_position = np.asarray(position, dtype=float)
         target_rotation = np.asarray(rotation, dtype=float)
-        seed_joints = np.asarray(self.clamp_joints(seed), dtype=float)
         lower_bounds = np.asarray([float(bounds[0]) + 1e-4 for bounds in self.bounds])
         upper_bounds = np.asarray([float(bounds[1]) - 1e-4 for bounds in self.bounds])
+        if np.isfinite(max_elbow_pitch):
+            upper_bounds[self.elbow_pitch_index] = min(
+                upper_bounds[self.elbow_pitch_index], float(max_elbow_pitch)
+            )
+        if np.any(lower_bounds >= upper_bounds):
+            self.last_rejection_reason = "invalid constrained joint bounds"
+            return None
+        seed_joints = np.clip(
+            np.asarray(self.clamp_joints(seed), dtype=float), lower_bounds, upper_bounds
+        )
+        seed_pose = self.fk(seed_joints)
 
+        # A controller target can move much farther in one SDK update than a
+        # joint command is allowed to slew in one cycle. Solving that distant
+        # target directly can select another 7-DoF IK branch, which then gets
+        # rejected as a large joint jump on every following frame. Advance the
+        # Cartesian target from the commanded seed pose in bounded increments.
+        position_delta = target_position - seed_pose[:3, 3]
+        position_distance = float(np.linalg.norm(position_delta))
+        if (
+            np.isfinite(max_target_position_step)
+            and max_target_position_step > 0.0
+            and position_distance > max_target_position_step
+        ):
+            target_position = (
+                seed_pose[:3, 3]
+                + position_delta * float(max_target_position_step) / position_distance
+            )
+
+        rotation_delta = Rotation.from_matrix(
+            target_rotation @ seed_pose[:3, :3].T
+        ).as_rotvec()
+        rotation_distance = float(np.linalg.norm(rotation_delta))
+        if (
+            np.isfinite(max_target_rotation_step)
+            and max_target_rotation_step > 0.0
+            and rotation_distance > max_target_rotation_step
+        ):
+            rotation_delta *= float(max_target_rotation_step) / rotation_distance
+            target_rotation = (
+                Rotation.from_rotvec(rotation_delta).as_matrix()
+                @ seed_pose[:3, :3]
+            )
         def residuals(joints: np.ndarray) -> np.ndarray:
             reached = self.fk(joints)
             position_error = reached[:3, 3] - target_position

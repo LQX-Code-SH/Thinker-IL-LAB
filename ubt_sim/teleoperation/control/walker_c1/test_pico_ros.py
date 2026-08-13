@@ -85,6 +85,21 @@ class PicoRosSmokeTest(unittest.TestCase):
             self.assertEqual(len(received["preview"][-1].name), 28)
             self.assertEqual(len(received["preview"][-1].name), len(received["preview"][-1].position))
 
+            # One arm's IK failure must not freeze the other arm, head, or
+            # hand commands for the whole frame.
+            counts_before_failure = {key: len(value) for key, value in received.items()}
+            teleop.right_ik.last_rejection_reason = "test rejection"
+            with patch.object(teleop.right_ik, "solve", return_value=None):
+                teleop.step(frame)
+            deadline = time.monotonic() + 0.5
+            while time.monotonic() < deadline:
+                rclpy.spin_once(observer, timeout_sec=0.02)
+                rclpy.spin_once(teleop, timeout_sec=0.02)
+            self.assertTrue(all(
+                len(received[key]) > counts_before_failure[key]
+                for key in ("body", "left", "right", "preview")
+            ))
+
             counts = {key: len(value) for key, value in received.items()}
             released_controls = dict(frame.controls)
             released_controls["RightController"] = dict(frame.controls["RightController"])
@@ -107,8 +122,11 @@ class PicoRosSmokeTest(unittest.TestCase):
             teleop.step(frame)
             for _ in range(5):
                 rclpy.spin_once(observer, timeout_sec=0.02)
-            self.assertFalse(teleop.armed)
-            self.assertEqual(counts, {key: len(value) for key, value in received.items()})
+            self.assertTrue(teleop.armed)
+            self.assertTrue(all(
+                len(received[key]) > counts[key]
+                for key in ("body", "left", "right", "preview")
+            ))
         finally:
             observer.destroy_node()
             teleop.destroy_node()

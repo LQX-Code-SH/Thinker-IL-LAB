@@ -147,6 +147,7 @@ class WalkerC1RosBridge(Node):
             self.pubs[key] = self.create_publisher(MSG_TYPES[spec["type"]], spec["topic"], spec.get("qos", 10))
 
         self._running = True
+        self._last_episode_complete_id = None
         self._poll_thread = threading.Thread(target=self._poll_loop)
         self._poll_thread.start()
         self.get_logger().info("Walker C1 ROS2-ZMQ bridge started")
@@ -202,6 +203,20 @@ class WalkerC1RosBridge(Node):
 
     def publish_status(self, data: dict):
         stamp = self.get_clock().now().to_msg()
+        episode_complete_id = int(data.get("episode_complete_id", 0))
+        if self._last_episode_complete_id is None:
+            # The first status packet establishes a baseline.  This prevents
+            # a bridge restart from replaying an old Space event.
+            self._last_episode_complete_id = episode_complete_id
+        elif episode_complete_id > self._last_episode_complete_id:
+            self._last_episode_complete_id = episode_complete_id
+            if "episode_complete" in self.pubs:
+                episode_msg = Bool()
+                episode_msg.data = True
+                self.pubs["episode_complete"].publish(episode_msg)
+                self.get_logger().info(
+                    f"episode completion requested from simulator: {episode_complete_id}"
+                )
         pos_map = dict(zip(data.get("joint_names", []), data.get("joint_pos", [])))
         vel_map = dict(zip(data.get("joint_names", []), data.get("joint_vel", [])))
 

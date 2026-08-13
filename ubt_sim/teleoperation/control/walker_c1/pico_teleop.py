@@ -31,6 +31,7 @@ try:
         LEFT_HAND_JOINT_NAMES,
         RIGHT_ARM_JOINT_NAMES,
         RIGHT_HAND_JOINT_NAMES,
+        TASK_RESET_BODY_POSE,
     )
     from .dual_arm_ik import ArmIK, DEFAULT_FULL_URDF
     from .pico_math import (
@@ -43,12 +44,14 @@ try:
         yaw_pitch_delta,
     )
     from .pico_source import MockPicoSource, PicoFrame, PicoSource
+    from .pico_episode_recorder import PicoEpisodeRecorder
 except ImportError:
     from constants import (
         LEFT_ARM_JOINT_NAMES,
         LEFT_HAND_JOINT_NAMES,
         RIGHT_ARM_JOINT_NAMES,
         RIGHT_HAND_JOINT_NAMES,
+        TASK_RESET_BODY_POSE,
     )
     from dual_arm_ik import ArmIK, DEFAULT_FULL_URDF
     from pico_math import (
@@ -61,6 +64,7 @@ except ImportError:
         yaw_pitch_delta,
     )
     from pico_source import MockPicoSource, PicoFrame, PicoSource
+    from pico_episode_recorder import PicoEpisodeRecorder
 
 
 _THIS_DIR = Path(__file__).resolve().parent
@@ -120,6 +124,10 @@ class WalkerC1PicoTeleop(Node):
         mode: str,
         command_enabled: bool,
         urdf_path: str = DEFAULT_FULL_URDF,
+        record: bool = False,
+        record_root: str = "/ubt_sim/dataset/walker_c1_pico",
+        camera_topic: str = "/sensor/camera/head/color/raw",
+        record_hz: float = 30.0,
     ):
         super().__init__("walker_c1_pico_teleop")
         self.config = config
@@ -149,10 +157,16 @@ class WalkerC1PicoTeleop(Node):
         self.last_head: Optional[list[float]] = None
         self.last_warning_time = 0.0
         self.emergency_latched = False
+        self.episode_reset_blocked = False
+        self.episode_reset_complete = False
         self.controller_liveness = {
             "left": ControllerPoseLiveness(),
             "right": ControllerPoseLiveness(),
         }
+        self.recorder = (
+            PicoEpisodeRecorder(self, record_root, camera_topic, record_hz)
+            if record else None
+        )
 
         action = "COMMAND" if self.command_enabled else "PREVIEW ONLY"
         self.get_logger().info(f"PICO teleop mode={mode}, {action}; hold right B to move")
@@ -171,14 +185,12 @@ class WalkerC1PicoTeleop(Node):
         required = HEAD_JOINT_NAMES + LEFT_ARM_JOINT_NAMES + RIGHT_ARM_JOINT_NAMES
         return all(name in self.joint_positions for name in required)
 
-    def _posture_ready(self) -> bool:
+    def _arm_posture_ready(self, side: str) -> bool:
         # Near-zero elbow pitch is the straight-arm singular posture used by
         # the simulator's HOME pose.  Full-pose 7-DoF IK is not safe there.
         limit = float(self.config["max_elbow_pitch_for_teleop_rad"])
-        return (
-            float(self.joint_positions["L_elbow_pitch_joint"]) <= limit
-            and float(self.joint_positions["R_elbow_pitch_joint"]) <= limit
-        )
+        prefix = "L" if side == "left" else "R"
+        return float(self.joint_positions[f"{prefix}_elbow_pitch_joint"]) <= limit
 
     def disarm(self, reason: Optional[str] = None) -> None:
         if self.anchors is not None and reason:
@@ -203,12 +215,22 @@ class WalkerC1PicoTeleop(Node):
             right_controller=right,
             left_palm=Pose(left_fk[:3, 3].copy(), left_fk[:3, :3].copy()),
             right_palm=Pose(right_fk[:3, 3].copy(), right_fk[:3, :3].copy()),
-            head=self._current(HEAD_JOINT_NAMES),
+            head=(
+                self._current(HEAD_JOINT_NAMES)
+                if self.config.get("head_tracking_enabled", True)
+                else [float(TASK_RESET_BODY_POSE[name]) for name in HEAD_JOINT_NAMES]
+            ),
         )
-        self.last_left = left_joints
+        self.last_left = (
+            left_joints
+            if "left" in set(self.config.get("teleop_sides", ("left", "right")))
+            else [float(TASK_RESET_BODY_POSE[name]) for name in LEFT_ARM_JOINT_NAMES]
+        )
         self.last_right = right_joints
         self.last_head = list(self.anchors.head)
         self.get_logger().info("teleop armed; controller and robot anchors captured")
+        if self.recorder is not None:
+            self.recorder.start_episode()
 
     def _publish_body(self, positions: dict[str, float]) -> None:
         msg = RobotCommand()
@@ -220,6 +242,8 @@ class WalkerC1PicoTeleop(Node):
             command.position = float(position)
             msg.joint_cmd.append(command)
         self.body_pub.publish(msg)
+        if self.recorder is not None:
+            self.recorder.note_body_command(positions)
 
     def _publish_hand(self, side: str, positions: list[float]) -> None:
         names = LEFT_HAND_JOINT_NAMES if side == "left" else RIGHT_HAND_JOINT_NAMES
@@ -232,6 +256,8 @@ class WalkerC1PicoTeleop(Node):
         # This is intentionally different from JointCmd.MODE_POSITION == 2.
         msg.mode = [5] * len(names)
         publisher.publish(msg)
+        if self.recorder is not None:
+            self.recorder.note_hand_command(side, positions)
 
     def _publish_preview(
         self,
@@ -248,6 +274,7 @@ class WalkerC1PicoTeleop(Node):
         self.preview_pub.publish(msg)
 
     def step(self, frame: PicoFrame) -> None:
+        teleop_sides = set(self.config.get("teleop_sides", ("left", "right")))
         basis = self.config["tracking_to_robot"]
         try:
             headset = pose7_to_robot(frame.headset_pose, basis)
@@ -282,10 +309,19 @@ class WalkerC1PicoTeleop(Node):
             return
 
         deadman = bool(right_controls.get("key_two", False))
+        if self.episode_reset_blocked:
+            if self.episode_reset_complete and not deadman:
+                self.episode_reset_blocked = False
+                self.episode_reset_complete = False
+                self.get_logger().info("ready for next episode; press and hold right B")
+            return
         if not deadman:
             self.disarm("right B released")
             return
-        stale_controllers = [side for side, live in controllers_live.items() if not live]
+        stale_controllers = [
+            side for side, live in controllers_live.items()
+            if side in teleop_sides and not live
+        ]
         if stale_controllers:
             self.disarm("controller pose stopped")
             self._warn_throttled(
@@ -296,25 +332,21 @@ class WalkerC1PicoTeleop(Node):
             self.disarm()
             self._warn_throttled("waiting for all head and arm joints on /mc/sdk/robot_state")
             return
-        if not self._posture_ready():
-            self.disarm()
-            self._warn_throttled(
-                "arms are too straight for teleop IK; move to the task-ready bent-elbow pose first"
-            )
-            return
         if self.anchors is None:
             self._capture_anchors(headset, left_controller, right_controller)
 
         anchors = self.anchors
-        left_target = relative_target(
-            anchors.left_palm,
-            anchors.left_controller,
-            left_controller,
-            self.config["translation_scale"],
-            self.config["max_controller_displacement_m"],
-            self.config["left_workspace"],
-            anchors.operator_to_tracking,
-        )
+        left_target = None
+        if "left" in teleop_sides:
+            left_target = relative_target(
+                anchors.left_palm,
+                anchors.left_controller,
+                left_controller,
+                self.config["translation_scale"],
+                self.config["max_controller_displacement_m"],
+                self.config["left_workspace"],
+                anchors.operator_to_tracking,
+            )
         right_target = relative_target(
             anchors.right_palm,
             anchors.right_controller,
@@ -324,27 +356,36 @@ class WalkerC1PicoTeleop(Node):
             self.config["right_workspace"],
             anchors.operator_to_tracking,
         )
-        left_solution = self.left_ik.solve(
-            left_target.position,
-            left_target.rotation,
-            self.last_left,
-            self.config["max_ik_position_error_m"],
-            self.config["max_ik_rotation_error_rad"],
-            self.config["max_ik_solution_jump_rad"],
-            self.config["ik_orientation_weight_m_per_rad"],
-            self.config["ik_seed_regularization_weight"],
-            self.config["ik_max_nfev"],
+        def solve_arm(side: str, target: Pose) -> Optional[list[float]]:
+            solver = self.left_ik if side == "left" else self.right_ik
+            seed = self.last_left if side == "left" else self.last_right
+            if not self._arm_posture_ready(side):
+                solver.last_rejection_reason = "arm is too straight for stable IK"
+                return None
+            return solver.solve(
+                target.position,
+                target.rotation,
+                seed,
+                self.config["max_ik_position_error_m"],
+                self.config["max_ik_rotation_error_rad"],
+                self.config["max_ik_solution_jump_rad"],
+                self.config["ik_orientation_weight_m_per_rad"],
+                self.config["ik_seed_regularization_weight"],
+                self.config["ik_max_nfev"],
+                self.config["max_ik_target_position_step_m"],
+                self.config["max_ik_target_rotation_step_rad"],
+                self.config["max_commanded_elbow_pitch_rad"],
+            )
+
+        left_solution = (
+            solve_arm("left", left_target)
+            if "left" in teleop_sides
+            else [float(TASK_RESET_BODY_POSE[name]) for name in LEFT_ARM_JOINT_NAMES]
         )
-        right_solution = self.right_ik.solve(
-            right_target.position,
-            right_target.rotation,
-            self.last_right,
-            self.config["max_ik_position_error_m"],
-            self.config["max_ik_rotation_error_rad"],
-            self.config["max_ik_solution_jump_rad"],
-            self.config["ik_orientation_weight_m_per_rad"],
-            self.config["ik_seed_regularization_weight"],
-            self.config["ik_max_nfev"],
+        right_solution = (
+            solve_arm("right", right_target)
+            if "right" in teleop_sides
+            else list(self.last_right)
         )
         if left_solution is None or right_solution is None:
             reasons = []
@@ -353,27 +394,41 @@ class WalkerC1PicoTeleop(Node):
             if right_solution is None:
                 reasons.append(f"right: {self.right_ik.last_rejection_reason or 'unknown'}")
             self._warn_throttled(
-                "IK rejected this frame; holding the previous command; " + "; ".join(reasons)
+                "IK rejected this arm for the frame; holding only that arm; " + "; ".join(reasons)
             )
-            return
+        if left_solution is None:
+            left_solution = list(self.last_left)
+        if right_solution is None:
+            right_solution = list(self.last_right)
 
         max_joint_step = float(self.config["max_joint_step_rad"])
         left_command = slew(self.last_left, left_solution, max_joint_step)
         right_command = slew(self.last_right, right_solution, max_joint_step)
-        yaw_delta, pitch_delta = yaw_pitch_delta(
-            anchors.headset, headset, anchors.operator_to_tracking
-        )
-        head_target = [
-            anchors.head[0] + self.config["head_yaw_scale"] * yaw_delta,
-            anchors.head[1] + self.config["head_pitch_scale"] * pitch_delta,
-        ]
-        head_target[0] = float(np.clip(head_target[0], *self.config["head_yaw_limits"]))
-        head_target[1] = float(np.clip(head_target[1], *self.config["head_pitch_limits"]))
-        head_command = slew(self.last_head, head_target, float(self.config["max_head_step_rad"]))
+        if self.config.get("head_tracking_enabled", True):
+            yaw_delta, pitch_delta = yaw_pitch_delta(
+                anchors.headset, headset, anchors.operator_to_tracking
+            )
+            head_target = [
+                anchors.head[0] + self.config["head_yaw_scale"] * yaw_delta,
+                anchors.head[1] + self.config["head_pitch_scale"] * pitch_delta,
+            ]
+            head_target[0] = float(np.clip(head_target[0], *self.config["head_yaw_limits"]))
+            head_target[1] = float(np.clip(head_target[1], *self.config["head_pitch_limits"]))
+            head_command = slew(
+                self.last_head, head_target, float(self.config["max_head_step_rad"])
+            )
+        else:
+            head_command = list(anchors.head)
 
         close_pose = np.asarray(self.config["hand_close_pose"], dtype=float)
-        left_trigger = float(np.clip(left_controls.get("index_trig", 0.0), 0.0, 1.0))
-        right_trigger = float(np.clip(right_controls.get("index_trig", 0.0), 0.0, 1.0))
+        left_trigger = (
+            float(np.clip(left_controls.get("index_trig", 0.0), 0.0, 1.0))
+            if "left" in teleop_sides else 0.0
+        )
+        right_trigger = (
+            float(np.clip(right_controls.get("index_trig", 0.0), 0.0, 1.0))
+            if "right" in teleop_sides else 0.0
+        )
         left_hand = (close_pose * left_trigger).tolist()
         right_hand = (close_pose * right_trigger).tolist()
 
@@ -424,6 +479,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--confirm-real-robot", action="store_true")
     parser.add_argument("--config", default=str(DEFAULT_CONFIG))
     parser.add_argument("--urdf", default=DEFAULT_FULL_URDF)
+    parser.add_argument("--record", action="store_true", help="record Space-delimited HDF5 episodes")
+    parser.add_argument("--record-root", default="/ubt_sim/dataset/walker_c1_pico")
+    parser.add_argument("--camera-topic", default="/sensor/camera/head/color/raw")
+    parser.add_argument("--record-hz", type=float, default=30.0)
     return parser.parse_args()
 
 
@@ -436,7 +495,10 @@ def main() -> int:
     node: Optional[WalkerC1PicoTeleop] = None
     source = None
     try:
-        node = WalkerC1PicoTeleop(config, args.mode, args.enable_command, args.urdf)
+        node = WalkerC1PicoTeleop(
+            config, args.mode, args.enable_command, args.urdf,
+            args.record, args.record_root, args.camera_topic, args.record_hz,
+        )
         source = _make_source(args.source, args.mode)
         period = 1.0 / float(config["rate_hz"])
         last_source_timestamp: Optional[int] = None
