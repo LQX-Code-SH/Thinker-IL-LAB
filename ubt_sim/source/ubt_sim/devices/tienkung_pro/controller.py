@@ -30,22 +30,41 @@ except ImportError:
 class AsyncRawCameraSender:
     """Background thread that sends rgb+depth multipart frames over ZMQ (image port).
 
-    The main thread pushes (metadata, rgb, depth_m) tuples to an internal queue;
-    only the GPU→CPU np.copy runs on the main thread.  Depth conversion (m→mm,
-    clip, uint16) and all ZMQ socket I/O happen on the background thread, so the
-    sim main loop is never blocked by encoding or socket sends.
+    The main thread launches asynchronous GPU→CPU copies (non_blocking D2H) into
+    pinned host buffers and enqueues them; the background thread waits on the
+    CUDA event, then encodes and sends.  The sim main loop never blocks on GPU
+    sync or socket I/O.
+
+    Buffers are allocated lazily on the first frame (so resolution is taken from
+    the actual tensor, not config) and recycled through a free queue.  Depth is
+    converted m→mm uint16 on the GPU before the copy, halving the D2H payload.
     """
 
-    def __init__(self, image_port: int):
+    def __init__(self, image_port: int, num_buffers: int = 3):
         self._ctx = zmq.Context()
         self._sock = self._ctx.socket(zmq.PUB)
         self._sock.setsockopt(zmq.SNDHWM, 1)  # Only keep latest image
         self._sock.bind(f"tcp://*:{image_port}")
-        self._queue: queue.Queue = queue.Queue(maxsize=2)
+        self._cuda = torch.cuda.is_available()
+        self._num_buffers = num_buffers
+        self._h: int | None = None
+        self._w: int | None = None
+        self._free: queue.Queue = queue.Queue()  # buffers recycled by the bg thread
+        self._queue: queue.Queue = queue.Queue(maxsize=num_buffers)
         self._running = True
         self._thread = threading.Thread(target=self._run_loop, daemon=True,
                                         name="zmq-raw-camera-sender")
         self._thread.start()
+
+    def _make_buffers(self, h: int, w: int) -> None:
+        for _ in range(self._num_buffers):
+            self._free.put({
+                "rgb": torch.empty((h, w, 3), dtype=torch.uint8, pin_memory=self._cuda),
+                "depth": torch.empty((h, w), dtype=torch.uint16, pin_memory=self._cuda),
+                "event": torch.cuda.Event() if self._cuda else None,
+                "metadata": None,
+                "has_depth": False,
+            })
 
     def _run_loop(self) -> None:
         while self._running:
@@ -55,29 +74,50 @@ class AsyncRawCameraSender:
                 continue
             if item is None:  # sentinel for shutdown
                 break
-            metadata, rgb, depth_m = item
             try:
-                # Convert depth to mm (x1000) and uint16 for standard ROS depth
-                depth_bytes = b""
-                if depth_m is not None:
-                    depth_img_mm = np.clip(depth_m * 1000.0, 0, 65535)
-                    depth_bytes = depth_img_mm.astype(np.uint16).tobytes()
-
+                if item["event"] is not None:
+                    item["event"].synchronize()  # wait for the D2H copies
+                rgb_bytes = item["rgb"].numpy().tobytes()
+                depth_bytes = item["depth"].numpy().tobytes() if item["has_depth"] else b""
                 # Send as multi-part message (raw bytes for maximum quality)
-                self._sock.send_json(metadata, flags=zmq.SNDMORE | zmq.NOBLOCK)
-                self._sock.send(rgb.tobytes(), flags=zmq.SNDMORE | zmq.NOBLOCK)
+                self._sock.send_json(item["metadata"], flags=zmq.SNDMORE | zmq.NOBLOCK)
+                self._sock.send(rgb_bytes, flags=zmq.SNDMORE | zmq.NOBLOCK)
                 self._sock.send(depth_bytes, flags=zmq.NOBLOCK)
             except Exception:
-                continue
+                pass
+            finally:
+                self._free.put(item)  # recycle buffer
 
-    def send(self, metadata: dict, rgb: np.ndarray, depth_m: np.ndarray | None) -> None:
-        """Non-blocking: push a frame to the queue. Drops silently when queue is full."""
-        if self._queue.full():
+    def send(self, metadata: dict, rgb_gpu, depth_gpu) -> None:
+        """Non-blocking: copy device tensors into a pinned buffer async and enqueue.
+
+        rgb_gpu: (H, W, 3) uint8; depth_gpu: (H, W) float32 meters or None.
+        Drops the frame silently when no buffer is free (consumer falling behind).
+        """
+        try:
+            if self._h is None:  # lazy buffer allocation from the first frame
+                self._h, self._w = int(rgb_gpu.shape[0]), int(rgb_gpu.shape[1])
+                self._make_buffers(self._h, self._w)
+            buf = self._free.get_nowait()
+        except queue.Empty:
             return
         try:
-            self._queue.put_nowait((metadata, rgb, depth_m))
-        except queue.Full:
-            pass
+            buf["metadata"] = metadata
+            buf["has_depth"] = depth_gpu is not None
+            async_copy = self._cuda and rgb_gpu.is_cuda
+            buf["rgb"].copy_(rgb_gpu, non_blocking=async_copy)
+            if depth_gpu is not None:
+                # Convert to mm (x1000) and uint16 on the GPU — halves D2H bytes.
+                depth_mm = (depth_gpu * 1000.0).clamp(0, 65535).to(torch.uint16)
+                buf["depth"].copy_(depth_mm, non_blocking=async_copy)
+            if buf["event"] is not None:
+                buf["event"].record()  # markers on the same stream, ordered after copies
+            if self._queue.full():
+                self._free.put(buf)  # consumer behind — drop this frame
+                return
+            self._queue.put_nowait(buf)
+        except Exception:
+            self._free.put(buf)
 
     def close(self) -> None:
         """Gracefully stop the background thread and clean up ZMQ resources."""
@@ -94,22 +134,36 @@ class AsyncRawCameraSender:
 class AsyncJpegCameraSender:
     """Background thread that JPEG-encodes and sends frames over ZMQ (jpeg port).
 
-    The main thread pushes (rgb, ts, seq) tuples; timestamp and sequence number
-    are captured on the main thread at enqueue time to keep unit-test timing
-    honest.  cv2.imencode runs on the background thread.
+    Same pinned-buffer + CUDA-event pattern as AsyncRawCameraSender: the main
+    thread only launches the async D2H and captures ts/seq at enqueue time (keeps
+    unit-test timing honest); cv2.imencode runs on the background thread.
     """
 
-    def __init__(self, jpeg_port: int, unit_test: bool = True):
+    def __init__(self, jpeg_port: int, unit_test: bool = True, num_buffers: int = 3):
         self._unit_test = unit_test
         self._ctx = zmq.Context()
         self._sock = self._ctx.socket(zmq.PUB)
         self._sock.setsockopt(zmq.SNDHWM, 1)
         self._sock.bind(f"tcp://*:{jpeg_port}")
-        self._queue: queue.Queue = queue.Queue(maxsize=2)
+        self._cuda = torch.cuda.is_available()
+        self._num_buffers = num_buffers
+        self._h: int | None = None
+        self._w: int | None = None
+        self._free: queue.Queue = queue.Queue()
+        self._queue: queue.Queue = queue.Queue(maxsize=num_buffers)
         self._running = True
         self._thread = threading.Thread(target=self._run_loop, daemon=True,
                                         name="zmq-jpeg-camera-sender")
         self._thread.start()
+
+    def _make_buffers(self, h: int, w: int) -> None:
+        for _ in range(self._num_buffers):
+            self._free.put({
+                "rgb": torch.empty((h, w, 3), dtype=torch.uint8, pin_memory=self._cuda),
+                "event": torch.cuda.Event() if self._cuda else None,
+                "ts": 0.0,
+                "seq": 0,
+            })
 
     def _run_loop(self) -> None:
         while self._running:
@@ -119,28 +173,47 @@ class AsyncJpegCameraSender:
                 continue
             if item is None:  # sentinel for shutdown
                 break
-            rgb, ts, seq = item
             try:
+                if item["event"] is not None:
+                    item["event"].synchronize()  # wait for the D2H copy
                 # JPEG encode
-                bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+                bgr = cv2.cvtColor(item["rgb"].numpy(), cv2.COLOR_RGB2BGR)
                 ret, buf = cv2.imencode('.jpg', bgr)
                 if not ret:
                     continue
                 msg = buf.tobytes()
                 if self._unit_test:
-                    msg = struct.pack('dI', ts, seq) + msg
+                    msg = struct.pack('dI', item["ts"], item["seq"]) + msg
                 self._sock.send(msg, flags=zmq.NOBLOCK)
             except Exception:
-                continue
+                pass
+            finally:
+                self._free.put(item)  # recycle buffer
 
-    def send(self, rgb: np.ndarray, ts: float, seq: int) -> None:
-        """Non-blocking: push a frame to the queue. Drops silently when queue is full."""
-        if self._queue.full():
+    def send(self, rgb_gpu, ts: float, seq: int) -> None:
+        """Non-blocking: copy the device tensor into a pinned buffer async and enqueue.
+
+        rgb_gpu: (H, W, 3) uint8.  Drops the frame silently when no buffer is free.
+        """
+        try:
+            if self._h is None:  # lazy buffer allocation from the first frame
+                self._h, self._w = int(rgb_gpu.shape[0]), int(rgb_gpu.shape[1])
+                self._make_buffers(self._h, self._w)
+            buf = self._free.get_nowait()
+        except queue.Empty:
             return
         try:
-            self._queue.put_nowait((rgb, ts, seq))
-        except queue.Full:
-            pass
+            buf["rgb"].copy_(rgb_gpu, non_blocking=self._cuda and rgb_gpu.is_cuda)
+            if buf["event"] is not None:
+                buf["event"].record()
+            buf["ts"] = ts
+            buf["seq"] = seq
+            if self._queue.full():
+                self._free.put(buf)  # consumer behind — drop this frame
+                return
+            self._queue.put_nowait(buf)
+        except Exception:
+            self._free.put(buf)
 
     def close(self) -> None:
         """Gracefully stop the background thread and clean up ZMQ resources."""
@@ -280,10 +353,11 @@ class TienkungProController(DeviceBase):
         return self._step_count % self._render_interval == 1
 
     def _send_camera_data(self):
-        """Copy camera frames and push them to the async sender queue (non-blocking).
+        """Hand the GPU camera tensors to the async sender (non-blocking).
 
-        Only the GPU→CPU numpy copy runs on the main thread; depth conversion and
-        ZMQ socket I/O happen on the background sender thread.
+        The sender copies them into pinned buffers asynchronously (non_blocking
+        D2H); the main thread only launches the copies and never waits on GPU
+        sync.  Depth conversion and ZMQ socket I/O happen off the main thread.
         """
         if not self._should_send_camera():
             return
@@ -298,26 +372,23 @@ class TienkungProController(DeviceBase):
             if rgb_tensor is None or rgb_tensor.shape[0] == 0:
                 return
 
-            # Pull tensors to CPU (copied: the underlying buffer is reused next step)
-            rgb = np.copy(rgb_tensor[0].cpu().numpy())
-            depth_m = None
-            if depth_tensor is not None and depth_tensor.shape[0] != 0:
-                depth_m = np.copy(depth_tensor[0].cpu().numpy())
+            rgb_gpu = rgb_tensor[0]  # (H, W, 3) uint8 on device
+            depth_gpu = depth_tensor[0] if (depth_tensor is not None and depth_tensor.shape[0] != 0) else None
 
             metadata = {
-                "width": rgb.shape[1],
-                "height": rgb.shape[0],
+                "width": int(rgb_gpu.shape[1]),
+                "height": int(rgb_gpu.shape[0]),
                 "format": "raw", # Raw bytes format
             }
-            self._raw_sender.send(metadata, rgb, depth_m)
+            self._raw_sender.send(metadata, rgb_gpu, depth_gpu)
         except Exception:
             return
 
     def _send_jpeg_camera_data(self):
-        """Push JPEG-encoded camera frames to the async sender (image_client.py compatible).
+        """Hand the GPU camera tensor to the async JPEG sender (image_client.py compatible).
 
         Gated by _should_send_camera like the raw port; ts/seq are captured on the
-        main thread, cv2.imencode runs on the background thread.
+        main thread, D2H and cv2.imencode run on the background thread.
         """
         if not self._should_send_camera():
             return
@@ -330,8 +401,8 @@ class TienkungProController(DeviceBase):
             if rgb_tensor is None or rgb_tensor.shape[0] == 0:
                 return
 
-            rgb = np.copy(rgb_tensor[0].cpu().numpy())  # (H, W, 3), RGB order
-            self._jpeg_sender.send(rgb, time.time(), self._jpeg_frame_count)
+            rgb_gpu = rgb_tensor[0]  # (H, W, 3), RGB order
+            self._jpeg_sender.send(rgb_gpu, time.time(), self._jpeg_frame_count)
             self._jpeg_frame_count += 1
         except Exception:
             return
