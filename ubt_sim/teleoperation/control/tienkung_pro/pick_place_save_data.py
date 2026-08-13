@@ -30,7 +30,7 @@ SAVE_HZ = 15.0
 PLACEHOLDER_IMG_SHAPE = (360, 640, 3)
 PLACEHOLDER_DEPTH_SHAPE = (360, 640)
 # 任务成功阈值（苹果到盘心距离，米）
-TASK_SUCCESS_DIST = 0.12
+TASK_SUCCESS_DIST = 0.15
 
 
 class PickPlaceSaveDataController(PickPlaceController):
