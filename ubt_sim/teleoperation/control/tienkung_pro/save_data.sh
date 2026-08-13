@@ -18,8 +18,8 @@ export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # 不用 set -e：单集失败不应中断整批。改用退出码跟踪 + 连续失败熔断。
-# 注意：pick_place_save_data.py 在任务未完成时丢弃数据但（待 M10 修复前）退出码 0，
-# 故此处的 fail 计数目前仅捕获崩溃；M10 修复后亦可捕获"零产出"。
+# pick_place_save_data.py 任务未完成/零产出时退出码 1（M10 已修），故此处的 fail
+# 计数同时捕获崩溃与"零产出"。
 MAX_CONSECUTIVE_FAIL="${MAX_CONSECUTIVE_FAIL:-10}"
 success=0
 fail=0

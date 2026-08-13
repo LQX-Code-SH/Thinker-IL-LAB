@@ -25,7 +25,8 @@ except ImportError:
 
 
 # 录制频率 & 图像缺帧占位尺寸
-SAVE_HZ = 30.0
+# 与下游 convert.sh --fps 15（默认无 resample）对齐：源 30Hz 被标成 15Hz 会 2x 慢放。
+SAVE_HZ = 15.0
 PLACEHOLDER_IMG_SHAPE = (360, 640, 3)
 PLACEHOLDER_DEPTH_SHAPE = (360, 640)
 # 任务成功阈值（苹果到盘心距离，米）
@@ -49,6 +50,10 @@ class PickPlaceSaveDataController(PickPlaceController):
         self.data_buffer = {k: [] for k in self._BUFFER_KEYS}
         self.is_saving = False
         self.dropped_frames = 0  # record_snapshot 异常计数
+        # 缺帧时复用上一帧（避免黑帧）；任务成功标志供 main() 决定退出码
+        self._last_img = None
+        self._last_depth = None
+        self.task_succeeded = False
 
         # 15Hz 采样定时器
         self.save_interval = 1.0 / SAVE_HZ
@@ -76,6 +81,21 @@ class PickPlaceSaveDataController(PickPlaceController):
         # 先准备好所有字段值，全部就绪后再 append，避免半写入导致长度错位
         try:
             now = self.get_clock().now().nanoseconds / 1e9
+            # 缺帧复用上一帧，避免黑帧污染训练；首帧前仍无数据则零填兜底
+            img = self.latest_img
+            if img is not None:
+                self._last_img = img
+            elif self._last_img is not None:
+                img = self._last_img
+            else:
+                img = np.zeros(PLACEHOLDER_IMG_SHAPE, dtype=np.uint8)
+            depth = self.latest_depth
+            if depth is not None:
+                self._last_depth = depth
+            elif self._last_depth is not None:
+                depth = self._last_depth
+            else:
+                depth = np.zeros(PLACEHOLDER_DEPTH_SHAPE, dtype=np.uint16)
             snapshot = {
                 "arm_right": list(self.latest_arm_right_pos),
                 "arm_left": list(self.latest_arm_left_pos),
@@ -85,16 +105,8 @@ class PickPlaceSaveDataController(PickPlaceController):
                 "action_arm_left": list(self.latest_action_arm_left),
                 "action_hand_right": list(self.latest_action_hand_right),
                 "action_hand_left": list(self.latest_action_hand_left),
-                "img": (
-                    self.latest_img
-                    if self.latest_img is not None
-                    else np.zeros(PLACEHOLDER_IMG_SHAPE, dtype=np.uint8)
-                ),
-                "depth": (
-                    self.latest_depth
-                    if self.latest_depth is not None
-                    else np.zeros(PLACEHOLDER_DEPTH_SHAPE, dtype=np.uint16)
-                ),
+                "img": img,
+                "depth": depth,
                 "timestamp": now,
             }
         except Exception as e:
@@ -112,13 +124,13 @@ class PickPlaceSaveDataController(PickPlaceController):
         length = len(self.data_buffer["arm_right"])
         if length == 0:
             self.get_logger().warn("No frames recorded, skip saving.")
-            return
+            return False
 
         # 长度一致性自检
         lens = {k: len(self.data_buffer[k]) for k in self._BUFFER_KEYS}
         if len(set(lens.values())) != 1:
             self.get_logger().error(f"Buffer length mismatch, abort save: {lens}")
-            return
+            return False
 
         ts = self.get_clock().now().seconds_nanoseconds()
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -180,6 +192,7 @@ class PickPlaceSaveDataController(PickPlaceController):
         self.get_logger().info(
             f"Data saved: {length} frames, dropped={self.dropped_frames}."
         )
+        return True
 
     def _timer_save_callback(self):
         """15Hz 定时回调。"""
@@ -190,18 +203,19 @@ class PickPlaceSaveDataController(PickPlaceController):
     def run_task(self):
         """完整抓放流程 + 数据保存。"""
         self.reset()
-        self.start_save_data()  # ← 关键修复：之前从未开启录制
         x, y = self.random_apple()
-        sleep(5)
+        sleep(5)  # 苹果生成后物理稳定期，不录制（避免静止前缀）
+        self.start_save_data()  # ← 关键修复：之前从未开启录制；放在 sleep 后避免录到静止前缀
         self.pick(x, y)
         self.place()
         self.home()
-        sleep(2)
+        sleep(2)  # home() 仅发布指令、立即返回；此 sleep 为归位运动时间，需录制
         self.stop_save_data()
         self.get_logger().info(f"Final Task Completion Check: {self.latest_task_dist:.4f}")
         if self.latest_task_dist < TASK_SUCCESS_DIST:
-            self.save_data()
+            self.task_succeeded = self.save_data()
         else:
+            self.task_succeeded = False
             self.get_logger().warn(
                 f"Task not completed (apple not in plate). "
                 f"latest_task_dist={self.latest_task_dist:.4f}. Data will NOT be saved."
@@ -228,6 +242,8 @@ def main():
         node.destroy_node()
         rclpy.shutdown()
         spin_thread.join(timeout=2.0)
+    # 退出码：任务成功(数据已存)->0；任务失败/丢弃/中断->1，便于 save_data.sh 计入 fail
+    sys.exit(0 if getattr(node, "task_succeeded", False) else 1)
 
 
 if __name__ == "__main__":
