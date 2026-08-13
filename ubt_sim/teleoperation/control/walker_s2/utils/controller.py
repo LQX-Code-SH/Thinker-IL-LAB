@@ -689,8 +689,13 @@ class WalkerS2Controller(Node):
             return self.is_publishing
 
     @contextmanager
-    def _temporary_unlock(self, joint_names):
-        """上下文管理器：临时解锁指定关节，退出时自动恢复锁定状态。"""
+    def _temporary_unlock(self, joint_names, wait=True):
+        """上下文管理器：临时解锁指定关节，退出时自动恢复锁定状态。
+
+        wait=False 时不恢复锁定：运动仍在发布（_control_callback 每点检查 lock_joints，
+        跳过锁定关节），若此时 re-lock 会使轨迹中途丢弃这些关节、运动静默失效。
+        调用方需在运动落定后自行 re-lock。
+        """
         to_unlock = [j for j in joint_names if j in self.lock_joints]
         if not to_unlock:
             yield
@@ -701,7 +706,13 @@ class WalkerS2Controller(Node):
         try:
             yield
         finally:
-            self.set_lock_joints(list(original))
+            if wait:
+                self.set_lock_joints(list(original))
+            else:
+                self.get_logger().info(
+                    f"wait=False: joints {sorted(to_unlock)} left unlocked "
+                    f"(trajectory still publishing); re-lock manually once settled."
+                )
 
     @staticmethod
     def _clamp_with_limits(values, names, limits_dict, key_fn=None):
@@ -783,7 +794,7 @@ class WalkerS2Controller(Node):
         target_joint_names = list(pose_dict.keys())
 
         if joints_needing_unlock and unlock_required_joints:
-            with self._temporary_unlock(joints_needing_unlock):
+            with self._temporary_unlock(joints_needing_unlock, wait=wait):
                 result = self.move_to_position(target, duration_sec=duration_sec, wait=wait)
         elif joints_needing_unlock and not unlock_required_joints:
             self.get_logger().warning(

@@ -40,6 +40,9 @@ _HEADER_FMT = "<IdII"
 _HEADER_SIZE = struct.calcsize(_HEADER_FMT)  # 20
 _DEFAULT_MAX_PAYLOAD = 1 << 20  # 1MB(JPEG 320x480 q95 ~30-50KB,余量充足)
 _STALL_WARN_THRESH = 30         # seq 连续不变 N 次告警(子进程可能崩溃/卡住)
+_LOCK_TIMEOUT = 0.1             # 取共享内存锁的超时:子进程持锁期间被杀则 mp.Lock 不自动释放,
+                                # 主进程会永久阻塞;超时退回缓存帧。临界区仅 pack+memcpy(几十 KB),
+                                # 0.1s 远超正常耗时,仅在锁真正卡住时触发。
 
 
 def _resolve_msg_type(msg_type_name: str):
@@ -211,11 +214,15 @@ class CameraShmClient:
                     print(f"[CameraShmClient] WARNING: camera '{self.name}' stalled "
                           f"(seq unchanged for {_STALL_WARN_THRESH} polls, subprocess may have crashed)")
             return self._cached
-        with self.lock:
+        if not self.lock.acquire(timeout=_LOCK_TIMEOUT):
+            return self._cached
+        try:
             length, ts, h, w = struct.unpack_from(_HEADER_FMT, self.shm.buf, 0)
             if length <= 0 or _HEADER_SIZE + length > self.shm.size:
                 return self._cached
             img = bytes(self.shm.buf[_HEADER_SIZE:_HEADER_SIZE + length])
+        finally:
+            self.lock.release()
         self._cached = _Frame(img=img, ts=ts, height=int(h), width=int(w),
                               encoding="jpeg", step=0, frame_id="")
         self._last_seq = cur

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import ExternalShutdownException
 from sensor_msgs.msg import JointState, Image
 from geometry_msgs.msg import Point
 from std_msgs.msg import Bool, Float32
@@ -292,11 +293,20 @@ class TienkungProRosBridge(Node):
             except subprocess.TimeoutExpired:
                 self.cpp_bridge_process.kill()
 
-if __name__ == '__main__':
+def main():
     rclpy.init()
     node = TienkungProRosBridge()
-    try: rclpy.spin(node)
-    except KeyboardInterrupt: pass
-    node.stop()
-    node.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    finally:
+        # 任何异常（非仅 KeyboardInterrupt）都要清理，否则 poll 线程 / C++ 桥接子进程 / ZMQ 残留
+        node.stop()
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

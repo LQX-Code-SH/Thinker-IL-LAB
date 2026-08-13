@@ -2,6 +2,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
+#include <cerrno>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -261,6 +262,9 @@ public:
         subscriber_.connect(zmq_addr);
         subscriber_.set(zmq::sockopt::subscribe, "");
         subscriber_.set(zmq::sockopt::rcvhwm, 8);
+        // RCVTIMEO: recv 带超时，避免无帧时永久阻塞致 stop() 的 join() 死锁。
+        // 100ms：正常 30Hz 流(33ms/帧)不会触发，仅在空闲/暂停时定期醒来检查 running_。
+        subscriber_.set(zmq::sockopt::rcvtimeo, 100);
 
         RCLCPP_INFO(this->get_logger(),
                     "C++ ZMQ Image Bridge Started (msg_type=%s, rgb: %s, depth: %s, cameras: %zu)",
@@ -306,8 +310,12 @@ private:
                 publish_images(meta_msg, rgb_msg, depth_msg, has_depth);
 
             } catch (const zmq::error_t& e) {
-                RCLCPP_ERROR(this->get_logger(), "ZMQ Error: %s", e.what());
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                // EAGAIN 是 RCVTIMEO 无帧超时，静默重试以检查 running_/rclcpp::ok()；
+                // 其余 ZMQ 错误才记录并退避。
+                if (zmq_errno() != EAGAIN) {
+                    RCLCPP_ERROR(this->get_logger(), "ZMQ Error: %s", e.what());
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
             } catch (const std::exception& e) {
                 RCLCPP_ERROR(this->get_logger(), "Unhandled exception in receive loop: %s", e.what());
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
