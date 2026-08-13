@@ -49,6 +49,8 @@ class AsyncRawCameraSender:
         self._num_buffers = num_buffers
         self._h: int | None = None
         self._w: int | None = None
+        self._hd: int | None = None
+        self._wd: int | None = None
         self._err_count = 0
         self._free: queue.Queue = queue.Queue()  # buffers recycled by the bg thread
         self._queue: queue.Queue = queue.Queue(maxsize=num_buffers)
@@ -66,11 +68,11 @@ class AsyncRawCameraSender:
                   flush=True)
             traceback.print_exc()
 
-    def _make_buffers(self, h: int, w: int) -> None:
+    def _make_buffers(self, h: int, w: int, hd: int, wd: int) -> None:
         for _ in range(self._num_buffers):
             self._free.put({
                 "rgb": torch.empty((h, w, 3), dtype=torch.uint8, pin_memory=self._cuda),
-                "depth": torch.empty((h, w), dtype=torch.uint16, pin_memory=self._cuda),
+                "depth": torch.empty((hd, wd), dtype=torch.uint16, pin_memory=self._cuda),
                 "event": torch.cuda.Event() if self._cuda else None,
                 "metadata": None,
                 "has_depth": False,
@@ -107,7 +109,13 @@ class AsyncRawCameraSender:
         try:
             if self._h is None:  # lazy buffer allocation from the first frame
                 self._h, self._w = int(rgb_gpu.shape[0]), int(rgb_gpu.shape[1])
-                self._make_buffers(self._h, self._w)
+                if depth_gpu is not None:
+                    # rgb 与 depth 张量的维度顺序相反(rgb (640,360,3), depth
+                    # (360,640)),depth 缓冲必须按 depth 自己的形状分配。
+                    self._hd, self._wd = int(depth_gpu.shape[0]), int(depth_gpu.shape[1])
+                else:
+                    self._hd, self._wd = self._h, self._w
+                self._make_buffers(self._h, self._w, self._hd, self._wd)
             buf = self._free.get_nowait()
         except queue.Empty:
             return
