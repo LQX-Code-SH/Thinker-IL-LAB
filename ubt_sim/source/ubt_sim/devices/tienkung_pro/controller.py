@@ -49,8 +49,6 @@ class AsyncRawCameraSender:
         self._num_buffers = num_buffers
         self._h: int | None = None
         self._w: int | None = None
-        self._hd: int | None = None
-        self._wd: int | None = None
         self._err_count = 0
         self._free: queue.Queue = queue.Queue()  # buffers recycled by the bg thread
         self._queue: queue.Queue = queue.Queue(maxsize=num_buffers)
@@ -68,11 +66,14 @@ class AsyncRawCameraSender:
                   flush=True)
             traceback.print_exc()
 
-    def _make_buffers(self, h: int, w: int, hd: int, wd: int) -> None:
+    def _make_buffers(self, h: int, w: int) -> None:
         for _ in range(self._num_buffers):
             self._free.put({
                 "rgb": torch.empty((h, w, 3), dtype=torch.uint8, pin_memory=self._cuda),
-                "depth": torch.empty((hd, wd), dtype=torch.uint16, pin_memory=self._cuda),
+                # depth 缓冲按实际张量形状惰性分配(见 send),形状与 rgb 无关:
+                # Isaac Lab 5.0 里 rgb (640,360,3) 与 depth (360,640) 维度顺序相反,
+                # 且 depth 可能晚于首帧才就绪。
+                "depth": None,
                 "event": torch.cuda.Event() if self._cuda else None,
                 "metadata": None,
                 "has_depth": False,
@@ -109,13 +110,7 @@ class AsyncRawCameraSender:
         try:
             if self._h is None:  # lazy buffer allocation from the first frame
                 self._h, self._w = int(rgb_gpu.shape[0]), int(rgb_gpu.shape[1])
-                if depth_gpu is not None:
-                    # rgb 与 depth 张量的维度顺序相反(rgb (640,360,3), depth
-                    # (360,640)),depth 缓冲必须按 depth 自己的形状分配。
-                    self._hd, self._wd = int(depth_gpu.shape[0]), int(depth_gpu.shape[1])
-                else:
-                    self._hd, self._wd = self._h, self._w
-                self._make_buffers(self._h, self._w, self._hd, self._wd)
+                self._make_buffers(self._h, self._w)
             buf = self._free.get_nowait()
         except queue.Empty:
             return
@@ -126,6 +121,13 @@ class AsyncRawCameraSender:
             buf["has_depth"] = False
             if depth_gpu is not None:
                 try:
+                    # depth 缓冲按实际张量形状惰性分配/重建:depth 与 rgb 维度
+                    # 顺序相反(rgb (640,360,3) vs depth (360,640)),且 depth
+                    # 可能晚于首帧才就绪,不能依赖一次性初始化。
+                    dshape = tuple(depth_gpu.shape)
+                    if buf["depth"] is None or tuple(buf["depth"].shape) != dshape:
+                        buf["depth"] = torch.empty(dshape, dtype=torch.uint16,
+                                                   pin_memory=self._cuda)
                     # Convert to mm (x1000) and uint16 on the GPU — halves D2H bytes.
                     # nan_to_num: 深度张量可能含 NaN/Inf(裁剪范围外像素)。
                     depth_mm = torch.nan_to_num((depth_gpu * 1000.0).clamp(0, 65535),
