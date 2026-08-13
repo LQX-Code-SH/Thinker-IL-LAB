@@ -49,12 +49,22 @@ class AsyncRawCameraSender:
         self._num_buffers = num_buffers
         self._h: int | None = None
         self._w: int | None = None
+        self._err_count = 0
         self._free: queue.Queue = queue.Queue()  # buffers recycled by the bg thread
         self._queue: queue.Queue = queue.Queue(maxsize=num_buffers)
         self._running = True
         self._thread = threading.Thread(target=self._run_loop, daemon=True,
                                         name="zmq-raw-camera-sender")
         self._thread.start()
+
+    def _log_err(self, stage: str) -> None:
+        """Print the first few errors with traceback (throttled) — never fail silently."""
+        self._err_count += 1
+        if self._err_count <= 5:
+            import traceback
+            print(f"[WARN] AsyncRawCameraSender {stage} failed (#{self._err_count}):",
+                  flush=True)
+            traceback.print_exc()
 
     def _make_buffers(self, h: int, w: int) -> None:
         for _ in range(self._num_buffers):
@@ -84,7 +94,7 @@ class AsyncRawCameraSender:
                 self._sock.send(rgb_bytes, flags=zmq.SNDMORE | zmq.NOBLOCK)
                 self._sock.send(depth_bytes, flags=zmq.NOBLOCK)
             except Exception:
-                pass
+                self._log_err("run_loop")
             finally:
                 self._free.put(item)  # recycle buffer
 
@@ -103,13 +113,20 @@ class AsyncRawCameraSender:
             return
         try:
             buf["metadata"] = metadata
-            buf["has_depth"] = depth_gpu is not None
             async_copy = self._cuda and rgb_gpu.is_cuda
             buf["rgb"].copy_(rgb_gpu, non_blocking=async_copy)
+            buf["has_depth"] = False
             if depth_gpu is not None:
-                # Convert to mm (x1000) and uint16 on the GPU — halves D2H bytes.
-                depth_mm = (depth_gpu * 1000.0).clamp(0, 65535).to(torch.uint16)
-                buf["depth"].copy_(depth_mm, non_blocking=async_copy)
+                try:
+                    # Convert to mm (x1000) and uint16 on the GPU — halves D2H bytes.
+                    # nan_to_num: 深度张量可能含 NaN/Inf(裁剪范围外像素)。
+                    depth_mm = torch.nan_to_num((depth_gpu * 1000.0).clamp(0, 65535),
+                                                nan=0.0, posinf=65535.0, neginf=0.0)
+                    buf["depth"].copy_(depth_mm.to(torch.uint16), non_blocking=async_copy)
+                    buf["has_depth"] = True
+                except Exception:
+                    # 降级: depth 失败只发 rgb,不丢整帧(并记录真实异常)
+                    self._log_err("depth_convert")
             if buf["event"] is not None:
                 buf["event"].record()  # markers on the same stream, ordered after copies
             if self._queue.full():
@@ -117,6 +134,7 @@ class AsyncRawCameraSender:
                 return
             self._queue.put_nowait(buf)
         except Exception:
+            self._log_err("send")
             self._free.put(buf)
 
     def close(self) -> None:
@@ -149,12 +167,22 @@ class AsyncJpegCameraSender:
         self._num_buffers = num_buffers
         self._h: int | None = None
         self._w: int | None = None
+        self._err_count = 0
         self._free: queue.Queue = queue.Queue()
         self._queue: queue.Queue = queue.Queue(maxsize=num_buffers)
         self._running = True
         self._thread = threading.Thread(target=self._run_loop, daemon=True,
                                         name="zmq-jpeg-camera-sender")
         self._thread.start()
+
+    def _log_err(self, stage: str) -> None:
+        """Print the first few errors with traceback (throttled) — never fail silently."""
+        self._err_count += 1
+        if self._err_count <= 5:
+            import traceback
+            print(f"[WARN] AsyncJpegCameraSender {stage} failed (#{self._err_count}):",
+                  flush=True)
+            traceback.print_exc()
 
     def _make_buffers(self, h: int, w: int) -> None:
         for _ in range(self._num_buffers):
@@ -186,7 +214,7 @@ class AsyncJpegCameraSender:
                     msg = struct.pack('dI', item["ts"], item["seq"]) + msg
                 self._sock.send(msg, flags=zmq.NOBLOCK)
             except Exception:
-                pass
+                self._log_err("run_loop")
             finally:
                 self._free.put(item)  # recycle buffer
 
@@ -213,6 +241,7 @@ class AsyncJpegCameraSender:
                 return
             self._queue.put_nowait(buf)
         except Exception:
+            self._log_err("send")
             self._free.put(buf)
 
     def close(self) -> None:
