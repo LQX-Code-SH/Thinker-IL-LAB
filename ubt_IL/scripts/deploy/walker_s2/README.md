@@ -17,6 +17,20 @@ ALLOW_DIM_ONLY_POLICY=1 \
 bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 ```
 
+### 10D 仿真模型 -> 真机部署（act_async）
+
+10D（右臂 + 头 + 右夹爪）仿真训练的 ACT 模型，异步 chunk 推理部署到真机。
+
+```bash
+cd /ubt_IL/lerobot
+
+ROBOT_MODEL=walker_s2_10d \
+POLICY_PATH=/ubt_IL/model/Walker_S2_sim_10_2RGB_act/checkpoints/020000/pretrained_model \
+INFERENCE_TYPE=act_async INFERENCE_HZ=2 \
+FPS=20 DURATION=60 \
+bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
+```
+
 ### 环境变量
 
 | 变量 | 默认值 | 说明 |
@@ -53,6 +67,35 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 
 - `max_relative_target: 0.02` - 单步相对目标限幅
 - `disable_torque_on_disconnect: true` - 断开连接自动卸力
+
+---
+
+# Walker S2 离线策略评估（eval_policy.py）
+
+不连机器人，对训练好的策略在 LeRobot 数据集上做离线 MSE 评估（预测 vs 真值），并生成逐
+episode 对比图。部署到真机前先用它量化策略质量。脚本：[eval_policy.py](eval_policy.py)。
+
+```bash
+/lerobot/.venv/bin/python /ubt_IL/scripts/deploy/walker_s2/eval_policy.py \
+  --policy-path /ubt_IL/model/Walker_S2_sim_10_2RGB_act/checkpoints/015000/pretrained_model \
+  --dataset-path /ubt_IL/dataset/Walker_S2_sim_10_2RGB \
+  --episodes 10 \
+  --inference-freq 1 \
+  --plot \
+  --plot-dir /ubt_IL/scripts/deploy/output/eval_Walker_S2_sim_10_2RGB_act_60k \
+  --output /ubt_IL/scripts/deploy/output/eval_Walker_S2_sim_10_2RGB_act_60k/results.json \
+  --device cuda
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--policy-path` | pretrained_model 目录（含 `config.json` + `model.safetensors`） |
+| `--dataset-path` | LeRobot 数据集根目录（含 `meta/info.json`） |
+| `--episodes` | 评估 episode 数（默认全部） |
+| `--inference-freq` | 每 N 步推理一次，中间复用预测 chunk（模拟真机部署；`1`=逐步推理） |
+| `--plot` / `--plot-dir` | 生成逐 episode 预测-vs-真值图及输出目录 |
+| `--output` | 结果 JSON 保存路径 |
+| `--device` | `cuda` 或 `cpu`（默认 `cuda`，不可用时自动回退 `cpu`） |
 
 ---
 

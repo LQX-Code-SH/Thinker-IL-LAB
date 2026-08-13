@@ -326,6 +326,210 @@ def _resample_frames(compose_fields, image_fields, src_ts, target_fps):
     return new_compose, new_images, M
 
 
+def _concat_compose_parts(parts) -> np.ndarray:
+    """Concatenate compose-field parts into a 2D (T, D) array.
+
+    1D parts (T,) are expanded to (T, 1). Used to materialize the action (or any
+    compose) field as a matrix for stationary-mask computation.
+    """
+    arrs = [p if p.ndim > 1 else p[:, None] for p in parts]
+    return np.concatenate(arrs, axis=1)
+
+
+def _normalized_move(action_arr: np.ndarray, W: int, range_eps: float = 1e-3):
+    """Per-frame normalized movement and active-dim mask.
+
+    For each frame t, ``move[t] = max_d |a[j,d]-a[t,d]| / max(range_d, range_eps)``
+    where ``j = min(t+W, T-1)``. Dims with ``range < range_eps`` (effectively
+    constant, e.g. head_yaw) are marked inactive and zeroed out so they neither
+    trigger "moving" nor blow up the normalization. Returns (move (T,), active (D,)).
+    """
+    T = len(action_arr)
+    D = action_arr.shape[1] if action_arr.ndim > 1 else 1
+    if T < 2:
+        return np.zeros(T), np.zeros(D, dtype=bool)
+    a = action_arr.astype(np.float64)
+    if a.ndim == 1:
+        a = a[:, None]
+    rng = a.max(axis=0) - a.min(axis=0)
+    active = rng > range_eps
+    denom = np.where(active, np.maximum(rng, range_eps), 1.0)
+    j = np.minimum(np.arange(T) + W, T - 1)
+    disp = np.abs(a[j] - a) / denom[None, :]
+    disp[:, ~active] = 0.0
+    return disp.max(axis=1), active
+
+
+def compute_stationary_mask(
+    action_arr: np.ndarray,
+    W: int,
+    thr_norm: float,
+    cap_n: int,
+    min_run: int,
+    range_eps: float = 1e-3,
+) -> tuple[np.ndarray, dict]:
+    """Build a boolean keep-mask capping long stationary runs in *action_arr*.
+
+    A frame is *stationary* when no active dimension moves more than ``thr_norm``
+    of its own per-episode range over a forward window of *W* frames (the
+    "all joints simultaneously stationary" semantic, normalized so small-range
+    dims like grip are judged on the same scale as large-range joints).
+
+    Runs of consecutive stationary frames with length >= *min_run* AND > *cap_n*
+    are capped: keep the first ``cap_n // 2`` and last ``cap_n - cap_n // 2``
+    frames, drop the middle. Shorter runs are kept verbatim. This bounds every
+    hold to <= cap_n frames so the policy never trains on flat runs long enough
+    to form an absorbing state, while preserving short-pause semantics.
+
+    Returns (keep_mask (T,) bool, stats dict).
+    """
+    T = len(action_arr)
+    if T < 2:
+        return np.ones(T, dtype=bool), {
+            "total": T, "kept": T, "dropped": 0, "n_runs": 0,
+            "n_runs_capped": 0, "max_run_len": 0, "n_active_dims": 0,
+            "stationary_frac": 0.0,
+        }
+
+    move, active = _normalized_move(action_arr, W, range_eps)
+    stationary = move < thr_norm
+    stationary[-1] = stationary[-2]  # last frame has no forward window; inherit
+
+    keep = np.ones(T, dtype=bool)
+    k_head = cap_n // 2
+    k_tail = cap_n - k_head
+    n_runs = n_capped = max_run = 0
+    i = 0
+    while i < T:
+        if not stationary[i]:
+            i += 1
+            continue
+        j0 = i
+        while i < T and stationary[i]:
+            i += 1
+        run_len = i - j0
+        n_runs += 1
+        max_run = max(max_run, run_len)
+        if run_len >= min_run and run_len > cap_n:
+            keep[j0 + k_head : i - k_tail] = False
+            n_capped += 1
+
+    return keep, {
+        "total": T,
+        "kept": int(keep.sum()),
+        "dropped": int((~keep).sum()),
+        "n_runs": n_runs,
+        "n_runs_capped": n_capped,
+        "max_run_len": max_run,
+        "n_active_dims": int(active.sum()),
+        "stationary_frac": float(stationary.mean()),
+    }
+
+
+def _run_stationary_diagnose(episode_pairs, mapping, cfg) -> None:
+    """Print stationarity distribution across all episodes without writing data.
+
+    Loads only the action compose field per episode (no image decoding) and
+    aggregates: normalized-move histogram, internal run-length distribution,
+    per-dim range (flagging range_eps-excluded dims), leading/trailing runs.
+    """
+    skey = cfg["key"]
+    spec = mapping.get(skey)
+    if not isinstance(spec, list):
+        logging.error(
+            "stationary_key '%s' is not a compose (list) field in hdf5_mapping - "
+            "cannot diagnose", skey,
+        )
+        return
+
+    edges = [0, 1e-4, 1e-3, 5e-3, 1e-2, 2e-2, 5e-2, 0.1, 0.2, 0.5, 1.0, 1e9]
+    hist = np.zeros(len(edges) - 1, dtype=int)
+    all_runs = []
+    lead_runs, trail_runs = [], []
+    n_ep = n_fail = 0
+    dim_range_sum = None
+    n_dims = None
+
+    for ep_dir, ep_path in episode_pairs:
+        try:
+            with h5py.File(ep_path, "r") as f:
+                parts = [_read_hdf5_part(f, item) for item in spec]
+            action_arr = _concat_compose_parts(parts)
+        except (FileNotFoundError, OSError, KeyError) as e:
+            logging.warning("diagnose skip %s: %s", ep_path.name, e)
+            n_fail += 1
+            continue
+
+        n_ep += 1
+        if n_dims is None:
+            n_dims = action_arr.shape[1]
+            dim_range_sum = np.zeros(n_dims)
+
+        move, active = _normalized_move(action_arr, cfg["W"], cfg["range_eps"])
+        h, _ = np.histogram(move, bins=edges)
+        hist += h
+        dim_range_sum += action_arr.max(0) - action_arr.min(0)
+
+        stationary = move < cfg["thr_norm"]
+        if len(stationary) >= 2:
+            stationary[-1] = stationary[-2]
+        T = len(stationary)
+        l = 0
+        while l < T and stationary[l]:
+            l += 1
+        lead_runs.append(l)
+        r = T - 1
+        while r >= 0 and stationary[r]:
+            r -= 1
+        trail_runs.append(T - 1 - r)
+        inner = stationary.copy()
+        inner[:l] = False
+        inner[r + 1:] = False
+        cur = 0
+        for v in inner:
+            if v:
+                cur += 1
+            else:
+                if cur:
+                    all_runs.append(cur)
+                cur = 0
+        if cur:
+            all_runs.append(cur)
+
+    if n_ep == 0:
+        logging.error("diagnose: no episodes could be read")
+        return
+
+    print(f"\n[stationary-diagnose] {n_ep} episodes read ({n_fail} skipped)")
+    print(f"  W={cfg['W']}  thr_norm={cfg['thr_norm']}  cap_n={cfg['cap_n']}  "
+          f"min_run={cfg['min_run']}  range_eps={cfg['range_eps']}")
+    total = int(hist.sum())
+    print(f"\n=== normalized move distribution ({total} frames) ===")
+    for i, c in enumerate(hist):
+        print(f"  [{edges[i]:.0e}, {edges[i+1]:.0e}): {int(c):6d}  ({100*c/total:5.1f}%)")
+
+    print(f"\n=== per-dim range (mean over episodes, * = excluded by range_eps) ===")
+    names = mapping.get(skey) and spec
+    for d in range(n_dims):
+        rng_mean = dim_range_sum[d] / n_ep
+        excluded = rng_mean < cfg["range_eps"]
+        print(f"  dim {d:2d}: range={rng_mean:.5f}{'  *excluded' if excluded else ''}")
+
+    print(f"\n=== leading/trailing stationary runs (frames) ===")
+    lr, tr = np.array(lead_runs), np.array(trail_runs)
+    print(f"  leading:  mean={lr.mean():.1f} med={np.median(lr):.0f} max={lr.max()}")
+    print(f"  trailing: mean={tr.mean():.1f} med={np.median(tr):.0f} max={tr.max()}")
+
+    print(f"\n=== internal stationary runs (length >= 1) ===")
+    if all_runs:
+        r = np.array(all_runs)
+        print(f"  count={len(r)} mean={r.mean():.1f} med={np.median(r):.0f} "
+              f"max={r.max()}  (>=5:{(r>=5).sum()} >=10:{(r>=10).sum()})")
+    else:
+        print("  none")
+    print()
+
+
 def initialize_dataset(
     repo_id: str, tgt_path: str, fps: int, robot_type: str, features: dict,
     vcodec: str = "h264",
@@ -394,6 +598,7 @@ def process_episode(
     timestamp_hdf5_key: str | None = None,
     source_fps: float = 30,
     segment_ranges: list[tuple[int, int]] | None = None,
+    stationary_cfg: dict | None = None,
 ) -> int:
     """Process single episode HDF5 into one or more LeRobot dataset episodes.
 
@@ -517,6 +722,38 @@ def process_episode(
         logging.error(f"Skipped {episode_path}: {e}")
         return 0
 
+    # --- stationary-frame trim/cap (optional) ---
+    keep_mask = None
+    if stationary_cfg is not None:
+        skey = stationary_cfg["key"]
+        if skey not in compose_fields:
+            raise ValueError(
+                f"stationary_key '{skey}' not found in compose fields "
+                f"({list(compose_fields.keys())}). Check --stationary-key / config."
+            )
+        action_arr = _concat_compose_parts(compose_fields[skey][0])
+        keep_mask, sstats = compute_stationary_mask(
+            action_arr,
+            W=stationary_cfg["W"],
+            thr_norm=stationary_cfg["thr_norm"],
+            cap_n=stationary_cfg["cap_n"],
+            min_run=stationary_cfg["min_run"],
+            range_eps=stationary_cfg["range_eps"],
+        )
+        if sstats["dropped"] == sstats["total"]:
+            logging.warning(
+                "%s: entire episode stationary after cap (kept %d/%d) - degenerate",
+                episode_path.name, sstats["kept"], sstats["total"],
+            )
+        logging.info(
+            "%s: stationary cap thr=%.3f W=%d cap=%d -> kept %d/%d "
+            "(dropped %d, %d/%d runs capped, max_run=%d, static=%.0f%%)",
+            episode_path.name, stationary_cfg["thr_norm"], stationary_cfg["W"],
+            stationary_cfg["cap_n"], sstats["kept"], sstats["total"],
+            sstats["dropped"], sstats["n_runs_capped"], sstats["n_runs"],
+            sstats["max_run_len"], 100 * sstats["stationary_frac"],
+        )
+
     # --- determine segment ranges ---
     if segment_ranges is None:
         ranges = [(0, num_frames)]
@@ -540,7 +777,11 @@ def process_episode(
     try:
         for seg_idx, (start, end) in enumerate(ranges):
             seg_label = f"{episode_path.name}" if len(ranges) == 1 else f"{episode_path.name}/seg{seg_idx:02d}"
-            for i in tqdm(range(start, end), desc=f"Processing {seg_label}"):
+            seg_indices = range(start, end)
+            if keep_mask is not None:
+                seg_indices = [i for i in seg_indices if keep_mask[i]]
+            seg_dropped = (end - start) - len(seg_indices)
+            for i in tqdm(seg_indices, desc=f"Processing {seg_label}"):
                 frame = {}
                 for lerobot_key, (parts, dtype) in compose_fields.items():
                     frame[lerobot_key] = np.concatenate(
@@ -552,8 +793,10 @@ def process_episode(
                 dataset.add_frame(frame)
             dataset.save_episode()
             saved_count += 1
-            logging.info("Saved segment %d/%d: frames [%d, %d) (%d frames)",
-                         seg_idx + 1, len(ranges), start, end, end - start)
+            logging.info("Saved segment %d/%d: frames [%d, %d) (%d/%d kept%s)",
+                         seg_idx + 1, len(ranges), start, end,
+                         len(seg_indices), end - start,
+                         f", {seg_dropped} dropped" if seg_dropped else "")
     except Exception as e:
         logging.error(f"Skipped {episode_path} during frame processing: {e}")
         dataset.clear_episode_buffer()
@@ -602,6 +845,29 @@ def main():
                              "Labels are looked up as <label-root>/<episode_dir_name>/label.json. "
                              "When provided, each labeled segment becomes a separate episode; "
                              "unlabeled frames between segments are dropped.")
+    # --- stationary-frame trim/cap ---
+    parser.add_argument("--trim-stationary", action="store_true",
+                        help="Cap long stationary runs in the action stream to break ACT "
+                             "absorbing-state failures. See --stationary-* for parameters.")
+    parser.add_argument("--stationary-key", type=str, default="action",
+                        help="Compose field used to judge stationarity (default: action).")
+    parser.add_argument("--stationary-window", type=int, default=0,
+                        help="Forward window W in frames for displacement (default: auto "
+                             "max(1, round(0.3*fps))). ~0.33s at 15fps.")
+    parser.add_argument("--stationary-thresh", type=float, default=0.03,
+                        help="Normalized stationarity threshold: a frame is stationary when "
+                             "no active dim moves more than this fraction of its own range "
+                             "over W frames (default: 0.03).")
+    parser.add_argument("--stationary-cap", type=int, default=8,
+                        help="Max consecutive stationary frames to keep per run (default: 8).")
+    parser.add_argument("--stationary-min-run", type=int, default=3,
+                        help="Stationary runs shorter than this are left untouched (default: 3).")
+    parser.add_argument("--stationary-range-eps", type=float, default=1e-3,
+                        help="Dims with range below this are treated as constant and excluded "
+                             "from the stationarity test (default: 1e-3).")
+    parser.add_argument("--stationary-diagnose", action="store_true",
+                        help="Compute stationarity stats over all episodes and exit without "
+                             "writing a dataset. Use to calibrate --stationary-thresh etc.")
     args = parser.parse_args()
 
     # Load configuration
@@ -609,10 +875,26 @@ def main():
     validate_mapping(mapping, features)
     validate_features(features)
 
-    # Initialize dataset
+    # Stationary trim/cap config (None = disabled, preserves existing behavior)
+    eff_fps = round(args.resample_fps) if args.resample_fps else args.fps
+    stationary_W = (args.stationary_window if args.stationary_window > 0
+                    else max(1, int(0.3 * eff_fps + 0.5)))
+    stationary_cfg = None
+    if args.trim_stationary or args.stationary_diagnose:
+        stationary_cfg = {
+            "key": args.stationary_key,
+            "W": stationary_W,
+            "thr_norm": args.stationary_thresh,
+            "cap_n": args.stationary_cap,
+            "min_run": args.stationary_min_run,
+            "range_eps": args.stationary_range_eps,
+        }
+        logging.info("Stationary config: %s", stationary_cfg)
+
+    # Initialize dataset (skipped in diagnose mode)
     source_fps = args.fps                              # fallback when HDF5 lacks timestamps
     dataset_fps = round(args.resample_fps) if args.resample_fps else args.fps
-    dataset = initialize_dataset(
+    dataset = None if args.stationary_diagnose else initialize_dataset(
         repo_id=args.repo_id,
         tgt_path=args.tgt_path,
         fps=dataset_fps,
@@ -653,6 +935,11 @@ def main():
     if skipped:
         logging.info(f"Skipping {len(skipped)} dir(s) without '{args.hdf5_rel_path}': {skipped}")
 
+    # --- diagnose mode: report stationarity stats and exit without writing ---
+    if args.stationary_diagnose:
+        _run_stationary_diagnose(episode_pairs, mapping, stationary_cfg)
+        return
+
     # --- load per-episode labels if --label-root is provided ---
     label_root = Path(args.label_root) if args.label_root else None
 
@@ -676,6 +963,7 @@ def main():
             timestamp_hdf5_key=args.timestamp_hdf5_key,
             source_fps=source_fps,
             segment_ranges=segment_ranges,
+            stationary_cfg=stationary_cfg,
         )
         if n_saved > 0:
             success_count += 1
@@ -687,7 +975,8 @@ def main():
         if args.save_one:
             break
 
-    dataset.finalize()
+    if dataset is not None:
+        dataset.finalize()
     if label_root is not None:
         logging.info(f"Conversion complete: {success_count}/{len(episode_pairs)} source episodes → {total_segments} labeled segments.")
     else:

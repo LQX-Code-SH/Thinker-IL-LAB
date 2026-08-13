@@ -34,6 +34,14 @@ usage() {
     echo "  RESAMPLE_FPS 目标帧率，启用重采样 (默认: 空=不启用)"
     echo "  TIMESTAMP_HDF5_KEY 时间戳 HDF5 路径 (默认: 空=自动探测)"
     echo "  LABEL_ROOT    label.json 父目录 (默认: 空=不按标注分段)"
+    echo "  TRIM_STATIONARY  1=开启静止帧 cap (默认: 空=关闭)"
+    echo "  STATIONARY_DIAGNOSE  1=只统计静止分布不写盘 (默认: 空=关闭)"
+    echo "  STATIONARY_KEY  判静止用的 compose 字段 (默认: action)"
+    echo "  STATIONARY_WINDOW  位移窗口帧数 (默认: 空=自动 0.3*fps)"
+    echo "  STATIONARY_THRESH  归一化静止阈值 (默认: 0.03)"
+    echo "  STATIONARY_CAP  每段静止游程上限帧数 (默认: 8)"
+    echo "  STATIONARY_MIN_RUN  最小静止游程 (默认: 3)"
+    echo "  STATIONARY_RANGE_EPS  恒定维判定阈值 (默认: 1e-3)"
     echo ""
     echo "常用选项（透传）："
     echo "  --overwrite        覆盖已有输出数据集"
@@ -65,6 +73,14 @@ HDF5_REL_PATH="${HDF5_REL_PATH:-hdf5/metadata_aligned.hdf5}"
 RESAMPLE_FPS="${RESAMPLE_FPS:-}"
 TIMESTAMP_HDF5_KEY="${TIMESTAMP_HDF5_KEY:-}"
 LABEL_ROOT="${LABEL_ROOT:-}"
+TRIM_STATIONARY="${TRIM_STATIONARY:-}"
+STATIONARY_DIAGNOSE="${STATIONARY_DIAGNOSE:-}"
+STATIONARY_KEY="${STATIONARY_KEY:-}"
+STATIONARY_WINDOW="${STATIONARY_WINDOW:-}"
+STATIONARY_THRESH="${STATIONARY_THRESH:-}"
+STATIONARY_CAP="${STATIONARY_CAP:-}"
+STATIONARY_MIN_RUN="${STATIONARY_MIN_RUN:-}"
+STATIONARY_RANGE_EPS="${STATIONARY_RANGE_EPS:-}"
 PYTHON_SCRIPT="$SCRIPT_DIR/../common/convert_to_lerobot.py"
 
 # === 校验 ===
@@ -85,6 +101,12 @@ echo "[convert] TASK_NAME = $TASK_NAME"
 echo "[convert] VCODEC    = $VCODEC"
 echo "[convert] ========================================"
 
+# 布尔 flag：非空且非 0/false 时透传
+TRIM_FLAG=""
+{ [[ -n "$TRIM_STATIONARY" ]] && [[ "$TRIM_STATIONARY" != "0" ]] && [[ "$TRIM_STATIONARY" != "false" ]]; } && TRIM_FLAG="--trim-stationary"
+DIAG_FLAG=""
+{ [[ -n "$STATIONARY_DIAGNOSE" ]] && [[ "$STATIONARY_DIAGNOSE" != "0" ]] && [[ "$STATIONARY_DIAGNOSE" != "false" ]]; } && DIAG_FLAG="--stationary-diagnose"
+
 python "$PYTHON_SCRIPT" \
   --config "$CONFIG" \
   --repo_id "$REPO_ID" \
@@ -98,4 +120,11 @@ python "$PYTHON_SCRIPT" \
   ${RESAMPLE_FPS:+--resample-fps "$RESAMPLE_FPS"} \
   ${TIMESTAMP_HDF5_KEY:+--timestamp-hdf5-key "$TIMESTAMP_HDF5_KEY"} \
   ${LABEL_ROOT:+--label-root "$LABEL_ROOT"} \
+  $TRIM_FLAG $DIAG_FLAG \
+  ${STATIONARY_KEY:+--stationary-key "$STATIONARY_KEY"} \
+  ${STATIONARY_WINDOW:+--stationary-window "$STATIONARY_WINDOW"} \
+  ${STATIONARY_THRESH:+--stationary-thresh "$STATIONARY_THRESH"} \
+  ${STATIONARY_CAP:+--stationary-cap "$STATIONARY_CAP"} \
+  ${STATIONARY_MIN_RUN:+--stationary-min-run "$STATIONARY_MIN_RUN"} \
+  ${STATIONARY_RANGE_EPS:+--stationary-range-eps "$STATIONARY_RANGE_EPS"} \
   "$@"

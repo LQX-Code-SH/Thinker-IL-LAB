@@ -1,10 +1,10 @@
 {
     "dataset": {
-        "repo_id": "Walker_S2_sim_10d_2RGB",
-        "root": "/ubt_IL/dataset/Walker_S2_sim_10d_2RGB",
+        "repo_id": "Walker_S2_sim_10_2RGB",
+        "root": "/ubt_IL/dataset/Walker_S2_sim_10_2RGB",
         "episodes": null,
         "image_transforms": {
-            "enable": false,
+            "enable": true,
             "max_num_transforms": 3,
             "random_order": false,
             "tfs": {
@@ -89,16 +89,16 @@
                 "type": "VISUAL",
                 "shape": [
                     3,
-                    480,
-                    640
+                    240,
+                    320
                 ]
             },
             "observation.images.camera_wrist_right": {
                 "type": "VISUAL",
                 "shape": [
                     3,
-                    480,
-                    640
+                    240,
+                    320
                 ]
             },
             "observation.state": {
@@ -120,7 +120,7 @@
         "use_amp": false,
         "use_peft": false,
         "push_to_hub": false,
-        "repo_id": "local/Walker_S2_sim_10d_2RGB_act",
+        "repo_id": "local/Walker_S2_sim_10_2RGB_act",
         "private": null,
         "tags": null,
         "license": null,
@@ -142,7 +142,7 @@
         "feedforward_activation": "relu",
         "n_encoder_layers": 4,
         "n_decoder_layers": 1,
-        "use_vae": true,
+        "use_vae": false,
         "latent_dim": 32,
         "n_vae_encoder_layers": 4,
         "temporal_ensemble_coeff": null,
@@ -153,8 +153,8 @@
         "optimizer_lr_backbone": 1e-05
     },
     "reward_model": null,
-    "output_dir": "/ubt_IL/model/Walker_S2_sim_10d_2RGB_act",
-    "job_name": "Walker_S2_sim_10d_2RGB_act",
+    "output_dir": "/ubt_IL/model/Walker_S2_sim_10_2RGB_act",
+    "job_name": "Walker_S2_sim_10_2RGB_act",
     "resume": false,
     "seed": 1000,
     "cudnn_deterministic": false,
@@ -163,11 +163,11 @@
     "prefetch_factor": 4,
     "persistent_workers": true,
     "steps": 50000,
-    "eval_freq": 10000,
+    "eval_freq": 5000,
     "log_freq": 200,
     "tolerance_s": 0.0001,
     "save_checkpoint": true,
-    "save_freq": 10000,
+    "save_freq": 5000,
     "use_policy_training_preset": true,
     "optimizer": {
         "type": "adamw",
