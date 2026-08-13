@@ -317,7 +317,10 @@ def main():
         else:
             from ubt_sim.devices import TienkungProController
 
-            teleop_interface = TienkungProController(env)
+            teleop_interface = TienkungProController(
+                env,
+                render_interval=env.cfg.sim.render_interval,
+            )
             teleop_interface.display_controls()
 
         env.reset()

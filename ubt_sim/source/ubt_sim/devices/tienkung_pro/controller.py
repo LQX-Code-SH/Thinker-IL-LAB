@@ -1,6 +1,8 @@
 from typing import Any
 import time
 import struct
+import queue
+import threading
 import torch
 import json
 import numpy as np
@@ -24,6 +26,134 @@ try:
 except ImportError:
     HAS_ZMQ = False
 
+
+class AsyncRawCameraSender:
+    """Background thread that sends rgb+depth multipart frames over ZMQ (image port).
+
+    The main thread pushes (metadata, rgb, depth_m) tuples to an internal queue;
+    only the GPU→CPU np.copy runs on the main thread.  Depth conversion (m→mm,
+    clip, uint16) and all ZMQ socket I/O happen on the background thread, so the
+    sim main loop is never blocked by encoding or socket sends.
+    """
+
+    def __init__(self, image_port: int):
+        self._ctx = zmq.Context()
+        self._sock = self._ctx.socket(zmq.PUB)
+        self._sock.setsockopt(zmq.SNDHWM, 1)  # Only keep latest image
+        self._sock.bind(f"tcp://*:{image_port}")
+        self._queue: queue.Queue = queue.Queue(maxsize=2)
+        self._running = True
+        self._thread = threading.Thread(target=self._run_loop, daemon=True,
+                                        name="zmq-raw-camera-sender")
+        self._thread.start()
+
+    def _run_loop(self) -> None:
+        while self._running:
+            try:
+                item = self._queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            if item is None:  # sentinel for shutdown
+                break
+            metadata, rgb, depth_m = item
+            try:
+                # Convert depth to mm (x1000) and uint16 for standard ROS depth
+                depth_bytes = b""
+                if depth_m is not None:
+                    depth_img_mm = np.clip(depth_m * 1000.0, 0, 65535)
+                    depth_bytes = depth_img_mm.astype(np.uint16).tobytes()
+
+                # Send as multi-part message (raw bytes for maximum quality)
+                self._sock.send_json(metadata, flags=zmq.SNDMORE | zmq.NOBLOCK)
+                self._sock.send(rgb.tobytes(), flags=zmq.SNDMORE | zmq.NOBLOCK)
+                self._sock.send(depth_bytes, flags=zmq.NOBLOCK)
+            except Exception:
+                continue
+
+    def send(self, metadata: dict, rgb: np.ndarray, depth_m: np.ndarray | None) -> None:
+        """Non-blocking: push a frame to the queue. Drops silently when queue is full."""
+        if self._queue.full():
+            return
+        try:
+            self._queue.put_nowait((metadata, rgb, depth_m))
+        except queue.Full:
+            pass
+
+    def close(self) -> None:
+        """Gracefully stop the background thread and clean up ZMQ resources."""
+        self._running = False
+        try:
+            self._queue.put_nowait(None)  # sentinel
+        except queue.Full:
+            pass
+        self._thread.join(timeout=2.0)
+        self._sock.close(linger=0)
+        self._ctx.term()
+
+
+class AsyncJpegCameraSender:
+    """Background thread that JPEG-encodes and sends frames over ZMQ (jpeg port).
+
+    The main thread pushes (rgb, ts, seq) tuples; timestamp and sequence number
+    are captured on the main thread at enqueue time to keep unit-test timing
+    honest.  cv2.imencode runs on the background thread.
+    """
+
+    def __init__(self, jpeg_port: int, unit_test: bool = True):
+        self._unit_test = unit_test
+        self._ctx = zmq.Context()
+        self._sock = self._ctx.socket(zmq.PUB)
+        self._sock.setsockopt(zmq.SNDHWM, 1)
+        self._sock.bind(f"tcp://*:{jpeg_port}")
+        self._queue: queue.Queue = queue.Queue(maxsize=2)
+        self._running = True
+        self._thread = threading.Thread(target=self._run_loop, daemon=True,
+                                        name="zmq-jpeg-camera-sender")
+        self._thread.start()
+
+    def _run_loop(self) -> None:
+        while self._running:
+            try:
+                item = self._queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            if item is None:  # sentinel for shutdown
+                break
+            rgb, ts, seq = item
+            try:
+                # JPEG encode
+                bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+                ret, buf = cv2.imencode('.jpg', bgr)
+                if not ret:
+                    continue
+                msg = buf.tobytes()
+                if self._unit_test:
+                    msg = struct.pack('dI', ts, seq) + msg
+                self._sock.send(msg, flags=zmq.NOBLOCK)
+            except Exception:
+                continue
+
+    def send(self, rgb: np.ndarray, ts: float, seq: int) -> None:
+        """Non-blocking: push a frame to the queue. Drops silently when queue is full."""
+        if self._queue.full():
+            return
+        try:
+            self._queue.put_nowait((rgb, ts, seq))
+        except queue.Full:
+            pass
+
+    def close(self) -> None:
+        """Gracefully stop the background thread and clean up ZMQ resources."""
+        self._running = False
+        try:
+            self._queue.put_nowait(None)  # sentinel
+        except queue.Full:
+            pass
+        self._thread.join(timeout=2.0)
+        self._sock.close(linger=0)
+        self._ctx.term()
+
+
 class TienkungProController(DeviceBase):
     """Controller for Tienkung Pro that receives actions via ZMQ bridge.
     This allows ROS 2 Humble (Python 3.10) to communicate with this environment (Python 3.11).
@@ -40,41 +170,44 @@ class TienkungProController(DeviceBase):
         self.apple_initial_pos = None  # To store original position for relative offset
         self.reset_requested = False
         
+        # Camera send gating: only publish on steps that follow a render step
+        # (same _should_send_camera logic as walker_s2; render_interval comes
+        # from env.cfg.sim.render_interval via sim_runner kwargs).
+        self._render_interval = int(kwargs.get('render_interval', 1))
+        self._step_count = 0
+
         # Cache Prims
         self.apple_prim = self._init_prim("/World/envs/env_0/Scene/apple", rigid=True)
         # Use simple Prim for plate to avoid RigidBody hierarchy issues (CUDA crash)
         self.plate_prim = self._init_prim("/World/envs/env_0/Scene/plate", rigid=False)
 
         if HAS_ZMQ:
+            self.cmd_port = int(kwargs.get('cmd_port', 5555))
+            self.status_port = int(kwargs.get('status_port', 5556))
+            self.image_port = int(kwargs.get('image_port', 5557))
+            self.jpeg_port = int(kwargs.get('jpeg_port', 5558))
+
             self.context = zmq.Context()
             # Subscriber for control commands
             self.sub_socket = self.context.socket(zmq.SUB)
-            self.sub_socket.connect("tcp://127.0.0.1:5555")
+            self.sub_socket.connect(f"tcp://127.0.0.1:{self.cmd_port}")
             self.sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")
-            
+
             # Publisher for status feedback
             self.pub_socket = self.context.socket(zmq.PUB)
             self.pub_socket.setsockopt(zmq.SNDHWM, 1)
-            self.pub_socket.bind("tcp://*:5556")
+            self.pub_socket.bind(f"tcp://*:{self.status_port}")
 
-            # Publisher for camera images (raw multipart, for C++ bridge -> ROS2)
-            self.img_socket = self.context.socket(zmq.PUB)
-            self.img_socket.setsockopt(zmq.SNDHWM, 1) # Only keep latest image
-            self.img_socket.bind("tcp://*:5557")
-
-            # Publisher for JPEG images (single-part, for image_client.py)
-            self.jpeg_socket = self.context.socket(zmq.PUB)
-            self.jpeg_socket.setsockopt(zmq.SNDHWM, 1)
-            self.jpeg_socket.bind("tcp://*:5558")
-
-            # Unit_Test mode for JPEG port: prepend struct header for latency/frame-loss evaluation
-            self.jpeg_unit_test = kwargs.get('jpeg_unit_test', True)
+            # Camera frames sent via background threads — same ports, no consumer changes needed.
+            self._raw_sender = AsyncRawCameraSender(self.image_port)
+            self._jpeg_sender = AsyncJpegCameraSender(
+                self.jpeg_port, unit_test=kwargs.get('jpeg_unit_test', True))
             self._jpeg_frame_count = 0
 
-            print("[INFO] ZMQ Subscriber connected to tcp://127.0.0.1:5555")
-            print("[INFO] ZMQ Publisher bound to tcp://*:5556")
-            print("[INFO] ZMQ Image Publisher bound to tcp://*:5557")
-            print("[INFO] ZMQ JPEG Image Publisher bound to tcp://*:5558")
+            print(f"[INFO] ZMQ Subscriber connected to tcp://127.0.0.1:{self.cmd_port}")
+            print(f"[INFO] ZMQ Publisher bound to tcp://*:{self.status_port}")
+            print(f"[INFO] ZMQ Image Publisher bound to tcp://*:{self.image_port} (async thread)")
+            print(f"[INFO] ZMQ JPEG Image Publisher bound to tcp://*:{self.jpeg_port} (async thread)")
         else:
             print("[WARNING] zmq not found. ZMQ control will not be available.")
 
@@ -117,6 +250,7 @@ class TienkungProController(DeviceBase):
         self._action = {}
         self.apple_initial_pos = None  # Reset initial position cache
         self.reset_requested = False
+        self._step_count = 0
 
     def reset_to_pose(self, pose_dict: dict[str, float]):
         """Reset the internal action buffer to a specific pose."""
@@ -130,11 +264,31 @@ class TienkungProController(DeviceBase):
         
         return to_ros_data(self.env)
 
+    def _should_send_camera(self) -> bool:
+        """Return True only on steps that follow a render step.
+
+        Camera data is produced by env.step() every render_interval steps, and
+        advance() reads the data produced by the *previous* env.step().  Therefore
+        we send at step 0 (initial frame) and at steps where
+        step_count % render_interval == 1 (new frame rendered in previous step).
+        Special case: render_interval=1 means every step renders, always send.
+        """
+        if self._render_interval == 1:
+            return True
+        if self._step_count == 0:
+            return True
+        return self._step_count % self._render_interval == 1
+
     def _send_camera_data(self):
-        """Fetch and send camera data over ZMQ."""
+        """Copy camera frames and push them to the async sender queue (non-blocking).
+
+        Only the GPU→CPU numpy copy runs on the main thread; depth conversion and
+        ZMQ socket I/O happen on the background sender thread.
+        """
+        if not self._should_send_camera():
+            return
         if "camera" not in self.env.scene.keys():
             return
-        
 
         camera = self.env.scene["camera"]
         camera_depth = self.env.scene["camera_depth"]
@@ -144,39 +298,29 @@ class TienkungProController(DeviceBase):
             if rgb_tensor is None or rgb_tensor.shape[0] == 0:
                 return
 
-            # Pull tensors to CPU and convert to bytes
-            rgb = rgb_tensor[0].cpu().numpy()
-
-            depth_bytes = b""
+            # Pull tensors to CPU (copied: the underlying buffer is reused next step)
+            rgb = np.copy(rgb_tensor[0].cpu().numpy())
+            depth_m = None
             if depth_tensor is not None and depth_tensor.shape[0] != 0:
-                # Convert to mm (x1000) and uint16 for standard ROS depth
-                depth_img_meters = depth_tensor[0].cpu().numpy()
-                depth_img_mm = depth_img_meters * 1000.0
-                # Clip to safe range for uint16
-                depth_img_mm = np.clip(depth_img_mm, 0, 65535)
-                depth_img = depth_img_mm.astype(np.uint16)
-                depth_bytes = depth_img.tobytes()
-
-            # send raw bytes (preserve full quality)
-            encoded_rgb = rgb.tobytes()
+                depth_m = np.copy(depth_tensor[0].cpu().numpy())
 
             metadata = {
                 "width": rgb.shape[1],
                 "height": rgb.shape[0],
                 "format": "raw", # Raw bytes format
             }
-
-            # Send as multi-part message (raw bytes for maximum quality)
-            self.img_socket.send_json(metadata, flags=zmq.SNDMORE | zmq.NOBLOCK)
-            self.img_socket.send(encoded_rgb, flags=zmq.SNDMORE | zmq.NOBLOCK)
-            self.img_socket.send(depth_bytes, flags=zmq.NOBLOCK)
-
-            return
+            self._raw_sender.send(metadata, rgb, depth_m)
         except Exception:
             return
 
     def _send_jpeg_camera_data(self):
-        """Send JPEG-encoded camera data on port 5558 (image_client.py compatible)."""
+        """Push JPEG-encoded camera frames to the async sender (image_client.py compatible).
+
+        Gated by _should_send_camera like the raw port; ts/seq are captured on the
+        main thread, cv2.imencode runs on the background thread.
+        """
+        if not self._should_send_camera():
+            return
         if "camera" not in self.env.scene.keys():
             return
 
@@ -186,20 +330,9 @@ class TienkungProController(DeviceBase):
             if rgb_tensor is None or rgb_tensor.shape[0] == 0:
                 return
 
-            rgb = rgb_tensor[0].cpu().numpy()  # (H, W, 3), RGB order
-            bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-
-            # JPEG encode
-            ret, buf = cv2.imencode('.jpg', bgr)
-            if not ret:
-                return
-
-            msg = buf.tobytes()
-            if self.jpeg_unit_test:
-                msg = struct.pack('dI', time.time(), self._jpeg_frame_count) + msg
-                self._jpeg_frame_count += 1
-
-            self.jpeg_socket.send(msg, flags=zmq.NOBLOCK)
+            rgb = np.copy(rgb_tensor[0].cpu().numpy())  # (H, W, 3), RGB order
+            self._jpeg_sender.send(rgb, time.time(), self._jpeg_frame_count)
+            self._jpeg_frame_count += 1
         except Exception:
             return
 
@@ -328,6 +461,9 @@ class TienkungProController(DeviceBase):
         """
         Receive actions from ZMQ and send status back.
         """
+        t_send_camera = 0.0
+        t_send_jpeg = 0.0
+
         if HAS_ZMQ:
             # 1. Receive control commands
             while True:
@@ -336,7 +472,7 @@ class TienkungProController(DeviceBase):
                     self._action.update(msg)
                 except zmq.Again:
                     break
-            
+
             # 1.0 Handle Reset
             if "reset" in self._action:
                 if self._action.pop("reset"):
@@ -344,7 +480,7 @@ class TienkungProController(DeviceBase):
 
             # 1.1 Apply Apple Offset
             self._apply_apple_offset()
-            
+
             # 1.2 Check Task Dist
             dist = self._get_apple_plate_dist()
 
@@ -354,23 +490,55 @@ class TienkungProController(DeviceBase):
                 self.pub_socket.send_json(status, flags=zmq.NOBLOCK)
             except Exception:
                 pass
+            t0 = time.perf_counter()
             try:
                 # send camera data (ignore timing return)
                 self._send_camera_data()
             except Exception:
                 pass
+            t1 = time.perf_counter()
             try:
                 self._send_jpeg_camera_data()
             except Exception:
                 pass
+            t_send_camera = (t1 - t0) * 1000
+            t_send_jpeg = (time.perf_counter() - t1) * 1000
 
+        self.advance_timings = {
+            "send_camera": t_send_camera,
+            "send_jpeg": t_send_jpeg,
+        }
+        self._step_count += 1
         return {"tienkung_pro": to_controller_data(self._action,self.env)}
+
+    def close(self):
+        """Cleanly shut down the async camera senders and ZMQ resources."""
+        if HAS_ZMQ:
+            for sender in (getattr(self, "_raw_sender", None),
+                           getattr(self, "_jpeg_sender", None)):
+                if sender is not None:
+                    try:
+                        sender.close()
+                    except Exception:
+                        pass
+            try:
+                self.sub_socket.close(linger=0)
+            except Exception:
+                pass
+            try:
+                self.pub_socket.close(linger=0)
+            except Exception:
+                pass
+            try:
+                self.context.term()
+            except Exception:
+                pass
 
     def display_controls(self):
         """Display the controls."""
         if HAS_ZMQ:
             print("Tienkung Pro Controller: Full ROS Interface enabled via ZMQ Bridge")
-            print("  - Command Sub: tcp://127.0.0.1:5555")
-            print("  - Status Pub:  tcp://127.0.0.1:5556")
-            print("  - Image Pub:   tcp://*:5557 (raw multipart)")
-            print("  - JPEG Pub:    tcp://*:5558 (image_client compatible)")
+            print(f"  - Command Sub: tcp://127.0.0.1:{self.cmd_port}")
+            print(f"  - Status Pub:  tcp://*:{self.status_port}")
+            print(f"  - Image Pub:   tcp://*:{self.image_port} (raw multipart)")
+            print(f"  - JPEG Pub:    tcp://*:{self.jpeg_port} (image_client compatible)")
