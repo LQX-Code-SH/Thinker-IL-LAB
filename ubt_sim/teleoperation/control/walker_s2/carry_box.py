@@ -101,7 +101,7 @@ class CarryBoxController(WalkerS2Controller):
         pregrasp_dz: float = DEFAULT_PREGRASP_DZ,
         descend_dz: float = DEFAULT_DESCEND_DZ,
         lift_dz: float = DEFAULT_LIFT_DZ,
-        place_dz: float = DEFAULT_PLACE_DZ,
+        place_dz: float | None = None,
         retreat_dz: float = DEFAULT_RETREAT_DZ,
         duration_sec: float = DEFAULT_DURATION,
         level_duration: float = DEFAULT_LEVEL_DURATION,
@@ -128,7 +128,10 @@ class CarryBoxController(WalkerS2Controller):
         self.pregrasp_dz = pregrasp_dz
         self.descend_dz = descend_dz
         self.lift_dz = lift_dz
-        self.place_dz = place_dz
+        # place_dz 未显式指定时，自动取 -lift_dz，保证放下深度始终与抬起一致。
+        # 旧实现用模块常量 DEFAULT_PLACE_DZ(=-DEFAULT_LIFT_DZ)，用户改 --lift-dz 时
+        # place_dz 不会跟随，导致放下深度与抬起不匹配。
+        self.place_dz = place_dz if place_dz is not None else -lift_dz
         self.retreat_dz = retreat_dz
         self.duration_sec = duration_sec
         self.level_duration = level_duration
@@ -445,7 +448,7 @@ def parse_args():
     parser.add_argument("--pregrasp-dz", type=float, default=DEFAULT_PREGRASP_DZ, help="预抓取下降(m)")
     parser.add_argument("--descend-dz", type=float, default=DEFAULT_DESCEND_DZ, help="夹取下降(m)")
     parser.add_argument("--lift-dz", type=float, default=DEFAULT_LIFT_DZ, help="抱起抬升(m)")
-    parser.add_argument("--place-dz", type=float, default=DEFAULT_PLACE_DZ, help="原地放下下降(m)")
+    parser.add_argument("--place-dz", type=float, default=None, help="原地放下下降(m);省略时自动=-lift_dz")
     parser.add_argument("--level-duration", type=float, default=DEFAULT_LEVEL_DURATION, help="level_ee 姿态校正时长(s)")
     parser.add_argument("--pregrasp-duration", type=float, default=DEFAULT_PREGRASP_DURATION, help="descend_to_pregrasp 时长(s)")
     parser.add_argument("--approach-duration", type=float, default=DEFAULT_APPROACH_DURATION, help="approach_and_descend 时长(s)")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import math
 from typing import Any
 
 import torch
@@ -339,6 +340,19 @@ def to_controller_data(command: dict[str, Any], env) -> torch.Tensor:
         + gravity_offsets.get(name, 0.0)
         for name in _hold_manager.action_joint_names
     ]
+
+    # NaN/inf 守卫：ZMQ body 命令可能带 NaN（Python json.loads 接受 NaN，float(nan) 静默通过）。
+    # 非有限值进 PhysX ImplicitActuator 会使整个 articulation 爆 NaN 并永久污染仿真。
+    # 检测到则用当前仿真位姿兜底（hold current）并告警，绝不放行 NaN。
+    if not all(math.isfinite(v) for v in values):
+        cur_map = _current_joint_map(env)
+        values = [
+            float(cur_map.get(name, 0.0)) if not math.isfinite(values[i])
+            else values[i]
+            for i, name in enumerate(_hold_manager.action_joint_names)
+        ]
+        print("[WARN] Walker S2 action_process: non-finite target detected; "
+              "holding current pose for affected joints")
 
     return torch.tensor(values, device=env.device, dtype=torch.float32).unsqueeze(0).repeat(env.num_envs, 1)
 

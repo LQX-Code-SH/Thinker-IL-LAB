@@ -596,6 +596,14 @@ class WalkerS2Controller(Node):
             )
             return False
 
+        # NaN/inf 守卫：非有限值会绕过 _clamp_with_limits（NaN 比较恒 False）
+        # 与安全速度检查，直达机器人/PhysX 致炸机。此处早拒。
+        if not np.isfinite(trajectory).all():
+            self.get_logger().error(
+                "Trajectory contains non-finite values (NaN/inf); refusing to execute."
+            )
+            return False
+
         # 限位裁剪
         if self.enable_limit_check:
             all_violations = []

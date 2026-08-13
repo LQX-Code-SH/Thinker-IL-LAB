@@ -266,76 +266,81 @@ def main():
     # Resolve physics device: Walker S2 uses a dedicated flag, Tienkung Pro uses the
     # AppLauncher device (which may also come from env).
     physics_device = args_cli.physics_device if ROBOT == "walker_s2" else args_cli.device
-    env_cfg = parse_env_cfg(args_cli.task, device=physics_device, num_envs=args_cli.num_envs)
-    env_cfg.use_teleop_device(ROBOT)
-    env_cfg.seed = args_cli.seed if args_cli.seed is not None else int(time.time())
-    env_cfg.recorders = None
-
-    env: ManagerBasedRLEnv = gym.make(args_cli.task, cfg=env_cfg).unwrapped
-
-    # Pin rendering carb settings so the UI defaults survive restarts.
-    _ensure_rendering_defaults()
-
-    if ROBOT == "walker_s2":
-        print(f"[INFO] Walker S2 render/app device args_cli.device={args_cli.device}")
-        print(f"[INFO] Walker S2 physics device args_cli.physics_device={args_cli.physics_device}")
-        print(f"[INFO] Walker S2 physics env.device={env.device}")
-        print(f"[INFO] Walker S2 physics env.cfg.sim.device={env.cfg.sim.device}")
-
-    keyboard_reset = KeyboardResetController()
-    rate_limiter = RateLimiter(args_cli.step_hz)
-    perf_monitor = None if args_cli.load_only else (PerfMonitor() if args_cli.perf_stats else None)
-
-    # Profiling: monkey-patch env.step internals if perf_stats enabled
-    step_timings = None
-    reset_step_timings = None
-    if perf_monitor is not None:
-        step_timings, reset_step_timings = patch_step_for_profiling(env)
-
-    if args_cli.load_only:
-        role = "Walker S2" if ROBOT == "walker_s2" else "Tienkung Pro"
-        print(f"[INFO] {role} load-only mode: ROS control and action preprocessing are disabled.")
-        teleop_interface = None
-    elif ROBOT == "walker_s2":
-        from ubt_sim.devices.walker_s2 import WalkerS2Controller
-
-        teleop_interface = WalkerS2Controller(
-            env,
-            cmd_port=args_cli.zmq_cmd_port,
-            status_port=args_cli.zmq_status_port,
-            image_port=args_cli.zmq_image_port,
-            camera_names=env.cfg.camera_names,
-            render_interval=env.cfg.sim.render_interval,
-        )
-        teleop_interface.display_controls()
-    else:
-        from ubt_sim.devices import TienkungProController
-
-        teleop_interface = TienkungProController(env)
-        teleop_interface.display_controls()
-
-    env.reset()
-    if ROBOT == "walker_s2":
-        fix_walker_s2_head_material(env.sim.stage)
-    if teleop_interface is not None:
-        teleop_interface.reset()
-    if args_cli.load_only:
-        print("[INFO] Load-only app update enabled: physics/action/observation stepping is disabled.")
-    rate_limiter.update_from_env(env)
-    print(f"[INFO] RateLimiter sleep_duration={rate_limiter.sleep_duration:.6f}s")
-    print("[INFO] Viewport resolution reduced via UBT_SIM_VIEWPORT_WIDTH/HEIGHT env vars (default 640x360)")
-
-    # --- Main loop ---
-    interrupted = False
-
-    def signal_handler(signum, frame):
-        nonlocal interrupted
-        interrupted = True
-        print("\n[INFO] Ctrl+C detected. Cleaning up...")
-
-    original_sigint_handler = signal.signal(signal.SIGINT, signal_handler)
-
+    # 初始化段（gym.make/env.reset/控制器构造）若抛异常，原本不会进入下方 try，
+    # 导致 Isaac Sim app + 相机子进程残留占 GPU。把初始化也纳入 try/finally。
+    env = None
+    teleop_interface = None
+    original_sigint_handler = None
     try:
+        env_cfg = parse_env_cfg(args_cli.task, device=physics_device, num_envs=args_cli.num_envs)
+        env_cfg.use_teleop_device(ROBOT)
+        env_cfg.seed = args_cli.seed if args_cli.seed is not None else int(time.time())
+        env_cfg.recorders = None
+
+        env: ManagerBasedRLEnv = gym.make(args_cli.task, cfg=env_cfg).unwrapped
+
+        # Pin rendering carb settings so the UI defaults survive restarts.
+        _ensure_rendering_defaults()
+
+        if ROBOT == "walker_s2":
+            print(f"[INFO] Walker S2 render/app device args_cli.device={args_cli.device}")
+            print(f"[INFO] Walker S2 physics device args_cli.physics_device={args_cli.physics_device}")
+            print(f"[INFO] Walker S2 physics env.device={env.device}")
+            print(f"[INFO] Walker S2 physics env.cfg.sim.device={env.cfg.sim.device}")
+
+        keyboard_reset = KeyboardResetController()
+        rate_limiter = RateLimiter(args_cli.step_hz)
+        perf_monitor = None if args_cli.load_only else (PerfMonitor() if args_cli.perf_stats else None)
+
+        # Profiling: monkey-patch env.step internals if perf_stats enabled
+        step_timings = None
+        reset_step_timings = None
+        if perf_monitor is not None:
+            step_timings, reset_step_timings = patch_step_for_profiling(env)
+
+        if args_cli.load_only:
+            role = "Walker S2" if ROBOT == "walker_s2" else "Tienkung Pro"
+            print(f"[INFO] {role} load-only mode: ROS control and action preprocessing are disabled.")
+            teleop_interface = None
+        elif ROBOT == "walker_s2":
+            from ubt_sim.devices.walker_s2 import WalkerS2Controller
+
+            teleop_interface = WalkerS2Controller(
+                env,
+                cmd_port=args_cli.zmq_cmd_port,
+                status_port=args_cli.zmq_status_port,
+                image_port=args_cli.zmq_image_port,
+                camera_names=env.cfg.camera_names,
+                render_interval=env.cfg.sim.render_interval,
+            )
+            teleop_interface.display_controls()
+        else:
+            from ubt_sim.devices import TienkungProController
+
+            teleop_interface = TienkungProController(env)
+            teleop_interface.display_controls()
+
+        env.reset()
+        if ROBOT == "walker_s2":
+            fix_walker_s2_head_material(env.sim.stage)
+        if teleop_interface is not None:
+            teleop_interface.reset()
+        if args_cli.load_only:
+            print("[INFO] Load-only app update enabled: physics/action/observation stepping is disabled.")
+        rate_limiter.update_from_env(env)
+        print(f"[INFO] RateLimiter sleep_duration={rate_limiter.sleep_duration:.6f}s")
+        print("[INFO] Viewport resolution reduced via UBT_SIM_VIEWPORT_WIDTH/HEIGHT env vars (default 640x360)")
+
+        # --- Main loop ---
+        interrupted = False
+
+        def signal_handler(signum, frame):
+            nonlocal interrupted
+            interrupted = True
+            print("\n[INFO] Ctrl+C detected. Cleaning up...")
+
+        original_sigint_handler = signal.signal(signal.SIGINT, signal_handler)
+
         while simulation_app.is_running() and not interrupted:
             with torch.inference_mode():
                 if args_cli.load_only:
@@ -402,13 +407,15 @@ def main():
         print(f"\n[ERROR] {e}\n")
         traceback.print_exc()
     finally:
-        signal.signal(signal.SIGINT, original_sigint_handler)
+        if original_sigint_handler is not None:
+            signal.signal(signal.SIGINT, original_sigint_handler)
         if teleop_interface is not None:
             try:
                 teleop_interface.close()
             except Exception:
                 pass
-        env.close()
+        if env is not None:
+            env.close()
         simulation_app.close()
 
 
