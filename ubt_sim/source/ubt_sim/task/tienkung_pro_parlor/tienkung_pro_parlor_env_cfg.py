@@ -232,8 +232,10 @@ class TienkungProParlorEnvCfg(ManagerBasedRLDigitalTwinEnvCfg):
         self.sim.dt = 0.01
         self.decimation = 1
 
-        # 渲染优化：每 10 步物理才渲染一次画面 (约 30Hz)
-        self.sim.render_interval = 3
+        # 渲染优化：每 3 步物理渲染一次画面时，真实帧率仅 ~7Hz，低于 15Hz 采集率，
+        # raw HDF5 会因过采样产生 ~59% 重复帧。改为每步渲染（~20Hz+ ≥ 15Hz 采集率），
+        # 从源头消除重复帧。代价：GPU 渲染负载 ~3x，需观察 step 率是否仍 ≥ 15Hz。
+        self.sim.render_interval = 1
 
 
     def use_teleop_device(self, teleop_device: str) -> None:
