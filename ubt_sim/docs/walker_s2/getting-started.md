@@ -181,9 +181,11 @@ Walker S2 发布四路相机（头部双目 stereo_left/right + 腕部 wrist_lef
 | `--no-print` | 关 | 不打印帧信息（所有模式生效） |
 
 
-### 5. 数据集回放（容器内）
+### 5. 数据集预览与回放（容器内）
 
 读取 `dataset/walker_s2/<时间戳>/trajectory.hdf5`，预览相机+关节曲线（Rerun），或把录制动作直发回放（仿真/真机同话题）。
+
+![Walker S2 数据预览](../assets/walker数据预览.png)
 
 ```bash
 # 预览HDF5数据集

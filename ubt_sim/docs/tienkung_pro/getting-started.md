@@ -115,6 +115,8 @@ python3 /ubt_sim/teleoperation/image/image_client.py
 
 读取 `dataset/tienkung_pro/<时间戳>/trajectory.hdf5`，预览相机+关节曲线（Rerun），或把录制动作直发回放（仿真/真机同话题）。
 
+![Tienkung Pro 数据预览](../assets/tienkung数据预览.png)
+
 ```bash
 # 预览HDF5 文件
 /usr/bin/python3 /ubt_sim/teleoperation/tools/playback_tienkung_pro.py \
