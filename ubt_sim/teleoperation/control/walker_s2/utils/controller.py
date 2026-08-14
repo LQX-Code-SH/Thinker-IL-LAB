@@ -829,14 +829,16 @@ class WalkerS2Controller(Node):
             settled = arrived
 
         return bool(result and settled)
-    def move_to_ready_pose(self, duration_sec=15.0, wait=True, staged=True):
-        """分段移动到预备姿态（先 shoulder pitch / elbow roll，再 elbow yaw，最后 READY_POSE）。
+    def move_to_ready_pose(self, duration_sec=13.0, wait=True, staged=True):
+        """3 段初始化（BT pick_ready_pose_sequence）：肩部外展+旋转(5s) →
+        肩部俯仰+折叠肘部+肘部旋转(5s) → 最终姿态+头部/腰部归位(3s)。
 
         适用于实验开始前的初始化——将机器人从任意位置安全地移到统一的起始位姿。
         会临时解锁所有被锁定的关节（head/waist 等），以便完整执行预备姿态。
 
         Args:
-            duration_sec: 分段运动总时长（秒），默认 10.0s
+            duration_sec: 分段运动总时长（秒），默认 13.0。staged 模式按 5/5/3s
+                比例缩放；不足 13.0s 强制按 13.0s 执行（stage 1 大角度位移至少需要 ~5s）
             wait: 保留 API 兼容；初始化分段为保证安全顺序始终阻塞执行
         Returns:
             bool: True=成功，False=失败
@@ -855,32 +857,23 @@ class WalkerS2Controller(Node):
             )
 
         duration_sec = float(duration_sec)
-        # 4 段按 20%/35%/25%/20% 分配，stage 1b（2.6 rad × 6 关节）至少需要 ~5s
-        if duration_sec < 15.0:
+        # BT 固定三段 5/5/3s；stage 1（shoulder_yaw 2.0 rad + shoulder_roll 0.65 rad
+        # 大角度外展）至少需要 ~5s，总时长不足 13.0s 强制按 13.0s 执行
+        if duration_sec < 13.0:
             self.get_logger().warning(
                 f"Ready pose duration {duration_sec:.2f}s too short for staged motion "
-                f"(stage 1b needs ~5s); using 15.00s"
+                f"(stage 1 needs ~5s); using 13.00s"
             )
-            duration_sec = 15.0
-
-        # 各 stage 时长按最大位移分配（damping=40 下约 3.5s/rad 收敛）：
-        #   1a: 1.56 rad × 4 关节 -> 20%
-        #   1b: 2.6  rad × 6 关节 -> 35%（最大位移 + 最多关节，瓶颈 stage）
-        #   2:  2.0  rad × 2 关节 -> 25%
-        #   3:  0.9  rad × ~6 关节 -> 20%
-        pitch_roll_duration = duration_sec * 0.20
-        elbow_yaw_duration = duration_sec * 0.35
-        other_duration = duration_sec * 0.25
-        reset_duration = duration_sec * 0.20
+            duration_sec = 13.0
 
         stages = [
-            ("1a/3 肩 pitch + elbow roll", READY_STAGE_1_PITCH_ROLL_POSE, pitch_roll_duration),
-            ("1b/3 elbow yaw", READY_STAGE_1_ELBOW_YAW_POSE, elbow_yaw_duration),
-            ("2/3 肩 pitch 回到预备姿态", READY_STAGE_2_POSE, other_duration),
-            ("3/3 执行完整 READY_POSE", READY_POSE, reset_duration),
+            ("1/3 肩部外展 + 旋转", READY_STAGE_1_POSE, 5.0 / 13.0),
+            ("2/3 肩部俯仰 + 折叠肘部 + 肘部旋转", READY_STAGE_2_POSE, 5.0 / 13.0),
+            ("3/3 最终姿态 + 头部/腰部归位", READY_POSE, 3.0 / 13.0),
         ]
 
-        for label, pose, stage_duration in stages:
+        for label, pose, ratio in stages:
+            stage_duration = duration_sec * ratio
             self.get_logger().info(
                 f"Ready pose stage {label}: {stage_duration:.2f}s"
             )
@@ -902,14 +895,67 @@ class WalkerS2Controller(Node):
     def ready_position_vector(self):
         """返回 READY_POSE 对应的 17 维目标向量。"""
         return np.array([READY_POSE[name] for name in self.all_joints], dtype=float)
-    def home(self, duration_sec=3.0, wait=True, unlock_required_joints=False):
-        """移动到仿真 home 位姿（17 个 SDK body joints 全 0）。"""
-        return self.move_to_pose(
-            HOME_POSE,
-            duration_sec=duration_sec,
-            wait=wait,
-            unlock_required_joints=unlock_required_joints,
-        )
+    def home(self, duration_sec=15.0, wait=True, unlock_required_joints=True, staged=True):
+        """3 段归零（BT return_zero_sequence）：收肩俯仰(5s) → 展开肘部(5s) → 全部归零(5s)。
+
+        从任意位姿（通常为 READY_POSE 附近）安全地回到 home 全零位
+        （双臂 + 头部 + 腰部）。与 move_to_ready_pose 共用中间姿态（逆序）。
+
+        Args:
+            duration_sec: 分段运动总时长（秒），默认 15.0。staged 模式按 5/5/5s
+                比例缩放；不足 15.0s 强制按 15.0s 执行（段 2 大角度展开至少需要 ~5s）
+            wait: 保留 API 兼容；分段为保证安全顺序始终阻塞执行
+            unlock_required_joints: 临时解锁被锁关节（头部归零必需），默认 True
+        Returns:
+            bool: True=成功，False=失败
+        """
+        if not staged:
+            return self.move_to_pose(
+                HOME_POSE,
+                duration_sec=duration_sec,
+                wait=wait,
+                unlock_required_joints=unlock_required_joints,
+            )
+
+        if not wait:
+            self.get_logger().warning(
+                "home(wait=False) requested, but staged home runs synchronously for safety"
+            )
+
+        duration_sec = float(duration_sec)
+        # BT 固定三段 5/5/5s；段 2（elbow_roll 1.7 rad 展开 + shoulder_pitch 0.7 rad 回正）
+        # 至少需要 ~5s，总时长不足 15.0s 强制按 15.0s 执行
+        if duration_sec < 15.0:
+            self.get_logger().warning(
+                f"Home duration {duration_sec:.2f}s too short for staged motion "
+                f"(stage 2 needs ~5s); using 15.00s"
+            )
+            duration_sec = 15.0
+
+        stages = [
+            ("1/3 收肩俯仰", HOME_STAGE_1_POSE, 1.0 / 3.0),
+            ("2/3 展开肘部", HOME_STAGE_2_POSE, 1.0 / 3.0),
+            ("3/3 全部归零（双臂 + 头部 + 腰部）", HOME_POSE, 1.0 / 3.0),
+        ]
+
+        for label, pose, ratio in stages:
+            stage_duration = duration_sec * ratio
+            self.get_logger().info(
+                f"Home stage {label}: {stage_duration:.2f}s"
+            )
+            # 每个 stage 都做 settle 检查，确保关节实际到位后再进入下一 stage。
+            if not self.move_to_pose(
+                pose,
+                duration_sec=stage_duration,
+                wait=True,
+                unlock_required_joints=unlock_required_joints,
+                settle_check=True,
+                settle_tolerance=0.05,
+            ):
+                self.get_logger().error(f"Home stage failed: {label}")
+                return False
+
+        return True
     def move_arm_joints(self, side, joints, duration_sec=1.5, wait=True):
         """按 7 维关节角移动单侧手臂；不做 Cartesian IK。"""
         if side not in ("left", "right"):
@@ -2166,13 +2212,13 @@ class WalkerS2Controller(Node):
     # ========================================================================
     # [2.9] 调试 / 诊断
     # ========================================================================
-    def run_reset(self):
-        """安全复位：回 home 并张开双手。"""
+    def run_home(self):
+        """安全归零：分段回 home 全零位并张开双手。"""
         if not self.wait_for_state(timeout=5.0):
             self.get_logger().warning("No Walker S2 state received; only sending sim reset command")
             self.reset_sim()
             return False
-        self.home(duration_sec=2.0, wait=True)
+        self.home()
         self.open_hand("left", duration_sec=1.0, wait=True)
         self.open_hand("right", duration_sec=1.0, wait=True)
         return True
@@ -2520,8 +2566,8 @@ def main(args=None):
         help="分段移动到预备姿态（先 shoulder pitch / elbow roll，再 elbow yaw，最后 READY_POSE）",
     )
     parser.add_argument(
-        "--init-duration", type=float, default=15.0,
-        help="预备姿态运动时长（秒），默认 15.0（4 段按 20%%/35%%/25%%/20%% 分配）",
+        "--init-duration", type=float, default=13.0,
+        help="预备姿态运动总时长（秒），默认 13.0（BT 三段 5/5/3s 按比例缩放，不足 13 强制 13）",
     )
     parser.add_argument(
         "--init-settle-timeout", type=float, default=10.0,
@@ -2662,7 +2708,7 @@ def main(args=None):
         elif cli_args.init:
             cmd_print_state(controller)
             print(f"\n=== 分段移动到预备姿态（{cli_args.init_duration:.1f}s）===")
-            print("步骤：1a) shoulder pitch + elbow roll  1b) elbow yaw  2) shoulder pitch 回预备姿态  3) READY_POSE")
+            print("步骤：1) 肩部外展+旋转  2) 肩部俯仰+折叠肘部+肘部旋转  3) 最终姿态+头部/腰部归位")
             input("按回车开始（Ctrl+C 取消）...")
             if controller.move_to_ready_pose(duration_sec=cli_args.init_duration):
                 print("✓ 预备姿态轨迹发布完成，等待实际关节收敛...")
@@ -2766,17 +2812,17 @@ def main(args=None):
         controller.destroy_node()
         rclpy.shutdown()
 
-def main_reset(args=None):
-    """walker_s2_controller.py reset -- 回 home + 张开双手。"""
-    rclpy.init()
-    node = WalkerS2Controller(node_name="walker_s2_reset_node")
+def main_home(args=None):
+    """walker_s2_controller.py home -- 分段回 home 全零位 + 张开双手。"""
+    rclpy.init(args=args)  # 透传 --ros-args 等 ROS 参数（args=None 时等价旧行为）
+    node = WalkerS2Controller(node_name="walker_s2_home_node")
     executor = MultiThreadedExecutor(num_threads=2)
     executor.add_node(node)
     spin_thread = threading.Thread(target=executor.spin, daemon=True)
     spin_thread.start()
     try:
         time.sleep(0.5)
-        node.run_reset()
+        node.run_home()
     except KeyboardInterrupt:
         pass
     finally:
@@ -2796,9 +2842,9 @@ def main_endpoint(args=None):
                         help="world-frame target position for the IK TCP before printing again")
     parser.add_argument("--duration", type=float, default=2.0, help="movement duration in seconds")
     parser.add_argument("--no-move", action="store_true", help="only print current poses")
-    args = parser.parse_args(args)
+    cli_args, ros_args = parser.parse_known_args(args)
 
-    rclpy.init()
+    rclpy.init(args=ros_args)  # 透传 --ros-args 等 ROS 参数
     node = WalkerS2Controller(node_name="walker_s2_endpoint_pose_test_node",
                                enable_ik=True, subscribe_images=False)
     executor = MultiThreadedExecutor(num_threads=2)
@@ -2807,18 +2853,18 @@ def main_endpoint(args=None):
     spin_thread.start()
     try:
         time.sleep(0.5)
-        ok = node.print_endpoint_poses(side=args.side, timeout=args.timeout)
+        ok = node.print_endpoint_poses(side=cli_args.side, timeout=cli_args.timeout)
         if not ok:
             node.get_logger().error("Failed to read Walker S2 endpoint poses")
             sys.exit(1)
-        if not args.no_move:
-            if not node.move_ee_to_world_pos(side=args.side, world_pos=args.move_target_world,
-                                              duration_sec=args.duration):
+        if not cli_args.no_move:
+            if not node.move_ee_to_world_pos(side=cli_args.side, world_pos=cli_args.move_target_world,
+                                              duration_sec=cli_args.duration):
                 node.get_logger().error("Failed to move EE to requested world position")
                 sys.exit(1)
             time.sleep(0.5)
             print("\n=== After moving to requested world position ===")
-            if not node.print_endpoint_poses(side=args.side, timeout=args.timeout):
+            if not node.print_endpoint_poses(side=cli_args.side, timeout=cli_args.timeout):
                 node.get_logger().error("Failed to read Walker S2 endpoint poses after move")
                 sys.exit(1)
     except KeyboardInterrupt:

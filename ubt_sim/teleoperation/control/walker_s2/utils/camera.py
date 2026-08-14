@@ -39,10 +39,10 @@ Walker S2 相机图像订阅与解码模块
     img = Camera.decode_image(msg)        # 对任意 shm_msgs/Image* 或 sensor_msgs/Image 消息解码
 
     # 命令行：
-    python3 walker_s2_camera.py                                          # 持续打印帧信息
-    python3 walker_s2_camera.py --preview                                # HTTP 实时预览 (浏览器打开 http://<host>:8080)
-    python3 walker_s2_camera.py --save --count 5                         # 保存 5 帧 PNG
-    python3 walker_s2_camera.py --topic /sensor/camera/stereo/color/raw  # 指定话题
+    python3 camera.py                                          # 持续打印帧信息
+    python3 camera.py --preview                                # cv2.imshow 本地窗口预览 (按 Q 或 ESC 退出)
+    python3 camera.py --save --count 5                         # 保存 5 帧 PNG
+    python3 camera.py --topic /sensor/camera/stereo/color/raw  # 指定话题
 """
 
 import argparse
@@ -77,7 +77,8 @@ _SHM_STRING_MAX_SIZE = 256
 
 # 已知 encoding 前缀列表，用于截断末尾乱码字符
 # 当 shm_msgs/String 的 encoding 字段含尾部垃圾数据时，
-# 匹配最长前缀来还原正确的 encoding 名
+# 若字符串以列表中的 encoding 名开头，则截取该名还原
+# (列表内不存在互为前缀的项，首个 startswith 命中即正确)
 _KNOWN_ENCODINGS = [
     "bgr8", "rgb8", "bgra8", "rgba8",
     "mono8", "mono16",
@@ -235,7 +236,7 @@ class Camera(Node):
     def resolve_encoding(msg) -> str:
         """将消息的 encoding 字段解析为标准 Python string。
 
-        shm_msgs/String 类型：char[256] 数组 → 拼接非零字符 → 截断已知前缀后的乱码。
+        shm_msgs/String 类型：char[256] 数组 → 拼接非零字符 → 若以已知 encoding 名开头，截断其后乱码。
         标准 string：直接返回。
 
         Parameters
@@ -346,7 +347,8 @@ class Camera(Node):
         # uint8 像素路径: 用 numpy 视图替代 bytes() 全量拷贝。
         # shm_msgs 的 data 是固定大小数组(如 uint8[6291456]), 但有效像素只有
         # height*step(320x240x3≈230KB)。rclpy 固定数组字段 .data 是 numpy ndarray,
-        # np.frombuffer 直接引用其内存(零拷贝), 只取前 byte_count 个元素。
+        # ravel() 对连续数组返回视图(零拷贝); 非 ndarray 时退回 np.frombuffer。
+        # 只取前 byte_count 个元素。
         if src_encoding in ("bgr8", "rgb8", "mono8", "yuv422"):
             raw = msg.data
             data = raw.ravel() if isinstance(raw, np.ndarray) else np.frombuffer(raw, dtype=np.uint8)
@@ -561,7 +563,8 @@ def cmd_print_info(cam, save=False, preview=False, no_print=False, count=0, inte
                         print(f"  Saved {saved} frames, done.")
                         break
 
-            # 同时开启 preview 和 save 时，count 对两者各自生效；任一达到即退出
+            # 同时开启 preview 和 save 时，count 对两者各自生效；正常由上方各分支
+            # 单独 break，此兜底条件需两者都达到 count 才退出
             if count > 0:
                 if (not preview or shown >= count) and (not save or saved >= count):
                     break
@@ -593,7 +596,7 @@ def main(args=None):
     )
     parser.add_argument(
         "--no-print", action="store_true",
-        help="预览模式下不打印帧信息",
+        help="不打印帧信息（所有模式生效）",
     )
     parser.add_argument(
         "--save", action="store_true",

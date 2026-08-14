@@ -45,7 +45,10 @@ RUN rm -rf /etc/apt/sources.list.d/* && \
     libfreetype6-dev python3-pip python3-opencv libgtk-3-dev && \
     rm -rf /var/lib/apt/lists/* && \
     /usr/bin/python3 -m pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple \
-    "numpy<2" pyzmq h5py ikpy "pin<3" pyyaml empy lark protobuf
+    "numpy<2" pyzmq h5py ikpy "pin<3" pyyaml empy lark protobuf "rerun-sdk==0.23.0"
+# rerun-sdk 供 dataset 回放预览（teleoperation/tools/playback）使用。
+# 锁 0.23.0 的原因：0.24+ 元数据要求 numpy>=2，与本容器 numpy<2（cv_bridge 兼容）冲突；
+# 只影响控制 Python（/usr/bin/python3），与 Isaac Sim 环境无关。
 
 # ---- C++ 图像桥接编译依赖 ----
 RUN apt-get update && apt-get install -y --no-install-recommends g++ make libzmq3-dev && \

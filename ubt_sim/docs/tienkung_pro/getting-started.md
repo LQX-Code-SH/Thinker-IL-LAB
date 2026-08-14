@@ -98,6 +98,7 @@ bash /ubt_sim/teleoperation/control/tienkung_pro/save_data.sh                # �
 - **`pick_place_save_data.py`**：执行一次完整抓放（随机苹果位置 → 抓取 → 放置 → 归位），以 15Hz 录制双臂/双手关节、动作、头部 RGB+深度图像与时间戳；**任务成功**（苹果进盘，距离 < 0.12m）才落盘，失败则丢弃并以退出码 1 退出。
 - **`save_data.sh`**：循环调用 `pick_place_save_data.py`批量采集数据集。
 - 产物路径：`/ubt_sim/dataset/tienkung_pro/<时间戳>/trajectory.hdf5`。
+- 采集数据集时，可使用--headless 运行提高渲染速度，提升数据集采集质量。
 
 ### 4. 相机测试（容器内）
 
@@ -105,10 +106,26 @@ bash /ubt_sim/teleoperation/control/tienkung_pro/save_data.sh                # �
 # 测试相机直连
 python3 /ubt_sim/teleoperation/image/image_client.py 
 # 测试 ROS2 图像，保存3张 JPEG
-/usr/bin/python3 teleoperation/image/test_ros_image.py
+/usr/bin/python3 /ubt_sim/teleoperation/image/test_ros_image.py
 ```
 
 直连仿真的 JPEG 图像流（`127.0.0.1:5558`，由仿真进程直接发布，无需桥接），弹窗显示头部相机画面并打印延迟/丢帧统计。需仿真已在运行。
+
+### 5. 数据集预览与回放（容器内）
+
+读取 `dataset/tienkung_pro/<时间戳>/trajectory.hdf5`，预览相机+关节曲线（Rerun），或把录制动作直发回放（仿真/真机同话题）。
+
+```bash
+# 预览HDF5 文件
+/usr/bin/python3 /ubt_sim/teleoperation/tools/playback_tienkung_pro.py \
+    --episode dataset/tienkung_pro/1786638182 --mode preview --web-port 9090
+
+# 动作回放（仿真/真机）
+/usr/bin/python3 /ubt_sim/teleoperation/tools/playback_tienkung_pro.py \
+    --episode dataset/tienkung_pro/1786638182 --mode control
+```
+
+完整参数与真机说明见 `teleoperation/tools/playback/README.md`。
 
 ## 常用 run.sh 命令
 

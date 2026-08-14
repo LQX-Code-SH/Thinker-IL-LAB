@@ -188,14 +188,14 @@ RIGHT_ARM_JOINTS = [
 # ============================================================================
 
 READY_POSE = {
-    "L_elbow_roll_joint":       -1.5600,
+    "L_elbow_roll_joint":       -1.7000,
     "L_elbow_yaw_joint":        2.8790,
     "L_shoulder_pitch_joint":   0.0000,
     "L_shoulder_roll_joint":    -0.1500,
     "L_shoulder_yaw_joint":     -1.5600,
     "L_wrist_pitch_joint":      0.0000,
     "L_wrist_roll_joint":       0.0000,
-    "R_elbow_roll_joint":       -1.5600,
+    "R_elbow_roll_joint":       -1.7000,
     "R_elbow_yaw_joint":        -2.8790,
     "R_shoulder_pitch_joint":   0.0000,
     "R_shoulder_roll_joint":    -0.1500,
@@ -210,14 +210,14 @@ READY_POSE = {
 # 搬箱预备姿态：elbow_yaw = ±1.5（前臂指向前方），便于双臂靠近桌面箱子。
 # 其余关节与 READY_POSE 一致。
 CARRY_READY_POSE = {
-    "L_elbow_roll_joint":       -1.5600,
+    "L_elbow_roll_joint":       -1.7000,
     "L_elbow_yaw_joint":        1.5000,
     "L_shoulder_pitch_joint":   0.0000,
     "L_shoulder_roll_joint":    -0.1500,
     "L_shoulder_yaw_joint":     -1.5600,
     "L_wrist_pitch_joint":      0.0000,
     "L_wrist_roll_joint":       0.0000,
-    "R_elbow_roll_joint":       -1.5600,
+    "R_elbow_roll_joint":       -1.7000,
     "R_elbow_yaw_joint":        -1.5000,
     "R_shoulder_pitch_joint":   0.0000,
     "R_shoulder_roll_joint":    -0.1500,
@@ -229,26 +229,50 @@ CARRY_READY_POSE = {
     "waist_yaw_joint":          0.0000,
 }
 
-READY_STAGE_1_PITCH_ROLL_POSE = {
-    "L_shoulder_yaw_joint": -1.5600,
-    "R_shoulder_yaw_joint": 1.5600,
+# ---- 分段初始化中间姿态（BT pick_ready_pose_sequence，三段 5/5/3s）----
+# 段 1 肩部外展 + 旋转：shoulder_roll=-0.65、shoulder_yaw=∓2.0，elbow_roll 展开到 0
+READY_STAGE_1_POSE = {
+    "L_shoulder_pitch_joint": 0.0000,
+    "L_shoulder_roll_joint": -0.6500,
+    "L_shoulder_yaw_joint": -2.0000,
+    "L_elbow_roll_joint": 0.0000,
     "L_elbow_yaw_joint": 1.5000,
+    "L_wrist_pitch_joint": 0.0000,
+    "L_wrist_roll_joint": 0.0000,
+    "R_shoulder_pitch_joint": 0.0000,
+    "R_shoulder_roll_joint": -0.6500,
+    "R_shoulder_yaw_joint": 2.0000,
+    "R_elbow_roll_joint": 0.0000,
     "R_elbow_yaw_joint": -1.5000,
+    "R_wrist_pitch_joint": 0.0000,
+    "R_wrist_roll_joint": 0.0000,
 }
 
-READY_STAGE_1_ELBOW_YAW_POSE = {
-    "L_shoulder_pitch_joint":   -2.000,
-    "R_shoulder_pitch_joint":   2.000,
-    "L_wrist_pitch_joint": 0.8000,
-    "R_wrist_pitch_joint": -0.8000,
-    "L_elbow_roll_joint":        -2.5000,
-    "R_elbow_roll_joint":        -2.5000,
-}
-
+# 段 2 肩部俯仰 + 折叠肘部 + 肘部旋转：shoulder_pitch=∓0.7、elbow_roll=-1.7
 READY_STAGE_2_POSE = {
-    "L_shoulder_pitch_joint": READY_POSE["L_shoulder_pitch_joint"],
-    "R_shoulder_pitch_joint": READY_POSE["R_shoulder_pitch_joint"],
+    "L_shoulder_pitch_joint": -0.7000,
+    "L_shoulder_roll_joint": -0.6500,
+    "L_shoulder_yaw_joint": -2.0000,
+    "L_elbow_roll_joint": -1.7000,
+    "L_elbow_yaw_joint": 1.5000,
+    "L_wrist_pitch_joint": 0.0000,
+    "L_wrist_roll_joint": 0.0000,
+    "R_shoulder_pitch_joint": 0.7000,
+    "R_shoulder_roll_joint": -0.6500,
+    "R_shoulder_yaw_joint": 2.0000,
+    "R_elbow_roll_joint": -1.7000,
+    "R_elbow_yaw_joint": -1.5000,
+    "R_wrist_pitch_joint": 0.0000,
+    "R_wrist_roll_joint": 0.0000,
 }
+# 段 3 最终姿态 = READY_POSE（含 head/waist 归位）
+
+# home 流程（BT return_zero_sequence，三段 5/5/5s）与 init 流程共用中间姿态（逆序）：
+#   段 1 收肩俯仰 = READY_STAGE_2_POSE
+#   段 2 展开肘部 = READY_STAGE_1_POSE
+#   段 3 全部归零 = HOME_POSE（双臂 + 头部 + 腰部全 0）
+HOME_STAGE_1_POSE = READY_STAGE_2_POSE
+HOME_STAGE_2_POSE = READY_STAGE_1_POSE
 
 
 LEFT_HAND_JOINTS = V4_HAND_LEFT_JOINTS

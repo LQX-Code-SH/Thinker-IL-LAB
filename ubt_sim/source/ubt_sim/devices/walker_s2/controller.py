@@ -101,7 +101,10 @@ class WalkerS2Controller(DeviceBase):
             self.context = zmq.Context()
 
             self.sub_socket = self.context.socket(zmq.SUB)
-            self.sub_socket.setsockopt(zmq.RCVHWM, 1)
+            # HWM=10 与桥接侧 SNDHWM=10 配套：单帧连发 5 条指令（body+手+夹爪）时
+            # HWM=1 会把第 2-5 条丢弃，夹爪台阶指令偶发丢失。advance() 每个物理步
+            # 全量 drain，10 条上限不积压过期指令。
+            self.sub_socket.setsockopt(zmq.RCVHWM, 10)
             self.sub_socket.connect(f"tcp://127.0.0.1:{self.cmd_port}")
             self.sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")
 

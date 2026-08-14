@@ -21,7 +21,7 @@ cd /home/qingxiangliu/work/UBTECH-IL-LAB/ubt_sim/teleoperation/control/walker_s2
 /usr/bin/python3 walker_s2_controller.py state --print-state      # 原 walker_s2_controller.py --print-state
 /usr/bin/python3 walker_s2_controller.py joint --print            # 原 walker_s2_joint_test.py --print
 /usr/bin/python3 walker_s2_controller.py camera --msg-type sensor_msgs/Image
-/usr/bin/python3 walker_s2_controller.py reset                    # 回 home + 张开双手
+/usr/bin/python3 walker_s2_controller.py home                     # 分段回 home 全零位 + 张开双手
 /usr/bin/python3 walker_s2_controller.py endpoint                 # 末端/TCP 位姿
 /usr/bin/python3 walker_s2_controller.py analyze --help           # 关节阶跃/正弦响应分析
 # 无子命令默认走 state：python3 walker_s2_controller.py --print-state
@@ -33,13 +33,13 @@ cd /home/qingxiangliu/work/UBTECH-IL-LAB/ubt_sim/teleoperation/control/walker_s2
 
 顶层入口：
 
-- `walker_s2_controller.py` - 统一 CLI 入口（子命令 `state`/`joint`/`endpoint`/`reset`/`analyze`/`camera`，合并自原 6 个 controller 家族脚本）。
+- `walker_s2_controller.py` - 统一 CLI 入口（子命令 `state`/`joint`/`endpoint`/`home`/`analyze`/`camera`，合并自原 6 个 controller 家族脚本）。
 - `pick_part.py` - 抓取任务编排 + CLI（`--save` 控制 HDF5 录制，合并原 `pick_part_save_data.py`）。
 - `carry_box.py` - 双臂搬箱任务 + CLI。
 
 `utils/` 子包：
 
-- `controller.py` - `WalkerS2Controller`（核心控制器：身体轨迹/手/夹爪/IK/EE-delta/位姿 + 复位 + 单关节调试 + 末端位姿调试）+ `RobotController` 别名 + state/joint/endpoint/reset CLI。
+- `controller.py` - `WalkerS2Controller`（核心控制器：身体轨迹/手/夹爪/IK/EE-delta/位姿 + 回零 + 单关节调试 + 末端位姿调试）+ `RobotController` 别名 + state/joint/endpoint/home CLI。
 - `constants.py` - 单一常量来源（关节名/限位/topic/位姿/夹爪参数）。
 - `ik.py` - `WalkerS2IK`（pinocchio IK 包装）。
 - `camera.py` - `Camera`（sensor_msgs/Image + shm_msgs）+ camera CLI。

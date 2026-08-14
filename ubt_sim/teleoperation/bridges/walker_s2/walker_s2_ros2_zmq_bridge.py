@@ -109,7 +109,10 @@ class WalkerS2RosBridge(Node):
 
         self.zmq_context = zmq.Context()
         self.cmd_socket = self.zmq_context.socket(zmq.PUB)
-        self.cmd_socket.setsockopt(zmq.SNDHWM, 1)
+        # HWM=10：回放/控制脚本一帧内会连发 body+双手+双夹爪共 5 条消息，HWM=1
+        # 会把第 2-5 条全部丢弃（仿真按物理步 ~10ms 批量 drain），夹爪开合的
+        # 台阶指令偶发丢失。10 足够容纳单帧突发，又不积压过期指令。
+        self.cmd_socket.setsockopt(zmq.SNDHWM, 10)
         self.cmd_socket.bind(f"tcp://*:{zmq_cfg['cmd_port']}")
 
         self.status_socket = self.zmq_context.socket(zmq.SUB)
