@@ -353,16 +353,16 @@ def main():
         help="Torch device: 'cuda' or 'cpu' (default: cuda).",
     )
     parser.add_argument(
-        "--output", type=str, default="/ubt_IL/scripts/deploy/output/eval_plots/results.json",
-        help="Path to save results JSON (default: /ubt_IL/scripts/deploy/output/eval_plots/results.json).",
+        "--output", type=str, default="/ubt_IL/scripts/eval/output/eval_plots/results.json",
+        help="Path to save results JSON (default: /ubt_IL/scripts/eval/output/eval_plots/results.json).",
     )
     parser.add_argument(
         "--plot", action="store_true", default=False,
         help="Generate per-episode prediction-vs-ground-truth plots.",
     )
     parser.add_argument(
-        "--plot-dir", type=str, default="/ubt_IL/scripts/deploy/output/eval_plots",
-        help="Directory to save plots (default: /ubt_IL/scripts/deploy/output/eval_plots).",
+        "--plot-dir", type=str, default="/ubt_IL/scripts/eval/output/eval_plots",
+        help="Directory to save plots (default: /ubt_IL/scripts/eval/output/eval_plots).",
     )
     parser.add_argument(
         "--seed", type=int, default=0,

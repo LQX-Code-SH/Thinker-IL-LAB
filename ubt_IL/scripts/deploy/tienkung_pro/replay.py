@@ -50,7 +50,7 @@ def _import_ros2():
     SetMotorPosition = _SetMotorPosition
 
 
-# 两种已知的 26 维 action 布局
+# 已知的 action 布局（26 维双臂 + 13 维右臂）
 LAYOUTS: Dict[str, Dict[str, slice]] = {
     # 天工：左臂-右臂-左手-右手
     "arms_then_hands": {
@@ -65,6 +65,11 @@ LAYOUTS: Dict[str, Dict[str, slice]] = {
         "left_hand": slice(7, 13),
         "right_arm": slice(13, 20),
         "right_hand": slice(20, 26),
+    },
+    # 13 维：右臂 7 + 右手 6（仿真 Tien_Kung_13 单臂配置，无左侧字段 → 只发右侧指令）
+    "right_arm_hand": {
+        "right_arm": slice(0, 7),
+        "right_hand": slice(7, 13),
     },
 }
 
@@ -121,25 +126,26 @@ def load_bridge_config(config_file: str | None = None) -> dict:
 
 
 def detect_layout(info: dict) -> Tuple[str, Dict[str, slice]]:
-    """从数据集 info.json 推断 26 维 action 布局，返回 (layout_name, slices)。
+    """从数据集 info.json 推断 action 布局（26 维双臂 / 13 维右臂），返回 (layout_name, slices)。
 
     优先依靠 action.names 的模式判别（A=arm/shoulder/elbow/wrist, H=finger/thumb），
-    名字缺失时退回 robot_type 默认。
+    名字缺失时退回 robot_type 默认（仅 26 维）。
     """
     feats = info.get("features", {}).get("action", {})
     names = feats.get("names")
     if names:
-        if len(names) != 26:
-            raise ValueError(f"action 维度异常: 期望 26, 实际 {len(names)}")
         pattern = "".join(
             "H" if ("finger" in n or "thumb" in n) else "A" for n in names
         )
-        if pattern == "A" * 14 + "H" * 12:
-            return "arms_then_hands", LAYOUTS["arms_then_hands"]
-        if pattern == "A" * 7 + "H" * 6 + "A" * 7 + "H" * 6:
-            return "interleaved", LAYOUTS["interleaved"]
+        if len(names) == 26:
+            if pattern == "A" * 14 + "H" * 12:
+                return "arms_then_hands", LAYOUTS["arms_then_hands"]
+            if pattern == "A" * 7 + "H" * 6 + "A" * 7 + "H" * 6:
+                return "interleaved", LAYOUTS["interleaved"]
+        if len(names) == 13 and pattern == "A" * 7 + "H" * 6:
+            return "right_arm_hand", LAYOUTS["right_arm_hand"]
         raise ValueError(
-            f"无法识别的 action 布局 (pattern={pattern}), "
+            f"无法识别的 action 布局 (dim={len(names)}, pattern={pattern}), "
             f"可手动指定 --layout {{{','.join(LAYOUTS)}}}"
         )
 
@@ -154,7 +160,7 @@ def detect_layout(info: dict) -> Tuple[str, Dict[str, slice]]:
 
 
 def load_episode_actions(dataset_root: Path, episode: int) -> Tuple[np.ndarray, dict]:
-    """读取指定 episode 的 action 序列，返回 ((T,26) float32 数组, info dict)。"""
+    """读取指定 episode 的 action 序列，返回 ((T,26) 或 (T,13) float32 数组, info dict)。"""
     info_path = dataset_root / "meta" / "info.json"
     if not info_path.is_file():
         raise FileNotFoundError(f"找不到数据元信息: {info_path}")
@@ -172,8 +178,8 @@ def load_episode_actions(dataset_root: Path, episode: int) -> Tuple[np.ndarray, 
         raise ValueError(f"数据集中没有 episode_index={episode}")
 
     actions = np.asarray([np.asarray(a, dtype=np.float32) for a in ep["action"].tolist()])
-    if actions.shape[1] != 26:
-        raise ValueError(f"action 维度异常: 期望 26, 实际 {actions.shape[1]}")
+    if actions.shape[1] not in (13, 26):
+        raise ValueError(f"action 维度异常: 期望 26 或 13, 实际 {actions.shape[1]}")
     return actions, info
 
 
@@ -217,11 +223,15 @@ class MotorReplayNode:
         self.left_hand_pub = self._node.create_publisher(JointState, cfg["topic_left_hand_cmd"], 10)
         self.right_hand_pub = self._node.create_publisher(JointState, cfg["topic_right_hand_cmd"], 10)
 
-    def publish_frame(self, action26: np.ndarray) -> None:
+    def publish_frame(self, action: np.ndarray) -> None:
         s = self._slices
-        self.arm_pub.publish(make_arm_msg(action26[s["left_arm"]], action26[s["right_arm"]], self._cfg))
-        self.left_hand_pub.publish(make_hand_msg(action26[s["left_hand"]].tolist(), self._cfg))
-        self.right_hand_pub.publish(make_hand_msg(action26[s["right_hand"]].tolist(), self._cfg))
+        left_arm = action[s["left_arm"]] if "left_arm" in s else action[0:0]
+        right_arm = action[s["right_arm"]] if "right_arm" in s else action[0:0]
+        self.arm_pub.publish(make_arm_msg(left_arm, right_arm, self._cfg))
+        if "left_hand" in s:
+            self.left_hand_pub.publish(make_hand_msg(action[s["left_hand"]].tolist(), self._cfg))
+        if "right_hand" in s:
+            self.right_hand_pub.publish(make_hand_msg(action[s["right_hand"]].tolist(), self._cfg))
 
     def destroy(self):
         self._node.destroy_node()
@@ -269,10 +279,11 @@ def run_replay(args, actions: np.ndarray, slices: Dict[str, slice], cfg: dict) -
         for i in range(start, end):
             a = actions[i]
             if args.dry_run:
-                print(f"frame {i} left_arm={a[slices['left_arm']].tolist()} "
-                      f"left_hand={a[slices['left_hand']].tolist()} "
-                      f"right_arm={a[slices['right_arm']].tolist()} "
-                      f"right_hand={a[slices['right_hand']].tolist()}")
+                parts = []
+                for grp in ("left_arm", "right_arm", "left_hand", "right_hand"):
+                    sl = slices.get(grp)
+                    parts.append(f"{grp}={a[sl].tolist() if sl else 'n/a'}")
+                print(f"frame {i} " + " ".join(parts))
             else:
                 node.publish_frame(a)
 

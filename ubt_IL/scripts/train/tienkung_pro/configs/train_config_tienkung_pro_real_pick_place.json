@@ -1,7 +1,7 @@
 {
     "dataset": {
-        "repo_id": "Pick_up_tiangong_all",
-        "root": "/ubt_IL/dataset/Pick_up_tiangong_all",
+        "repo_id": "tienkung_pick_up_merged",
+        "root": "/ubt_IL/dataset/tienkung_pick_up_merged",
         "episodes": null,
         "image_transforms": {
             "enable": false,
@@ -112,7 +112,7 @@
         "use_amp": false,
         "use_peft": false,
         "push_to_hub": false,
-        "repo_id": "local/Pick_up_tiangong_all_act",
+        "repo_id": "local/tienkung_pick_up_merged",
         "private": null,
         "tags": null,
         "license": null,
@@ -145,8 +145,8 @@
         "optimizer_lr_backbone": 1e-05
     },
     "reward_model": null,
-    "output_dir": "/ubt_IL/model/Pick_up_tiangong_all_act",
-    "job_name": "Pick_up_tiangong_all_act",
+    "output_dir": "/ubt_IL/model/tienkung_pick_up_merged",
+    "job_name": "tienkung_pick_up_merged_act",
     "resume": false,
     "seed": 1000,
     "cudnn_deterministic": false,

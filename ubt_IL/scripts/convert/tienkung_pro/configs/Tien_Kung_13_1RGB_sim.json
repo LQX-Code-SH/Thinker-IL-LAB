@@ -1,0 +1,80 @@
+{
+    "observation.images.head": {
+        "dtype": "video",
+        "shape": [3, 360, 640],
+        "names": ["channels", "height", "width"]
+    },
+    "observation.state": {
+        "dtype": "float32",
+        "shape": [13],
+        "names": [
+            "right_shoulder_pitch_joint",
+            "right_shoulder_roll_joint",
+            "right_shoulder_yaw_joint",
+            "right_elbow_pitch_joint",
+            "right_wrist_yaw_joint",
+            "right_wrist_pitch_joint",
+            "right_wrist_roll_joint",
+            "right_little_finger_joint",
+            "right_ring_finger_joint",
+            "right_middle_finger_joint",
+            "right_index_finger_joint",
+            "right_thumb_bend_joint",
+            "right_thumb_rotation_joint"
+        ]
+    },
+    "action": {
+        "dtype": "float32",
+        "shape": [13],
+        "names": [
+            "right_shoulder_pitch_target",
+            "right_shoulder_roll_target",
+            "right_shoulder_yaw_target",
+            "right_elbow_pitch_target",
+            "right_wrist_yaw_target",
+            "right_wrist_pitch_target",
+            "right_wrist_roll_target",
+            "right_little_finger_target",
+            "right_ring_finger_target",
+            "right_middle_finger_target",
+            "right_index_finger_target",
+            "right_thumb_bend_target",
+            "right_thumb_rotation_target"
+        ]
+    },
+    "episode_index": {
+        "dtype": "int64",
+        "shape": [1],
+        "names": null
+    },
+    "frame_index": {
+        "dtype": "int64",
+        "shape": [1],
+        "names": null
+    },
+    "index": {
+        "dtype": "int64",
+        "shape": [1],
+        "names": null
+    },
+    "task_index": {
+        "dtype": "int64",
+        "shape": [1],
+        "names": null
+    },
+    "hdf5_mapping": {
+        "observation.state": [
+            "puppet/arm_right_position_align/data",
+            "puppet/end_effector_right_position_align/data"
+        ],
+        "action": [
+            "action/arm_right_position_align/data",
+            "action/end_effector_right_position_align/data"
+        ],
+        "observation.images.head": {
+            "hdf5_key": "camera_observations/color_images/camera_head",
+            "encoding": "jpeg",
+            "image_size": [640, 360]
+        }
+    }
+}

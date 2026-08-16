@@ -36,6 +36,7 @@ LeRobot (3.12) ──ZMQ 5561/5562──► Walker Bridge2 (3.10) ──ROS2 DDS
 | `scripts/convert/` | 数据转换脚本 + 配置(按机型) | 宿主机 conda | HDF5 → LeRobot 格式转换 |
 | `scripts/train/` | 训练配置 + 脚本(按机型) | 容器内 | train.sh, train_config_*.json |
 | `scripts/deploy/` | 部署、回放、复位、相机(按机型) | 容器内 | rollout.sh, replay.py, reset.py, image_server.py |
+| `scripts/eval/` | 离线策略评估（机器人无关，天工/Walker 共用） | 容器内 | eval_policy.py |
 
 ## Quick Commands
 

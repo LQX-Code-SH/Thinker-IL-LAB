@@ -73,17 +73,17 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 # Walker S2 离线策略评估（eval_policy.py）
 
 不连机器人，对训练好的策略在 LeRobot 数据集上做离线 MSE 评估（预测 vs 真值），并生成逐
-episode 对比图。部署到真机前先用它量化策略质量。脚本：[eval_policy.py](eval_policy.py)。
+episode 对比图。部署到真机前先用它量化策略质量。脚本（与天工共用）：[eval_policy.py](../../eval/eval_policy.py)。
 
 ```bash
-/lerobot/.venv/bin/python /ubt_IL/scripts/deploy/walker_s2/eval_policy.py \
+/lerobot/.venv/bin/python /ubt_IL/scripts/eval/eval_policy.py \
   --policy-path /ubt_IL/model/Walker_S2_sim_10_2RGB_act/checkpoints/015000/pretrained_model \
   --dataset-path /ubt_IL/dataset/Walker_S2_sim_10_2RGB \
   --episodes 10 \
   --inference-freq 1 \
   --plot \
-  --plot-dir /ubt_IL/scripts/deploy/output/eval_Walker_S2_sim_10_2RGB_act_60k \
-  --output /ubt_IL/scripts/deploy/output/eval_Walker_S2_sim_10_2RGB_act_60k/results.json \
+  --plot-dir /ubt_IL/scripts/eval/output/eval_Walker_S2_sim_10_2RGB_act_60k \
+  --output /ubt_IL/scripts/eval/output/eval_Walker_S2_sim_10_2RGB_act_60k/results.json \
   --device cuda
 ```
 

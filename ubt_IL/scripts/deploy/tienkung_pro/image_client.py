@@ -1,3 +1,4 @@
+import argparse
 import cv2
 import zmq
 import numpy as np
@@ -11,8 +12,9 @@ logging.basicConfig(level=logging.INFO, format='[%(name)s] %(levelname)s: %(mess
 logger_mp = logging.getLogger(__name__)
 
 class ImageClient:
-    def __init__(self, tv_img_shape = None, tv_img_shm_name = None, wrist_img_shape = None, wrist_img_shm_name = None, 
-                       image_show = False, server_address = "192.168.123.164", port = 5555, Unit_Test = False):
+    def __init__(self, tv_img_shape = None, tv_img_shm_name = None, wrist_img_shape = None, wrist_img_shm_name = None,
+                       image_show = False, server_address = "192.168.123.164", port = 5555, Unit_Test = False,
+                       max_frames = None):
         """
         tv_img_shape: User's expected head camera resolution shape (H, W, C). It should match the output of the image service terminal.
 
@@ -30,12 +32,15 @@ class ImageClient:
 
         Unit_Test: When both server and client are True, it can be used to test the image transfer latency, \
                    network jitter, frame loss rate and other information.
+
+        max_frames: Exit after receiving this many frames (None = run until interrupted).
         """
         self.running = True
         self._image_show = image_show
         self._gui_available = True  # Will be set to False if headless OpenCV
         self._server_address = server_address
         self._port = port
+        self._max_frames = max_frames
 
         self.tv_img_shape = tv_img_shape
         self.wrist_img_shape = wrist_img_shape
@@ -135,6 +140,7 @@ class ImageClient:
         self._socket.setsockopt_string(zmq.SUBSCRIBE, "")
 
         logger_mp.info("Image client has started, waiting to receive data...")
+        frames_received = 0
         try:
             while self.running:
                 # Receive message
@@ -178,6 +184,11 @@ class ImageClient:
                     self._update_performance_metrics(timestamp, frame_id, receive_time)
                     self._print_performance_metrics(receive_time)
 
+                frames_received += 1
+                if self._max_frames is not None and frames_received >= self._max_frames:
+                    logger_mp.info(f"[Image Client] Received {frames_received} frames, exiting.")
+                    break
+
         except KeyboardInterrupt:
             logger_mp.info("Image client interrupted by user.")
         except Exception as e:
@@ -193,8 +204,25 @@ if __name__ == "__main__":
     # img_client = ImageClient(tv_img_shape = tv_img_shape, tv_img_shm_name = img_shm.name)
     # img_client.receive_process()
 
-    # example2
-    # Initialize the client with performance evaluation enabled
-    # client = ImageClient(image_show = True, tv_img_shape=(360, 640, 3), server_address='127.0.0.1', port=5558, Unit_Test=True) # local test
-    client = ImageClient(image_show = True, server_address='192.168.41.2', Unit_Test=True) # deployment test
+    # example2 — 命令行方式运行（Unit_Test 模式：延迟 / 抖动 / 丢帧统计）
+    # 本地仿真测试（默认参数）：
+    #   python image_client.py --count 60
+    # 真机部署测试（真机 image_server 同样默认 5558）：
+    #   python image_client.py --server 192.168.41.2
+    parser = argparse.ArgumentParser(
+        description="Image client: subscribe the camera JPEG stream (ZMQ) and "
+                    "optionally measure latency / jitter / frame loss (Unit_Test mode).")
+    parser.add_argument("--count", type=int, default=None,
+                        help="Exit after receiving N frames (default: run until Ctrl+C).")
+    parser.add_argument("--server", type=str, default="127.0.0.1",
+                        help="Image server address (default: 127.0.0.1, local sim).")
+    parser.add_argument("--port", type=int, default=5558,
+                        help="Image server ZMQ port (default: 5558, sim JPEG direct).")
+    parser.add_argument("--no-show", action="store_true",
+                        help="Do not open the OpenCV display window (headless).")
+    args = parser.parse_args()
+
+    client = ImageClient(image_show = not args.no_show, tv_img_shape=(360, 640, 3),
+                         server_address=args.server, port=args.port,
+                         Unit_Test=True, max_frames=args.count) # local test
     client.receive_process()
