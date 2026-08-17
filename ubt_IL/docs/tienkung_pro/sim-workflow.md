@@ -6,7 +6,22 @@
 
 本文档给出tienkung2.0从**仿真 HDF5 原始数据**到 **LeRobot 数据集**、**ACT 模型训练**、**离线策略评估**、最终**仿真器部署**的完整工作流程，可快速复现。全部转换/训练/评估/部署脚本在 `ubt_IL` 容器内执行。
 
+## 目录
+
+- [0. 工作流总览](#0-工作流总览)
+- [1. 前置：仿真数据采集（ubt_sim）](#1-前置仿真数据采集ubt_sim)
+- [2. 启动容器（ubt_IL）](#2-启动容器ubt_il)
+- [3. 数据转换（HDF5 → LeRobot）](#3-数据转换hdf5--lerobot)
+  - [3.1 转换命令](#31-转换命令)
+  - [3.2 数据可视化](#32-数据可视化)
+- [4. 模型训练](#4-模型训练)
+- [5. 策略评估（离线 MSE）](#5-策略评估离线-mse)
+- [6. 模型部署（仿真）](#6-模型部署仿真)
+- [7. 常见问题](#7-常见问题)
+
 ---
+
+<a id="0-工作流总览"></a>
 
 ## 0. 工作流总览
 
@@ -17,6 +32,8 @@
 ```
 
 ---
+
+<a id="1-前置仿真数据采集ubt_sim"></a>
 
 ## 1. 前置：仿真数据采集（ubt_sim）
 
@@ -33,16 +50,12 @@ bash /ubt_sim/teleoperation/control/tienkung_pro/save_data.sh                   
 
 - 每次成功抓放（苹果入盘，距离 < 0.12m）才落盘，失败丢弃并以退出码 1 退出。
 - 产物：`/ubt_sim/dataset/tienkung_pro/<时间戳>/trajectory.hdf5`。
-- **HDF5 内部结构**（仿真）：
-  - `puppet/*_position_align/data` → 状态（observation.state）
-  - `action/*_position_align/data` → 动作
-  - `camera_observations/color_images/camera_head`（JPEG）
-  - `camera_observations/depth_images/camera_head`（PNG 深度）
-  - `observations/timestamp`
 
 采集完成后，把 HDF5 数据放到容器能访问的位置（如 `/ubt_IL/dataset/tienkung_pro/`，即第 3 节 `SRC_ROOT` 默认目录），再进入转换。
 
 ---
+
+<a id="2-启动容器ubt_il"></a>
 
 ## 2. 启动容器（ubt_IL）
 
@@ -55,7 +68,11 @@ bash run.sh bash       # 进入容器，后续命令均在容器内执行
 
 ---
 
+<a id="3-数据转换hdf5--lerobot"></a>
+
 ## 3. 数据转换（HDF5 → LeRobot）
+
+<a id="31-转换命令"></a>
 
 ### 3.1 转换命令
 
@@ -101,6 +118,8 @@ bash /ubt_IL/scripts/convert/tienkung_pro/convert.sh
 
 **转换产物**：`/ubt_IL/dataset/<REPO_ID>/` 下生成 LeRobot v3 数据集（`meta/`、`chunk-000/`（data parquet）、`videos/`）。
 
+<a id="32-数据可视化"></a>
+
 ### 3.2 数据可视化
 
 使用 `lerobot-dataset-viz` 在容器内可视化已转换的 LeRobot 数据集,训练前检查数据质量非常重要，避免盲目训练：
@@ -128,6 +147,8 @@ HF_HUB_OFFLINE=1 lerobot-dataset-viz \
 > **注意**：`--root` 须指向包含 `meta/` 目录的数据集路径（即 `repo_id` 目录本身），而非父目录。`HF_HUB_OFFLINE=1` 用于禁止访问 HuggingFace Hub。
 
 ---
+
+<a id="4-模型训练"></a>
 
 ## 4. 模型训练
 
@@ -182,6 +203,8 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 ---
 
+<a id="5-策略评估离线-mse"></a>
+
 ## 5. 策略评估（离线 MSE）
 
 脚本：`/ubt_IL/scripts/eval/eval_policy.py`，在 LeRobot 数据集上离线推理，逐帧对比**预测动作 vs 真值动作**的 MSE，并可生成逐 episode 对比图。部署前先量化策略质量。
@@ -219,6 +242,8 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 输出：控制台打印 Mean/Std/Min/Max MSE 与逐 joint MSE；`--output` 保存结果 JSON，`--plot` 保存对比图。
 
 ---
+
+<a id="6-模型部署仿真"></a>
 
 ## 6. 模型部署（仿真）
 
@@ -272,6 +297,8 @@ python /ubt_IL/scripts/deploy/tienkung_pro/image_client.py --count 60
 <video controls muted loop width="100%" src="../assets/tienkung仿真部署效果.mp4"></video>
 
 ---
+
+<a id="7-常见问题"></a>
 
 ## 7. 常见问题
 

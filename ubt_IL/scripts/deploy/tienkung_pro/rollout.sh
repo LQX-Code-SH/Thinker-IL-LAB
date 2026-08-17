@@ -5,7 +5,7 @@
 set -e
 
 # === 配置 ===
-POLICY_PATH="${POLICY_PATH:-/ubt_IL/model/real_pick_place_act/checkpoints/last/pretrained_model}"
+POLICY_PATH="${POLICY_PATH:-/ubt_IL/model/tienkung_pick_up_act/checkpoints/last/pretrained_model}"
 STRATEGY="${STRATEGY:-base}"
 FPS="${FPS:-15}"
 DURATION="${DURATION:-60}"

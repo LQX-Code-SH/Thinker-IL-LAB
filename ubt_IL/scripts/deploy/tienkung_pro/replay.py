@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""数据集 action 回放脚本：把 Pick_up_tiangong_all 中某条 episode 的 action 原样发回真机。
+"""数据集 action 回放脚本：把 tienkung_pick_up_merged 中某条 episode 的 action 原样发回真机。
 
 用途：
   - 数据采集质量回看
@@ -80,7 +80,7 @@ DEFAULT_LAYOUT_BY_ROBOT: Dict[str, str] = {
 }
 
 # 默认数据集路径：脚本位于 ubt_IL/scripts/deploy/tienkung_pro/replay.py
-DEFAULT_DATASET = Path(__file__).resolve().parents[3] / "dataset" / "Pick_up_tiangong_all"
+DEFAULT_DATASET = Path(__file__).resolve().parents[3] / "dataset" / "tienkung_pick_up_merged"
 
 # 配置文件路径（由 TienKungRobot._start_bridge() 写出）
 DEFAULT_CONFIG_FILE = "/tmp/tienkung_bridge_config.json"

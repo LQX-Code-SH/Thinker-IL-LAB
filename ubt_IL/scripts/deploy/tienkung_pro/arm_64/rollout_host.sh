@@ -15,7 +15,7 @@ ENV_NAME="${ENV_NAME:-env_vla}"
 
 # === 配置（均可环境变量覆盖） ===
 # 已训练的 ACT checkpoint（last 软链 -> 100000）
-POLICY_PATH="${POLICY_PATH:-$PROJECT_ROOT/model/Pick_up_tiangong_all_act/checkpoints/last/pretrained_model}"
+POLICY_PATH="${POLICY_PATH:-$PROJECT_ROOT/model/tienkung_pick_up_act/checkpoints/last/pretrained_model}"
 STRATEGY="${STRATEGY:-base}"
 FPS="${FPS:-30}"
 DURATION="${DURATION:-60}"
