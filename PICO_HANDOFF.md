@@ -1780,3 +1780,113 @@ ROS_DOMAIN_ID=146 ./run_pico_hand_live.sh \
 用户已按 21.1 使用真实 PICO 完成 PICO skeleton → 11DoF → Isaac Sim 现场验收，并确认手指 teleop
 动作表现正常。当前阶段因此冻结为可回退基线；下一阶段在独立可选模式中加入 wrist→arm，不回改
 已经验收的 finger mapping。后续若需微调，只改 `pico_hand_retarget_config.json`。
+
+## 22. 2026-08-18 右手腕 → 右臂＋右手 11DoF 联合仿真控制
+
+手指-only 现场验收后，已从基线提交 `cf8a0a8` 向前增加独立的 `hand-arm` 可选模式。第一版按用户
+要求只允许右侧，使左手可操作键盘。它没有修改或导入 `pico_teleop.py` 的运行入口，也没有改动
+`pico_math.py`、`pico_teleop_config.json`、C1 `config.py` 或 `action_process.py`；原 controller
+teleoperation 和默认 `--control hand` 行为保持不变。
+
+### 22.1 数据与控制链路
+
+```text
+PICO headset pose + right OpenXR 26-joint hand skeleton
+  -> PicoSource.read_hand_frame()（不调用任何 controller getter）
+  -> 已验收的 tracking_to_robot proper rotation
+  -> wrist relative pose + 启动时 robot right-palm FK anchor
+  -> 现有 ArmIK / workspace / residual / joint-step 限制
+  -> /mc/sdk/robot_command：只含右臂 7 个 JointCmd
+
+同一 skeleton
+  -> 已验收的 C1HandRetargeter
+  -> /mc/right_hand/command：完整 11-name JointCommand
+```
+
+新增 `pico_hand_arm.py` 只复用现有纯数学和 `ArmIK`，没有复制或改写 controller mapping。手 skeleton
+已经由 `PicoSource` 转为机器人轴 `+X forward, +Y left, +Z up`；headset raw pose 用同一
+`tracking_to_robot` 转换。锚定和相对目标继续使用 `horizontal_heading()` 与 `relative_target()`：
+
+- 按键时的真实 wrist pose 对齐当前机器人 right palm FK，不发送绝对 tracking-origin offset；
+- 平移沿用 `translation_scale=0.55`、0.35 m 最大位移与 right workspace；
+- 旋转沿用相对 orientation 和操作者水平 heading；
+- IK 沿用每帧 0.012 m/0.08 rad 目标推进、残差/分支跳变限制以及 0.025 rad/joint 命令 slew；
+- right elbow 必须 `<= -0.40 rad`，IK 命令继续限制为 `<= -0.50 rad`。
+
+### 22.2 边界与失效保护
+
+- 只有 `--control hand-arm --mode sim --side right --enable-command` 被接受；preview、left、both、
+  ROS Domain 非 146 或 real mode 均不可进入；
+- 只创建 right-arm body command 和 right-hand publisher，不发布 head/left arm/waist/leg joint；
+- 必须收到新鲜 `/mc/sdk/robot_state`，再检查右肘、头显、wrist 和整手 tracking；
+- 启动前额外要求五指 normalized flexion/opposition 最大值不超过默认 0.45，避免按 `a` 时闭拳导致
+  灵巧手立即闭合；
+- 程序永远从 `DISARMED` 启动；`a` 后仍需 0.5 s 连续有效才锚定，`d` 立即停发；
+- arm IK 与 hand payload 作为同一帧事务：任何 tracking/RobotState/IK 拒绝都让二者同时不发布；
+- 失效不足 0.30 s 时不发布但保留锚点；达到超时即清除锚点并 disarm，恢复不会自动重新启动；
+- arm joint slew 和 hand smoothing/主 USD 2.09 rad/s velocity limit 保留，即使短暂丢失后恢复也不会
+  产生未经限速的关节命令跳变。
+
+### 22.3 启动姿态与键盘
+
+按 `a` 时建议操作者面向前方，右手腕静止放在舒适中位，右手张开；机器人必须先执行 task reset，
+确保右肘处于弯曲可解的姿态。wrist 使用相对锚定，所以启动姿态不标准不会立即产生绝对 pose 跳变，
+但它会成为后续平移/旋转的零点；手腕过度扭转可能缩小可用活动范围并增加 IK 拒绝。头显水平朝向
+定义前/右方向，因此启动时转头会改变这次 session 的操作坐标。
+
+键盘是当前唯一 enable 输入：`a` 请求启动、`d` 停发、`q` 退出。联合模式还支持空格键完整复位：
+先立即 disarm 并清除 wrist anchor，再向可靠 ROS topic `/sim/cmd_reset` 发布一次 `Bool(true)`，等待
+0.2 秒后用当前 `/usr/bin/python3` 执行现有 `reset.py --mode task`。后者沿用已经验证的
+arm-clear → elbow-clear → task-reset 三阶段路径，同时把左右手张开。成功或失败都保持 disarmed；
+成功后还会清空旧 RobotState，必须收到新的 post-reset state、张开右手并重新按 `a` 才能控制。
+
+若以后要完全离开键盘，推荐新增
+独立 USB 脚踏/HID deadman；左手手势可作为非安全辅助命令，但左手操作键盘时容易误识别；语音不应
+作为唯一急停。右手 pinch 不适合做 enable，因为它本身就是 11DoF retarget 的有效动作。
+
+### 22.4 运行与验证
+
+```bash
+source /opt/ros/humble/setup.bash
+source /opt/ubt_sim/walker_sdk_ros2_msgs/install/setup.bash
+cd /ubt_sim/teleoperation/control/walker_c1
+ROS_DOMAIN_ID=146 /usr/bin/python3 reset.py --mode task
+
+ROS_DOMAIN_ID=146 ./run_pico_hand_live.sh \
+  --control hand-arm --mode sim --side right --enable-command
+```
+
+本轮宿主离线回归共 62 项通过，包含：anchor 零位无跳变、0.55 平移比例、wrist orientation、现有
+0.025 rad slew、IK reject 不推进 seed、RobotState/弯肘前置条件、invalid wrist、右侧-only/domain/
+explicit sim guard、open-hand gate、单次场景 reset edge、现有 task-reset 子进程调用、reset 失败保持
+disarmed，以及原 hand tracking/retarget/controller 坐标数学回归。
+Python 语法检查使用独立 `/tmp` pycache 通过，shell `bash -n` 和 `git diff --check` 通过。
+
+### 22.5 真实 PICO 现场验收与已知限制
+
+用户已佩戴真实 PICO，在不使用 controller 的情况下运行右侧 `hand-arm` 模式：右手腕驱动右臂、
+同一 26-joint skeleton 驱动右手 11DoF。用户对手臂平移/旋转的现场反馈为整体正常，并已实际把固定
+苹果抓起，确认 PICO → wrist relative target → ArmIK → 右臂 ROS command 与 skeleton → 11DoF hand
+command 能在 Isaac 中同步闭环。当前主观结论是“可以抓起，但仍比较难”，不能写成抓取 mapping 已
+最终调好，也没有进入真机命令模式。
+
+现场还明确复现了闭拳自遮挡：真实手完全闭合时，日志出现 thumb-index distance 约
+`0.003–0.011 m`、多指 normalized flexion `1.0`，robot middle/ring 等关节达到主 USD
+`1.46/1.62 rad` 上限；随后 PICO 整手 `isActive` 间歇或连续 invalid。当前 Python binding 只有整手
+active 状态，无法在这种情况下证明 wrist 仍有效，因此安全门停止新命令并在默认 0.30 秒后 disarm
+是正确行为，不得用缓存 skeleton 伪装成有效 tracking。恢复后必须重新按 `a`。
+
+已验证的自动苹果抓取使用约 `0.70–0.85 rad`，比裸手完全闭拳产生的极限 q11 温和。现场操作优先
+使用半闭合 C 形手势（normalized flexion 约 `0.4–0.7`、主要 robot finger q 约 `0.7–0.9 rad`），
+避免真实手自遮挡和机器人过度挤压。短暂遮挡可显式运行：
+
+```bash
+ROS_DOMAIN_ID=146 ./run_pico_hand_live.sh \
+  --control hand-arm --mode sim --side right --enable-command \
+  --tracking-timeout-s 2.5
+```
+
+2.5 秒只改变自动 disarm 的 grace period：invalid 帧仍不发布新目标、C1HandRetargeter 保留上一安全
+手命令、arm anchor 不更新；超时仍 disarm。不能无限延长，也不能据此宣称闭拳 tracking 已解决。
+后续若要降低抓取难度，应单独标定 live teleop 的抓取输出上限/灵敏度，使真人半握映射到已经验证的
+苹果 grip 范围；不要放宽右肘安全限制，也不要改动已验收的 controller 坐标映射。

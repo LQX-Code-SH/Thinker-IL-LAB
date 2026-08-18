@@ -26,6 +26,16 @@ class PicoFrame:
     right_hand: HandTrackingData | None = None
 
 
+@dataclass(frozen=True)
+class PicoHandFrame:
+    """Headset plus complete hands, without reading any controller API."""
+
+    headset_pose: Any
+    left_hand: HandTrackingData
+    right_hand: HandTrackingData
+    timestamp_ns: int
+
+
 class PicoSource:
     def __init__(self, hand_tracking_enabled: bool = False, tracking_to_output=None):
         try:
@@ -91,6 +101,17 @@ class PicoSource:
         """Read only hand APIs, allowing operation with no controllers paired."""
         timestamp_ns = int(self.sdk.get_time_stamp_ns())
         return self._read_hands(timestamp_ns)
+
+    def read_hand_frame(self) -> PicoHandFrame:
+        """Read headset + hands for wrist/arm teleop without controller getters."""
+        timestamp_ns = int(self.sdk.get_time_stamp_ns())
+        left_hand, right_hand = self._read_hands(timestamp_ns)
+        return PicoHandFrame(
+            headset_pose=self.sdk.get_headset_pose(),
+            left_hand=left_hand,
+            right_hand=right_hand,
+            timestamp_ns=timestamp_ns,
+        )
 
     def read(self) -> PicoFrame:
         sdk = self.sdk

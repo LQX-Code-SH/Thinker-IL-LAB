@@ -29,19 +29,28 @@ if [[ -n "$PICO_SDK_PYTHON_DIR" ]]; then
 fi
 
 mode="preview"
+control="hand"
 expect_mode_value=false
+expect_control_value=false
 for argument in "$@"; do
     if [[ "$expect_mode_value" == true ]]; then
         mode="$argument"
         expect_mode_value=false
+    elif [[ "$expect_control_value" == true ]]; then
+        control="$argument"
+        expect_control_value=false
     elif [[ "$argument" == "--mode" ]]; then
         expect_mode_value=true
+    elif [[ "$argument" == "--control" ]]; then
+        expect_control_value=true
     elif [[ "$argument" == --mode=* ]]; then
         mode="${argument#--mode=}"
+    elif [[ "$argument" == --control=* ]]; then
+        control="${argument#--control=}"
     fi
 done
 
-if [[ "$mode" == "sim" ]]; then
+if [[ "$mode" == "sim" || "$control" == "hand-arm" ]]; then
     if [[ ! -f "$ROS_SETUP" || ! -f "$WALKER_SDK_SETUP" ]]; then
         echo "[ERROR] simulation mode requires ROS and Walker message setup inside the container" >&2
         exit 2

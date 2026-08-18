@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Retarget live PICO hand skeletons to C1 11DoF preview or safe simulation commands.
+"""Retarget live PICO hand skeletons to safe C1 simulation commands.
 
 The default ``preview`` mode has no ROS dependency and never publishes robot
 commands.  Simulation publishing is a separate, explicit mode with a second
-``--enable-command`` acknowledgement and an interactive keyboard arm gate.
-This program never controls the C1 arms and has no real-robot mode.
+``--enable-command`` acknowledgement and an interactive keyboard arm gate.  The
+default ``hand`` control remains finger-only.  The explicit ``hand-arm`` mode
+maps only the right wrist to the right arm while keeping the same 11DoF finger
+mapping.  This program has no real-robot mode.
 """
 from __future__ import annotations
 
@@ -20,6 +22,8 @@ import time
 import tty
 from typing import Mapping
 
+import numpy as np
+
 try:
     from .pico_hand_offline_demo import (
         DEFAULT_SIM_ROS_DOMAIN_ID,
@@ -28,6 +32,11 @@ try:
         selected_sides,
     )
     from .pico_hand_retarget import C1HandRetargeter, RetargetResult
+    from .pico_hand_arm import (
+        ArmRetargetResult,
+        C1WristArmRetargeter,
+        RosHandArmSimulationIO,
+    )
     from .pico_source import PicoSource
 except ImportError:
     from pico_hand_offline_demo import (
@@ -37,6 +46,11 @@ except ImportError:
         selected_sides,
     )
     from pico_hand_retarget import C1HandRetargeter, RetargetResult
+    from pico_hand_arm import (
+        ArmRetargetResult,
+        C1WristArmRetargeter,
+        RosHandArmSimulationIO,
+    )
     from pico_source import PicoSource
 
 
@@ -183,6 +197,30 @@ def results_to_payload(
     }
 
 
+def initial_open_hand_ready(
+    results: Mapping[str, RetargetResult],
+    sides: tuple[str, ...],
+    threshold: float,
+) -> tuple[bool, str]:
+    """Require a visibly open hand before capturing a wrist/arm anchor."""
+    for side in sides:
+        result = results[side]
+        if not result.used_tracking:
+            return False, f"{side} hand tracking is invalid"
+        values = {
+            finger: float(result.features.get(f"{finger}_total_flexion", 1.0))
+            for finger in ("thumb", "index", "middle", "ring", "little")
+        }
+        opposition = float(result.features.get("thumb_opposition", 1.0))
+        maximum = max([opposition, *values.values()])
+        if not np.isfinite(maximum) or maximum > float(threshold):
+            return False, (
+                f"{side} hand must be open before arm: max normalized flexion/opposition "
+                f"{maximum:.2f} > {float(threshold):.2f}"
+            )
+    return True, ""
+
+
 def format_live_results(
     results: Mapping[str, RetargetResult],
     *,
@@ -206,17 +244,49 @@ def format_live_results(
     return "\n".join(lines)
 
 
+def format_arm_result(
+    result: ArmRetargetResult | None,
+    *,
+    ready: bool,
+    reason: str,
+) -> str:
+    if result is not None and result.valid:
+        lines = []
+        for side, command in result.commands.items():
+            compact = ", ".join(f"{value:+.3f}" for value in command)
+            title = "Left" if side == "left" else "Right"
+            lines.append(f"  {title} arm q7_rad=[{compact}]")
+        return "\n".join(lines)
+    if result is not None and result.rejection_reasons:
+        details = "; ".join(
+            f"{side}: {message}"
+            for side, message in result.rejection_reasons.items()
+        )
+        return "  Arm command invalid: " + details
+    return "  Arm ready for anchor" if ready else "  Arm not ready: " + reason
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("preview", "sim"), default="preview")
+    parser.add_argument(
+        "--control",
+        choices=("hand", "hand-arm"),
+        default="hand",
+        help="hand controls fingers only; hand-arm also maps wrist pose to the matching arm",
+    )
     parser.add_argument("--side", choices=("left", "right", "both"), default="both")
     parser.add_argument("--enable-command", action="store_true")
     parser.add_argument("--pico-config", default=str(DEFAULT_PICO_CONFIG))
     parser.add_argument("--retarget-config", default=None)
+    parser.add_argument("--arm-config", default=None)
+    parser.add_argument("--urdf", default=None)
     parser.add_argument("--read-hz", type=float, default=30.0)
     parser.add_argument("--print-hz", type=float, default=5.0)
     parser.add_argument("--valid-dwell-s", type=float, default=0.5)
     parser.add_argument("--tracking-timeout-s", type=float, default=0.30)
+    parser.add_argument("--robot-state-timeout-s", type=float, default=0.50)
+    parser.add_argument("--initial-open-threshold", type=float, default=0.45)
     parser.add_argument("--sim-domain-id", type=int, default=DEFAULT_SIM_ROS_DOMAIN_ID)
     return parser.parse_args(argv)
 
@@ -226,12 +296,21 @@ def validate_args(args: argparse.Namespace) -> tuple[str, ...]:
         raise ValueError("--read-hz and --print-hz must be positive")
     if args.valid_dwell_s < 0.0 or args.tracking_timeout_s < 0.0:
         raise ValueError("gate timing values must be non-negative")
+    if args.robot_state_timeout_s <= 0.0:
+        raise ValueError("--robot-state-timeout-s must be positive")
+    if not 0.0 < args.initial_open_threshold <= 1.0:
+        raise ValueError("--initial-open-threshold must be in (0, 1]")
     if args.mode == "preview" and args.enable_command:
         raise ValueError("--enable-command is only valid with --mode sim")
     if args.mode == "sim":
         if not args.enable_command:
             raise ValueError("--mode sim requires explicit --enable-command")
         require_sim_ros_domain(args.sim_domain_id)
+    if args.control == "hand-arm":
+        if args.mode != "sim":
+            raise ValueError("--control hand-arm requires --mode sim")
+        if args.side != "right":
+            raise ValueError("first hand-arm version is right-side only; pass --side right")
     return selected_sides(args.side)
 
 
@@ -241,14 +320,28 @@ def run(args: argparse.Namespace) -> int:
     source = PicoSource(hand_tracking_enabled=True, tracking_to_output=basis)
     retargeter = C1HandRetargeter(args.retarget_config)
     publisher = None
+    hand_arm_io = None
+    arm_retargeter = None
     key_reader = None
     gate = None
-    if args.mode == "sim":
+    if args.control == "hand-arm":
+        try:
+            arm_retargeter = C1WristArmRetargeter(
+                sides,
+                config_path=args.arm_config,
+                urdf_path=args.urdf,
+            )
+            hand_arm_io = RosHandArmSimulationIO(sides, arm_retargeter)
+        except Exception:
+            source.close()
+            raise
+    elif args.mode == "sim":
         try:
             publisher = _RosSimulationPublisher(sides)
         except Exception:
             source.close()
             raise
+    if args.mode == "sim":
         gate = SimulationCommandGate(
             sides,
             valid_dwell_s=args.valid_dwell_s,
@@ -256,13 +349,21 @@ def run(args: argparse.Namespace) -> int:
         )
         key_reader = TerminalKeyReader()
 
-    print("PICO live hand retarget started")
+    print(f"PICO live control started: control={args.control}")
     print("joint order: thumb_cmp, thumb_mpp, thumb_ip, index_mpp, index_ip, "
           "middle_mpp, middle_ip, ring_mpp, ring_ip, little_mpp, little_ip")
     if args.mode == "preview":
         print("PREVIEW: robot commands are disabled")
     else:
-        print("SIMULATION COMMAND: starts DISARMED; [a] arm, [d] disarm, [q] quit")
+        controls = "[a] arm, [d] disarm, [q] quit"
+        if args.control == "hand-arm":
+            controls += ", [space] reset scene + robot"
+        print(f"SIMULATION COMMAND: starts DISARMED; {controls}")
+        if args.control == "hand-arm":
+            print(
+                "Before [a]: look forward, keep the right wrist still in a comfortable "
+                "middle pose, and open the fingers"
+            )
 
     read_period = 1.0 / args.read_hz
     print_period = 1.0 / args.print_hz
@@ -271,54 +372,148 @@ def run(args: argparse.Namespace) -> int:
     try:
         if publisher is not None:
             publisher.warmup()
+        if hand_arm_io is not None:
+            hand_arm_io.warmup()
         context = key_reader if key_reader is not None else _NullContext()
         with context as keys:
             while True:
                 started = time.monotonic()
                 dt_s = max(1e-4, started - last_tick)
                 last_tick = started
-                left_hand, right_hand = source.read_hands()
+                headset_pose = None
+                if hand_arm_io is not None:
+                    hand_arm_io.spin_once(timeout_sec=0.0)
+                    hand_frame = source.read_hand_frame()
+                    headset_pose = hand_frame.headset_pose
+                    left_hand = hand_frame.left_hand
+                    right_hand = hand_frame.right_hand
+                else:
+                    left_hand, right_hand = source.read_hands()
                 hands = {"left": left_hand, "right": right_hand}
                 results = retarget_live_hands(hands, sides, retargeter, dt_s)
 
+                tracking = {
+                    side: bool(results[side].used_tracking)
+                    for side in sides
+                }
+                arm_result = None
+                arm_ready = True
+                arm_reason = ""
+                if arm_retargeter is not None:
+                    if not hand_arm_io.state_fresh(args.robot_state_timeout_s):
+                        arm_ready = False
+                        arm_reason = "waiting for fresh /mc/sdk/robot_state"
+                    else:
+                        arm_ready, arm_reason = arm_retargeter.input_ready(
+                            headset_pose, hands
+                        )
+                    if arm_ready and (gate is None or gate.state != "armed"):
+                        arm_ready, arm_reason = initial_open_hand_ready(
+                            results,
+                            sides,
+                            args.initial_open_threshold,
+                        )
+                    if gate is not None and gate.state == "armed" and arm_ready:
+                        arm_result = arm_retargeter.solve(headset_pose, hands)
+                        arm_ready = bool(arm_result.valid)
+                        if not arm_ready:
+                            arm_reason = "; ".join(
+                                f"{side}: {reason}"
+                                for side, reason in arm_result.rejection_reasons.items()
+                            )
+                    if not arm_ready:
+                        tracking = {side: False for side in sides}
+
                 if gate is not None:
-                    tracking = {
-                        side: bool(results[side].used_tracking)
-                        for side in sides
-                    }
                     key = keys.read()
                     if key == "q":
                         break
+                    if key == " " and hand_arm_io is not None:
+                        gate.disarm()
+                        arm_retargeter.disarm()
+                        retargeter.reset()
+                        print(
+                            "RESETTING: teleoperation disarmed; resetting Isaac scene "
+                            "and moving robot to task pose ..."
+                        )
+                        try:
+                            hand_arm_io.reset_scene_and_robot()
+                        except Exception as exc:
+                            print(f"RESET FAILED; remaining DISARMED: {exc}")
+                        else:
+                            print(
+                                "RESET COMPLETE: scene and task pose restored; "
+                                "open the right hand and press [a] to arm again"
+                            )
+                        last_tick = time.monotonic()
+                        next_print = 0.0
+                        continue
                     if key == "d":
                         if gate.disarm():
                             print("DISARMED: operator request")
+                        if arm_retargeter is not None:
+                            arm_retargeter.disarm()
                     elif key == "a":
                         if not gate.request_arm(tracking, started):
-                            print("arm refused: every selected hand must be valid")
+                            suffix = f": {arm_reason}" if arm_reason else ""
+                            print("arm refused: safety preconditions are not satisfied" + suffix)
                     update = gate.update(tracking, started)
                     if update.just_armed:
                         # Start every command session from the configured open pose,
                         # then let the USD velocity limits ramp toward the live pose.
                         retargeter.reset()
                         results = retarget_live_hands(hands, sides, retargeter, dt_s)
-                        print("ARMED: publishing selected hand commands to simulation")
+                        if arm_retargeter is not None:
+                            try:
+                                arm_retargeter.capture_anchors(headset_pose, hands)
+                                arm_result = arm_retargeter.solve(headset_pose, hands)
+                            except (TypeError, ValueError) as exc:
+                                arm_result = None
+                                arm_reason = str(exc)
+                            if arm_result is None or not arm_result.valid:
+                                gate.disarm()
+                                arm_retargeter.disarm()
+                                print(f"DISARMED: cannot capture safe arm anchor: {arm_reason}")
+                                update = GateUpdate(False, False, True)
+                            else:
+                                print(
+                                    "ARMED: right wrist controls right arm; "
+                                    "right skeleton controls 11DoF hand"
+                                )
+                        else:
+                            print("ARMED: publishing selected hand commands to simulation")
                     elif update.just_disarmed:
                         print("DISARMED: tracking interlock or operator request")
+                        if arm_retargeter is not None:
+                            arm_retargeter.disarm()
                     if update.allow_publish:
                         payload = results_to_payload(results)
-                        if payload:
+                        if hand_arm_io is not None:
+                            if payload and arm_result is not None and arm_result.valid:
+                                hand_arm_io.publish(arm_result.commands, payload)
+                        elif payload:
                             publisher.publish(payload)
 
                 if started >= next_print:
                     next_print = started + print_period
                     state = gate.state if gate is not None else "disabled"
                     print(format_live_results(results, mode=args.mode, gate_state=state))
+                    if arm_retargeter is not None:
+                        print(
+                            format_arm_result(
+                                arm_result,
+                                ready=arm_ready,
+                                reason=arm_reason,
+                            )
+                        )
                 time.sleep(max(0.0, read_period - (time.monotonic() - started)))
     except KeyboardInterrupt:
         pass
     except Exception:
         if gate is not None:
             gate.disarm()
+        if arm_retargeter is not None:
+            arm_retargeter.disarm()
         raise
     finally:
         try:
@@ -326,6 +521,8 @@ def run(args: argparse.Namespace) -> int:
         finally:
             if publisher is not None:
                 publisher.close()
+            if hand_arm_io is not None:
+                hand_arm_io.close()
     print("PICO live hand retarget stopped; no further commands will be published")
     return 0
 

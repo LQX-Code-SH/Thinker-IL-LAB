@@ -10,6 +10,7 @@ import numpy as np
 from pico_hand_live import (
     SimulationCommandGate,
     format_live_results,
+    initial_open_hand_ready,
     parse_args,
     results_to_payload,
     retarget_live_hands,
@@ -106,6 +107,49 @@ class LiveRetargetTest(unittest.TestCase):
                 validate_args(args)
         with patch.dict(os.environ, {"ROS_DOMAIN_ID": "146"}, clear=False):
             self.assertEqual(validate_args(args), ("left", "right"))
+
+    def test_first_hand_arm_version_is_explicitly_right_only(self):
+        preview = parse_args(["--control", "hand-arm", "--side", "right"])
+        with self.assertRaisesRegex(ValueError, "requires --mode sim"):
+            validate_args(preview)
+
+        both = parse_args([
+            "--control", "hand-arm", "--mode", "sim", "--enable-command",
+            "--side", "both",
+        ])
+        with self.assertRaisesRegex(ValueError, "right-side only"):
+            with patch.dict(os.environ, {"ROS_DOMAIN_ID": "146"}, clear=False):
+                validate_args(both)
+
+        right = parse_args([
+            "--control", "hand-arm", "--mode", "sim", "--enable-command",
+            "--side", "right",
+        ])
+        with patch.dict(os.environ, {"ROS_DOMAIN_ID": "0"}, clear=False):
+            with self.assertRaisesRegex(RuntimeError, "possible real-robot domain"):
+                validate_args(right)
+        with patch.dict(os.environ, {"ROS_DOMAIN_ID": "146"}, clear=False):
+            self.assertEqual(validate_args(right), ("right",))
+
+    def test_hand_arm_anchor_requires_an_initially_open_hand(self):
+        mapper = C1HandRetargeter(smoothing_enabled=False, velocity_limits_enabled=False)
+        open_results = retarget_live_hands(
+            {"right": generate_mock_hand("open_hand", side="right")},
+            ("right",),
+            mapper,
+            0.02,
+        )
+        self.assertTrue(initial_open_hand_ready(open_results, ("right",), 0.45)[0])
+
+        fist_results = retarget_live_hands(
+            {"right": generate_mock_hand("fist", side="right")},
+            ("right",),
+            mapper,
+            0.02,
+        )
+        ready, reason = initial_open_hand_ready(fist_results, ("right",), 0.45)
+        self.assertFalse(ready)
+        self.assertIn("must be open", reason)
 
 
 if __name__ == "__main__":

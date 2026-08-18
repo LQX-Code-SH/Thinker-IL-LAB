@@ -197,6 +197,22 @@ class PicoSourceCompatibilityTest(unittest.TestCase):
         sdk.get_left_trigger.assert_not_called()
         sdk.get_right_trigger.assert_not_called()
 
+    def test_hand_frame_reads_headset_but_no_controller_api(self):
+        sdk = _fake_sdk()
+        with patch.dict(sys.modules, {"xrobotoolkit_sdk": sdk}):
+            source = PicoSource(hand_tracking_enabled=True)
+            frame = source.read_hand_frame()
+            source.close()
+
+        self.assertTrue(frame.left_hand.is_tracked)
+        self.assertTrue(frame.right_hand.is_tracked)
+        self.assertEqual(frame.timestamp_ns, 123456)
+        sdk.get_headset_pose.assert_called_once_with()
+        sdk.get_left_controller_pose.assert_not_called()
+        sdk.get_right_controller_pose.assert_not_called()
+        sdk.get_left_trigger.assert_not_called()
+        sdk.get_right_trigger.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
