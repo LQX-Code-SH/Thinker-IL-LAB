@@ -51,7 +51,7 @@ python hf_manager.py pull qingxiangliu/Walker_S2_sim_10_2RGB  # 下载 Walker S2
 cd ubt_IL/scripts/convert/common
 
 python hf_manager.py pull qingxiangliu/Walker_S2_sim_10_2RGB_act   # 下载仿真ACT抓取测试策略
-python hf_manager.py pull ubt_IL/model/walker_pick_part_real_10d_2RGB_act   # 下载真机ACT抓取测试策略
+python hf_manager.py pull qingxiangliu/walker_pick_part_real_10d_2RGB_act   # 下载真机ACT抓取测试策略
 ```
 
 > 下载的模型保存路径位于 `/ubt_IL/model/`下。

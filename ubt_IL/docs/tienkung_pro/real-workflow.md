@@ -249,13 +249,18 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
  - 机器人端启动 ImageServer 提供 JPEG 流。。
 
 ```bash
-# 0. 容器网络配置：编辑 ubt_IL/docker/fastdds_no_shm.xml 的 interfaceWhiteList，
-#    新增/修改 <address> 为本机 IP（如 192.168.41.99），保证与机器人在同一网段，随后重启容器
-#    注意：原第二条 192.168.11.3 是 Walker S2 直连网段，如需保留请另加一行，勿直接替换
+# 0. 构建容器，检查网络配置：编辑 ubt_IL/docker/fastdds_no_shm.xml 的 interfaceWhiteList，
+# 可新增/修改 <address> 为本机 IP（如 192.168.41.99），保证与机器人在同一网段，随后重启容器，
+# 最后容器内 echo $FASTRTPS_DEFAULT_PROFILES_FILE, cat /opt/fastdds_no_shm.xml检查网络配置。
+
 cd ubt_IL/docker
+bash run.sh build
+bash run.sh start
+bash run.sh bash
 bash run.sh restart
 
 # 1. 机器人端启动相机服务（仅真机部署需要）
+# 注意：tienkung_pro 机型分别有三个主控板（运控 x86、Orin1、Orin2 分别为 192.168.41.1、192.168.41.2、192.168.41.3），相机需要在Orin1启动，可使用ssh nvidia@192.168.41.2 密码：nvidia 。
 scp ubt_IL/scripts/deploy/tienkung_pro/image_server.py nvidia@192.168.41.2:~
 ssh nvidia@192.168.41.2 'python3 image_server.py'
 python3 /ubt_IL/scripts/deploy/tienkung_pro/image_client.py --server 192.168.41.2 	# 测试相机通路（默认 127.0.0.1 为仿真地址）
@@ -273,7 +278,7 @@ python3 -m pip install pyorbbecsdk2
 /usr/bin/python3 /ubt_IL/scripts/deploy/tienkung_pro/reset.py
 
 # 2. 真机部署：ZMQ_HOST 指向真机地址（rollout.sh 默认 127.0.0.1 仿真地址，必须显式覆盖）
-POLICY_PATH=/ubt_IL/model/tienkung_pick_up_act/checkpoints/last/pretrained_model \
+POLICY_PATH=/ubt_IL/model/tienkung_pick_up_act/checkpoints/100000/pretrained_model \
 JOINT_CONFIG=tienkung_26 \
 ZMQ_HOST=192.168.41.2 \
 TASK="pick and place" \
@@ -308,13 +313,17 @@ bash /ubt_IL/scripts/deploy/tienkung_pro/rollout.sh
 
 脚本：`/ubt_IL/scripts/deploy/tienkung_pro/arm_64/`（自包含部署包，详见该目录 `README.md`）
 
-> 目标设备：Jetson AGX Orin（JetPack 6 / CUDA 12.6），conda 环境 `env_vla`（Python 3.12）跑 LeRobot，系统 python3.10 跑相机/ROS2，两者 ZMQ 解耦。
+> 目标设备：Jetson AGX Orin（192.168.41.2），conda 环境 `env_vla`（Python 3.12）跑 LeRobot，系统 python3.10 跑相机/ROS2，两者 ZMQ 解耦。
 
 ```bash
 # 0. 环境初始化
-mkdir /home/nvidia/vla/   # 将项目代码复制到此处
+ssh nvidia@192.168.41.2 密码：nvidia
+mkdir /home/nvidia/vla/   # 创建工作目录
+# 将项目代码复制到此处
+scp *项目代码* nvidia@192.168.41.2:/home/nvidia/vla/
+# 构建conda环境env_vla
 cd /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64
-bash setup_env.sh  # 构建conda环境env_vla
+bash setup_env.sh  
 
 # 1. 机器人端启动相机服务（仅真机部署需要）
 conda activate env_vla
@@ -333,7 +342,7 @@ bash /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64/
 # 3. 运行推理脚本
 conda activate env_vla
 # 部署 26-DOF 模型（默认）
-POLICY_PATH=/home/nvidia/vla/TienKung-IL-LAB/ubt_IL/model/tienkung_pick_up_act/checkpoints/last/pretrained_model  DURATION=60 bash /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64/rollout_host.sh
+POLICY_PATH=/home/nvidia/vla/TienKung-IL-LAB/ubt_IL/model/tienkung_pick_up_act/checkpoints/100000/pretrained_model  DURATION=60 bash /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64/rollout_host.sh
 
 # 4. （可选）数据集回放，在真机上播放采集的动作
 /usr/bin/python3 /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/replay.py --dataset /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/dataset/tienkung_pick_up_the_apple_all --episode 0 --rate 30

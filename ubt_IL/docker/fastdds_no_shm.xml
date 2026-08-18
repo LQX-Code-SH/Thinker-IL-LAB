@@ -5,9 +5,9 @@
             <transport_id>CustomUDPTransport</transport_id>
             <type>UDPv4</type>
             <interfaceWhiteList>
+                <!-- Tienkung Pro 直连网段 -->
+                <address>192.168.41.99</address>
                 <address>127.0.0.1</address>
-                <!-- Walker S2 直连网段 -->
-                <address>192.168.11.3</address>
             </interfaceWhiteList>
             <maxInitialPeersRange>10</maxInitialPeersRange>
             <maxMessageSize>65500</maxMessageSize>
