@@ -12,31 +12,31 @@
         <meta name="author" content="UBTECH Robotics">
       
       
-        <link rel="canonical" href="https://ubtech-robot.github.io/TienKung-IL-LAB/getting-started/">
+        <link rel="canonical" href="https://ubtech-robot.github.io/TienKung-IL-LAB/common/data-conversion/">
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../../walker-s2/inference-server/">
       
       
-        <link rel="next" href="../tienkung/">
+        <link rel="next" href="../playback/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>快速开始 - TienKung-IL-LAB</title>
+        <title>数据转换详解 - TienKung-IL-LAB</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,7 +55,7 @@
       
     
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#快速开始" class="md-skip">
+        <a href="#数据转换详解hdf5---lerobot" class="md-skip">
           跳转至
         </a>
       
@@ -94,7 +94,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="页眉">
-    <a href=".." title="TienKung-IL-LAB" class="md-header__button md-logo" aria-label="TienKung-IL-LAB" data-md-component="logo">
+    <a href="../.." title="TienKung-IL-LAB" class="md-header__button md-logo" aria-label="TienKung-IL-LAB" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18.41 4 16 6.41v.18L18.41 9H22v2h-4.41L16 9.41V12h-1a2 2 0 0 1-2-2V7.5H9.86c-.09.37-.24.72-.44 1.05L15.18 19H20a2 2 0 0 1 2 2v1H2v-1a2 2 0 0 1 2-2h6.61l-4.69-8.5a4.006 4.006 0 0 1-3.81-3A4 4 0 0 1 5 2.63c2.13-.55 4.31.73 4.86 2.87H13V3a2 2 0 0 1 2-2h1v2.59L17.59 2H22v2zM6 4.5a2 2 0 0 0-2 2 2 2 0 0 0 2 2 2 2 0 0 0 2-2 2 2 0 0 0-2-2"/></svg>
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              快速开始
+              数据转换详解
             
           </span>
         </div>
@@ -227,7 +227,7 @@
   
   
     <li class="md-tabs__item">
-      <a href=".." class="md-tabs__link">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -244,11 +244,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
         
   
   
@@ -269,7 +267,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../tienkung/" class="md-tabs__link">
+        <a href="../../tienkung/" class="md-tabs__link">
           
   
   
@@ -291,7 +289,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../walker-s2/" class="md-tabs__link">
+        <a href="../../walker-s2/" class="md-tabs__link">
           
   
   
@@ -309,11 +307,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../common/data-conversion/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -333,7 +333,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../architecture/" class="md-tabs__link">
+      <a href="../../architecture/" class="md-tabs__link">
         
   
   
@@ -368,7 +368,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="TienKung-IL-LAB" class="md-nav__button md-logo" aria-label="TienKung-IL-LAB" data-md-component="logo">
+    <a href="../.." title="TienKung-IL-LAB" class="md-nav__button md-logo" aria-label="TienKung-IL-LAB" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18.41 4 16 6.41v.18L18.41 9H22v2h-4.41L16 9.41V12h-1a2 2 0 0 1-2-2V7.5H9.86c-.09.37-.24.72-.44 1.05L15.18 19H20a2 2 0 0 1 2 2v1H2v-1a2 2 0 0 1 2-2h6.61l-4.69-8.5a4.006 4.006 0 0 1-3.81-3A4 4 0 0 1 5 2.63c2.13-.55 4.31.73 4.86 2.87H13V3a2 2 0 0 1 2-2h1v2.59L17.59 2H22v2zM6 4.5a2 2 0 0 0-2 2 2 2 0 0 0 2 2 2 2 0 0 0 2-2 2 2 0 0 0-2-2"/></svg>
@@ -398,7 +398,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -422,37 +422,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    快速开始
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
         
   
   
@@ -468,83 +441,6 @@
   
 
       </a>
-      
-        
-
-  
-
-<nav class="md-nav md-nav--secondary" aria-label="本页内容">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      本页内容
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#代码获取" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        代码获取
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#环境要求" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        环境要求
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#全流程一览" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        全流程一览
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#按机型进入" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        按机型进入
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#可选下载测试数据与模型" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        可选：下载测试数据与模型
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -589,7 +485,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../tienkung/" class="md-nav__link ">
+            <a href="../../tienkung/" class="md-nav__link ">
               
   
   
@@ -633,7 +529,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tienkung/sim-setup/" class="md-nav__link">
+      <a href="../../tienkung/sim-setup/" class="md-nav__link">
         
   
   
@@ -661,7 +557,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tienkung/convert-train/" class="md-nav__link">
+      <a href="../../tienkung/convert-train/" class="md-nav__link">
         
   
   
@@ -689,7 +585,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tienkung/sim-workflow/" class="md-nav__link">
+      <a href="../../tienkung/sim-workflow/" class="md-nav__link">
         
   
   
@@ -717,7 +613,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tienkung/real-workflow/" class="md-nav__link">
+      <a href="../../tienkung/real-workflow/" class="md-nav__link">
         
   
   
@@ -745,7 +641,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tienkung/arm-deploy/" class="md-nav__link">
+      <a href="../../tienkung/arm-deploy/" class="md-nav__link">
         
   
   
@@ -815,7 +711,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../walker-s2/" class="md-nav__link ">
+            <a href="../../walker-s2/" class="md-nav__link ">
               
   
   
@@ -859,7 +755,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../walker-s2/sim-setup/" class="md-nav__link">
+      <a href="../../walker-s2/sim-setup/" class="md-nav__link">
         
   
   
@@ -887,7 +783,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../walker-s2/convert-train/" class="md-nav__link">
+      <a href="../../walker-s2/convert-train/" class="md-nav__link">
         
   
   
@@ -915,7 +811,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../walker-s2/sim-workflow/" class="md-nav__link">
+      <a href="../../walker-s2/sim-workflow/" class="md-nav__link">
         
   
   
@@ -943,7 +839,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../walker-s2/real-workflow/" class="md-nav__link">
+      <a href="../../walker-s2/real-workflow/" class="md-nav__link">
         
   
   
@@ -971,7 +867,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../walker-s2/deploy/" class="md-nav__link">
+      <a href="../../walker-s2/deploy/" class="md-nav__link">
         
   
   
@@ -999,7 +895,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../walker-s2/inference-server/" class="md-nav__link">
+      <a href="../../walker-s2/inference-server/" class="md-nav__link">
         
   
   
@@ -1031,8 +927,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -1046,19 +944,22 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   
@@ -1076,7 +977,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1091,10 +992,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../common/data-conversion/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据转换详解
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1110,6 +1038,72 @@
   
 
       </a>
+      
+        
+
+  
+
+<nav class="md-nav md-nav--secondary" aria-label="本页内容">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      本页内容
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#脚本布局" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        脚本布局
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#环境变量" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        环境变量
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#静止帧裁剪" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        静止帧裁剪
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#常见问题" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        常见问题
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1122,7 +1116,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../common/playback/" class="md-nav__link">
+      <a href="../playback/" class="md-nav__link">
         
   
   
@@ -1150,7 +1144,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../common/hf-manage/" class="md-nav__link">
+      <a href="../hf-manage/" class="md-nav__link">
         
   
   
@@ -1185,7 +1179,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../architecture/" class="md-nav__link">
+      <a href="../../architecture/" class="md-nav__link">
         
   
   
@@ -1234,10 +1228,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#代码获取" class="md-nav__link">
+  <a href="#脚本布局" class="md-nav__link">
     <span class="md-ellipsis">
       
-        代码获取
+        脚本布局
       
     </span>
   </a>
@@ -1245,10 +1239,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#环境要求" class="md-nav__link">
+  <a href="#环境变量" class="md-nav__link">
     <span class="md-ellipsis">
       
-        环境要求
+        环境变量
       
     </span>
   </a>
@@ -1256,10 +1250,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#全流程一览" class="md-nav__link">
+  <a href="#静止帧裁剪" class="md-nav__link">
     <span class="md-ellipsis">
       
-        全流程一览
+        静止帧裁剪
       
     </span>
   </a>
@@ -1267,21 +1261,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#按机型进入" class="md-nav__link">
+  <a href="#常见问题" class="md-nav__link">
     <span class="md-ellipsis">
       
-        按机型进入
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#可选下载测试数据与模型" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        可选：下载测试数据与模型
+        常见问题
       
     </span>
   </a>
@@ -1306,6 +1289,46 @@
   
 
 
+  <nav class="md-path" aria-label="导航栏" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    首页
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="./" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    通用参考
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
               
               <article class="md-content__inner md-typeset">
                 
@@ -1316,112 +1339,222 @@
   
 
 
-<h1 id="快速开始">快速开始<a class="headerlink" href="#快速开始" title="Permanent link">&para;</a></h1>
-<p>本项目分为 <strong>仿真平台（<code>ubt_sim</code>）</strong> 与 <strong>模仿学习平台（<code>ubt_IL</code>）</strong> 两个子项目，均以容器方式运行。本页介绍代码获取、环境要求与全流程总览；具体操作步骤请进入对应机器人文档线。</p>
-<h2 id="代码获取">代码获取<a class="headerlink" href="#代码获取" title="Permanent link">&para;</a></h2>
-<p>克隆仓库后，需先拉取 LFS 大文件（USD 模型、贴图等）并初始化子模块（<code>lerobot</code>）。</p>
-<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># （可选）配置代理：访问 GitHub 较慢时设置，端口按本地代理调整</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>git<span class="w"> </span>config<span class="w"> </span>--global<span class="w"> </span>http.proxy<span class="w">  </span>http://127.0.0.1:7897
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>git<span class="w"> </span>config<span class="w"> </span>--global<span class="w"> </span>https.proxy<span class="w"> </span>http://127.0.0.1:7897
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_LFS_PROXY</span><span class="o">=</span><span class="s2">&quot;http://127.0.0.1:7897&quot;</span><span class="w">   </span><span class="c1"># LFS 走代理</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># 1. 克隆仓库（先跳过 LFS 和子模块，加速克隆）</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="nv">GIT_LFS_SKIP_SMUDGE</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/UBTECH-Robot/TienKung-IL-LAB.git
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="nb">cd</span><span class="w"> </span>TienKung-IL-LAB
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># 2. 拉取 LFS 大文件</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>git<span class="w"> </span>lfs<span class="w"> </span>pull
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="c1"># 3. 初始化并拉取子模块（lerobot）</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--init
-</code></pre></div>
-<blockquote>
-<p>LFS 大文件为 <code>ubt_sim</code> 仿真资源（<code>*.usd</code>、<code>*.urdf</code>、贴图等）。仅做真机数据转换 / 训练 / 部署时可跳过 LFS；<code>lerobot</code> 子模块必须初始化；仅仿真采集才需要 <code>ubt_sim</code>。</p>
-</blockquote>
-<h2 id="环境要求">环境要求<a class="headerlink" href="#环境要求" title="Permanent link">&para;</a></h2>
+<h1 id="数据转换详解hdf5---lerobot">数据转换详解（HDF5 -&gt; LeRobot）<a class="headerlink" href="#数据转换详解hdf5---lerobot" title="Permanent link">&para;</a></h1>
+<p>转换脚本将各机型采集的 HDF5 原始数据统一转换为 LeRobot v3 数据集（<code>meta/</code>、<code>chunk-000/</code>（data parquet）、<code>videos/</code>），供训练 / 评估 / 可视化使用。</p>
+<h2 id="脚本布局">脚本布局<a class="headerlink" href="#脚本布局" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>依赖</th>
-<th>要求</th>
+<th>机型</th>
+<th>脚本</th>
+<th>配置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tienkung_pro</code></td>
+<td><code>ubt_IL/scripts/convert/tienkung_pro/</code>（<code>convert.sh</code>、<code>convert_grasp_bottle.sh</code>）</td>
+<td><code>ubt_IL/scripts/convert/tienkung_pro/configs/</code></td>
+</tr>
+<tr>
+<td><code>walker_s2</code></td>
+<td><code>ubt_IL/scripts/convert/walker_s2/</code>（<code>convert.sh</code>、<code>convert_real_to_lerobot_v3.py</code>）</td>
+<td><code>ubt_IL/scripts/convert/walker_s2/configs/</code></td>
+</tr>
+</tbody>
+</table>
+<p>通用转换器（非机型专属）在 <code>ubt_IL/scripts/convert/common/</code>：</p>
+<table>
+<thead>
+<tr>
+<th>脚本</th>
 <th>说明</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>操作系统</td>
-<td>Linux（Ubuntu 22.04 推荐）</td>
-<td>两个子项目均以容器方式运行</td>
+<td><code>convert_to_lerobot.py</code></td>
+<td>通用 HDF5 -&gt; LeRobot 转换器（被各机型 <code>*.sh</code> 调用）</td>
 </tr>
 <tr>
-<td>GPU</td>
-<td>NVIDIA GPU（3090+）</td>
-<td>Isaac Sim 渲染与模型训练/推理</td>
+<td><code>isaaclab2lerobot.py</code> / <code>isaaclab2lerobotv3.py</code></td>
+<td>IsaacLab 仿真数据转换（v2/v3）</td>
 </tr>
 <tr>
-<td>Docker</td>
-<td>已安装 <a href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/">NVIDIA Container Toolkit</a></td>
-<td>容器内使用 GPU</td>
+<td><code>lerobot2isaaclab.py</code></td>
+<td>LeRobot -&gt; 单 HDF5 反向转换</td>
 </tr>
 <tr>
-<td>Git LFS</td>
-<td>已安装</td>
-<td>USD 模型、贴图等大文件管理</td>
+<td><code>hf_manager.py</code></td>
+<td>Hugging Face 数据集与模型管理（见 <a href="../hf-manage/">HF 管理</a>）</td>
 </tr>
 <tr>
-<td>磁盘空间</td>
-<td>充足（建议 100GB+ 可用）</td>
-<td>LFS 大文件、数据集、checkpoint 占用较大</td>
+<td><code>all_robot_h5_info*.md</code></td>
+<td>跨机型 HDF5 布局参考文档</td>
 </tr>
 </tbody>
 </table>
-<h2 id="全流程一览">全流程一览<a class="headerlink" href="#全流程一览" title="Permanent link">&para;</a></h2>
-<p>一句话流程：<strong>HDF5 采集数据 -&gt; 转换为 LeRobot 数据集 -&gt; 容器内训练 -&gt; 离线评估 -&gt; 部署（仿真/真机）</strong>。</p>
-<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>仿真采集（ubt_sim）─┐
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>                    ├─► 数据转换 ─► 模型训练 ─► 离线评估 ─► 仿真部署验证 ─► 真机部署
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>真机采集（遥操作）─┘   （HDF5 -&gt;      （ACT /       （预测 vs      （回注 Isaac     （rollout /
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>                       LeRobot v3）   Pi0.5）       真值 MSE）      Sim）           推理服务器）
-</code></pre></div>
-<h2 id="按机型进入">按机型进入<a class="headerlink" href="#按机型进入" title="Permanent link">&para;</a></h2>
+<h2 id="环境变量">环境变量<a class="headerlink" href="#环境变量" title="Permanent link">&para;</a></h2>
+<p>各机型 <code>convert.sh</code> 透传以下环境变量（标"默认"的可省略；其余可 <code>bash convert.sh -h</code> 查看）：</p>
 <table>
 <thead>
 <tr>
-<th>机型</th>
-<th>入口</th>
-<th>端到端工作流</th>
+<th>变量</th>
+<th>默认值</th>
+<th>说明</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>天工 Pro</td>
-<td><a href="../tienkung/">机型概览</a></td>
-<td><a href="../tienkung/sim-workflow/">仿真工作流</a> / <a href="../tienkung/real-workflow/">真机工作流</a></td>
+<td><code>SRC_ROOT</code></td>
+<td>各机型默认</td>
+<td>HDF5 源根目录（每个 episode 一个含 HDF5 文件的子目录）</td>
 </tr>
 <tr>
-<td>Walker S2</td>
-<td><a href="../walker-s2/">机型概览</a></td>
-<td><a href="../walker-s2/sim-workflow/">仿真工作流</a> / <a href="../walker-s2/real-workflow/">真机工作流</a></td>
+<td><code>TGT_PATH</code></td>
+<td><code>/ubt_IL/dataset</code></td>
+<td>LeRobot 数据集输出根目录</td>
+</tr>
+<tr>
+<td><code>CONFIG</code></td>
+<td>各机型默认</td>
+<td>转换配置 JSON：字段筛选 + 关节/相机映射关系</td>
+</tr>
+<tr>
+<td><code>REPO_ID</code></td>
+<td>-</td>
+<td>输出数据集名称（本地目录名 + HF repo 名，训练时保持一致）</td>
+</tr>
+<tr>
+<td><code>ROBOT_TYPE</code></td>
+<td>-</td>
+<td>机器人类型（<code>tienkung</code> / <code>walker_s2</code>，写入 meta）</td>
+</tr>
+<tr>
+<td><code>TASK_NAME</code></td>
+<td>-</td>
+<td>任务名称（写入每帧 <code>task</code> 字段，训练时作为语言条件）</td>
+</tr>
+<tr>
+<td><code>FPS</code></td>
+<td>机型默认（15/13）</td>
+<td>目标帧率；<code>auto</code> 取源 HDF5 频率</td>
+</tr>
+<tr>
+<td><code>VCODEC</code></td>
+<td><code>h264</code></td>
+<td>视频编码器（<code>h264</code>/<code>jpeg</code>/<code>png</code>）</td>
+</tr>
+<tr>
+<td><code>HDF5_REL_PATH</code></td>
+<td>机型默认</td>
+<td>HDF5 相对 episode 目录的路径</td>
+</tr>
+<tr>
+<td><code>RESAMPLE_FPS</code></td>
+<td>空（不重采样）</td>
+<td>目标帧率，启用重采样</td>
+</tr>
+<tr>
+<td><code>LABEL_ROOT</code></td>
+<td>空</td>
+<td>标签根目录（有任务标签时使用）</td>
+</tr>
+<tr>
+<td><code>TRIM_STATIONARY</code></td>
+<td>空（关闭）</td>
+<td><code>1</code> 开启静止帧裁剪（见下）</td>
 </tr>
 </tbody>
 </table>
-<h2 id="可选下载测试数据与模型">可选：下载测试数据与模型<a class="headerlink" href="#可选下载测试数据与模型" title="Permanent link">&para;</a></h2>
-<p>可从 HuggingFace 下载测试数据集与训练好的 ACT 模型（<a href="https://huggingface.co/datasets/qingxiangliu">数据集仓库</a> / <a href="https://huggingface.co/qingxiangliu/models">模型仓库</a>），使用项目自带 <code>hf_manager.py</code> 管理：</p>
-<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>ubt_IL/scripts/convert/common
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HF_ENDPOINT</span><span class="o">=</span>https://hf-mirror.com<span class="w">          </span><span class="c1"># （可选）国内加速镜像</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># 天工 Pro</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_sim_pick_place<span class="w">       </span><span class="c1"># 仿真测试数据集</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_pick_up_merged<span class="w">       </span><span class="c1"># 真机测试数据集</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_pick_up_act<span class="w">          </span><span class="c1"># 真机 ACT 测试策略</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="c1"># Walker S2</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Walker_S2_sim_10_2RGB<span class="w">         </span><span class="c1"># 仿真测试数据集</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Wlaker_Pick_part_real_10d_2RGB<span class="w">  </span><span class="c1"># 真机测试数据集</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Walker_S2_sim_10_2RGB_act<span class="w">     </span><span class="c1"># 仿真 ACT 测试策略</span>
-</code></pre></div>
 <blockquote>
-<p>下载的数据集保存于 <code>ubt_IL/dataset/</code>，模型保存于 <code>ubt_IL/model/</code>。完整用法见 <a href="../common/hf-manage/">HF 数据/模型管理</a>。</p>
+<p>其他透传参数：追加 <code>--overwrite</code> 覆盖已存在数据集；<code>--save_one true</code> 单文件模式。</p>
 </blockquote>
+<h2 id="静止帧裁剪">静止帧裁剪<a class="headerlink" href="#静止帧裁剪" title="Permanent link">&para;</a></h2>
+<p>数据集静止帧会使模型推理陷入<strong>局部静止</strong>（动作停止）。转换时设 <code>TRIM_STATIONARY=1</code> 开启裁剪：静止游程超过 cap 时截断。</p>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>默认</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>STATIONARY_KEY</code></td>
+<td><code>action</code></td>
+<td>静止判定键名</td>
+</tr>
+<tr>
+<td><code>STATIONARY_WINDOW</code></td>
+<td>自动（<code>0.3 × fps</code>）</td>
+<td>静止判定窗口</td>
+</tr>
+<tr>
+<td><code>STATIONARY_THRESH</code></td>
+<td><code>0.03</code></td>
+<td>静止判定阈值（<strong>归一化阈值</strong>，适配 grip 行程 0.05 vs 关节 0.5 的量级差异）</td>
+</tr>
+<tr>
+<td><code>STATIONARY_CAP</code></td>
+<td><code>8</code></td>
+<td>连续静止帧数上限</td>
+</tr>
+<tr>
+<td><code>STATIONARY_MIN_RUN</code></td>
+<td><code>3</code></td>
+<td>有效运行段最短帧数</td>
+</tr>
+<tr>
+<td><code>STATIONARY_RANGE_EPS</code></td>
+<td><code>1e-3</code></td>
+<td>静止区间容差</td>
+</tr>
+<tr>
+<td><code>STATIONARY_DIAGNOSE</code></td>
+<td>空</td>
+<td><code>1</code> 只统计静止分布不写盘（校准阈值用）</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># 用法：在转换命令前加 TRIM_STATIONARY=1</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nv">TRIM_STATIONARY</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nv">CONFIG</span><span class="o">=</span>...<span class="w"> </span><span class="nv">SRC_ROOT</span><span class="o">=</span>...<span class="w"> </span><span class="nv">TGT_PATH</span><span class="o">=</span>...<span class="w"> </span><span class="nv">REPO_ID</span><span class="o">=</span>...<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>bash<span class="w"> </span>/ubt_IL/scripts/convert/&lt;机型&gt;/convert.sh
+</code></pre></div>
+<h2 id="常见问题">常见问题<a class="headerlink" href="#常见问题" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>报 <code>FileNotFoundError</code>（HDF5）</td>
+<td><code>SRC_ROOT</code> 路径错误；确认 HDF5 已同步到容器可访问目录</td>
+</tr>
+<tr>
+<td>报"配置不存在"</td>
+<td>显式指定 <code>configs/</code> 下实际存在的配置文件</td>
+</tr>
+<tr>
+<td>真机数据报缺深度流（天工）</td>
+<td>真机 HDF5 无深度是正常的；使用 <code>*_real.json</code>（仅 RGB）配置</td>
+</tr>
+<tr>
+<td>训练时归一化炸裂（QUANTILES NaN/Inf）</td>
+<td>数据含恒定维度（锁死关节/夹爪），std=0 致归一化除零；改用低维配置转换剔除死维度</td>
+</tr>
+<tr>
+<td>数据集帧率与预期不符</td>
+<td><code>FPS=auto</code> 取源频率，或 <code>RESAMPLE_FPS</code> 重采样</td>
+</tr>
+</tbody>
+</table>
+<p>各机型的具体转换命令与配置选择，见对应机型页：<a href="../../tienkung/convert-train/">天工 Pro</a> / <a href="../../walker-s2/convert-train/">Walker S2</a>。</p>
 
 
 
@@ -1477,10 +1610,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.indexes", "navigation.path", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.indexes", "navigation.path", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
