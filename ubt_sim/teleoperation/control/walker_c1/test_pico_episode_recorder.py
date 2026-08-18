@@ -5,6 +5,8 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import h5py
 import numpy as np
@@ -26,6 +28,14 @@ class _Node:
 
 
 class PicoEpisodeRecorderFormatTest(unittest.TestCase):
+    def test_space_uses_the_same_completion_entry_point(self):
+        recorder = object.__new__(PicoEpisodeRecorder)
+        recorder.request_complete = Mock(return_value=True)
+
+        recorder._complete_callback(SimpleNamespace(data=True))
+
+        recorder.request_complete.assert_called_once_with("Space key")
+
     def test_episode_snapshot_is_consumed_only_once(self):
         recorder = object.__new__(PicoEpisodeRecorder)
         recorder._lock = threading.Lock()

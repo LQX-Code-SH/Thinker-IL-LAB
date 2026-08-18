@@ -166,7 +166,7 @@ class PicoMathTest(unittest.TestCase):
         self.assertEqual(len(frame.headset_pose), 7)
         self.assertEqual(len(frame.left_controller_pose), 7)
         self.assertEqual(len(frame.right_controller_pose), 7)
-        self.assertTrue(frame.controls["RightController"]["key_two"])
+        self.assertTrue(frame.controls["RightController"]["key_one"])
         self.assertGreater(frame.timestamp_ns, 0)
 
 

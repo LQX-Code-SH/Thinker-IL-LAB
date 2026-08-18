@@ -45,6 +45,7 @@ try:
     )
     from .pico_source import MockPicoSource, PicoFrame, PicoSource
     from .pico_episode_recorder import PicoEpisodeRecorder
+    from .pico_headset_view import PicoHeadsetView
 except ImportError:
     from constants import (
         LEFT_ARM_JOINT_NAMES,
@@ -65,6 +66,7 @@ except ImportError:
     )
     from pico_source import MockPicoSource, PicoFrame, PicoSource
     from pico_episode_recorder import PicoEpisodeRecorder
+    from pico_headset_view import PicoHeadsetView
 
 
 _THIS_DIR = Path(__file__).resolve().parent
@@ -128,6 +130,9 @@ class WalkerC1PicoTeleop(Node):
         record_root: str = "/ubt_sim/dataset/walker_c1_pico",
         camera_topic: str = "/sensor/camera/head/color/raw",
         record_hz: float = 30.0,
+        headset_mode: bool = False,
+        remote_vision_port: int = 13579,
+        grip_reset_hold_s: float = 1.0,
     ):
         super().__init__("walker_c1_pico_teleop")
         self.config = config
@@ -159,6 +164,13 @@ class WalkerC1PicoTeleop(Node):
         self.emergency_latched = False
         self.episode_reset_blocked = False
         self.episode_reset_complete = False
+        self.headset_mode = bool(headset_mode)
+        self.deadman_label = "right A"
+        self.grip_reset_hold_s = float(grip_reset_hold_s)
+        if self.grip_reset_hold_s <= 0.0:
+            raise ValueError("grip_reset_hold_s must be positive")
+        self.grip_reset_started_at: Optional[float] = None
+        self.grip_reset_fired = False
         self.controller_liveness = {
             "left": ControllerPoseLiveness(),
             "right": ControllerPoseLiveness(),
@@ -167,9 +179,22 @@ class WalkerC1PicoTeleop(Node):
             PicoEpisodeRecorder(self, record_root, camera_topic, record_hz)
             if record else None
         )
+        self.headset_view = (
+            PicoHeadsetView(self, camera_topic, remote_vision_port)
+            if self.headset_mode else None
+        )
 
         action = "COMMAND" if self.command_enabled else "PREVIEW ONLY"
-        self.get_logger().info(f"PICO teleop mode={mode}, {action}; hold right B to move")
+        self.get_logger().info(
+            f"PICO teleop mode={mode}, {action}; hold {self.deadman_label} to move"
+        )
+        if self.recorder is not None:
+            self.get_logger().info(
+                f"recording enabled; release A, then hold right Grip for "
+                f"{self.grip_reset_hold_s:.1f} s to save/reset; Space also works"
+            )
+        if self.headset_mode:
+            self.get_logger().info("headset mode enabled; B is display-only")
 
     @property
     def armed(self) -> bool:
@@ -202,6 +227,48 @@ class WalkerC1PicoTeleop(Node):
         if now - self.last_warning_time > 1.0:
             self.get_logger().warn(message)
             self.last_warning_time = now
+
+    def _handle_grip_reset(
+        self, right_controls: dict, deadman: bool, now: float
+    ) -> bool:
+        """Return True while the opt-in recording completion gesture owns the frame."""
+        if self.recorder is None:
+            return False
+        try:
+            grip = float(right_controls.get("grip", 0.0))
+        except (TypeError, ValueError):
+            grip = 0.0
+        if grip <= 0.55:
+            self.grip_reset_started_at = None
+            self.grip_reset_fired = False
+            return False
+        if deadman:
+            # Grip never completes an episode while A is held.  A Grip already
+            # held at A release stays latched until first released, so an
+            # ordinary control pause cannot become a reset gesture.
+            self.grip_reset_started_at = None
+            self.grip_reset_fired = grip > 0.55
+            return False
+        if grip < 0.80:
+            self.grip_reset_started_at = None
+            return self.grip_reset_fired
+        if self.grip_reset_fired:
+            return True
+        if self.grip_reset_started_at is None:
+            self.grip_reset_started_at = now
+            self.disarm("right Grip reset hold")
+            self.get_logger().info(
+                f"right Grip detected; keep holding for {self.grip_reset_hold_s:.1f} s"
+            )
+            return True
+        if now - self.grip_reset_started_at < self.grip_reset_hold_s:
+            return True
+        self.grip_reset_fired = True
+        if self.recorder.request_complete("right Grip long press"):
+            self.get_logger().info("right Grip accepted; saving episode and resetting")
+        else:
+            self._warn_throttled("right Grip ignored because no episode is recording")
+        return True
 
     def _capture_anchors(self, head: Pose, left: Pose, right: Pose) -> None:
         left_joints = self._current(LEFT_ARM_JOINT_NAMES)
@@ -300,23 +367,29 @@ class WalkerC1PicoTeleop(Node):
         if bool(left_controls.get("axis_click", False)):
             self.emergency_latched = True
             self.disarm("left stick emergency latch")
-            self._warn_throttled("emergency latched; release buttons, then press right A to clear")
+            self._warn_throttled(
+                "emergency latched; release left stick, then press right stick to clear"
+            )
             return
         if self.emergency_latched:
-            if bool(right_controls.get("key_one", False)) and not bool(right_controls.get("key_two", False)):
+            if bool(right_controls.get("axis_click", False)):
                 self.emergency_latched = False
-                self.get_logger().info("emergency latch cleared")
+                self.get_logger().info("emergency latch cleared by right stick click")
             return
 
-        deadman = bool(right_controls.get("key_two", False))
+        deadman = bool(right_controls.get("key_one", False))
         if self.episode_reset_blocked:
             if self.episode_reset_complete and not deadman:
                 self.episode_reset_blocked = False
                 self.episode_reset_complete = False
-                self.get_logger().info("ready for next episode; press and hold right B")
+                self.get_logger().info(
+                    f"ready for next episode; press and hold {self.deadman_label}"
+                )
+            return
+        if self._handle_grip_reset(right_controls, deadman, now):
             return
         if not deadman:
-            self.disarm("right B released")
+            self.disarm(f"{self.deadman_label} released")
             return
         stale_controllers = [
             side for side, live in controllers_live.items()
@@ -446,6 +519,11 @@ class WalkerC1PicoTeleop(Node):
         self.last_left = left_command
         self.last_right = right_command
 
+    def destroy_node(self):
+        if self.headset_view is not None:
+            self.headset_view.close()
+        return super().destroy_node()
+
 
 def _load_config(path: str) -> dict:
     with open(path, "r", encoding="utf-8") as handle:
@@ -483,11 +561,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--record-root", default="/ubt_sim/dataset/walker_c1_pico")
     parser.add_argument("--camera-topic", default="/sensor/camera/head/color/raw")
     parser.add_argument("--record-hz", type=float, default=30.0)
+    parser.add_argument(
+        "--headset-mode",
+        action="store_true",
+        help="show the sim camera in PICO Remote Vision; implies --record",
+    )
+    parser.add_argument("--remote-vision-port", type=int, default=13579)
+    parser.add_argument(
+        "--grip-reset-hold-s", type=float, default=1.0,
+        help="seconds to hold right Grip to save/reset while recording",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    if args.headset_mode:
+        if args.mode != "sim" or not args.enable_command:
+            raise SystemExit("--headset-mode requires --mode sim --enable-command")
+        args.record = True
     _validate_mode(args.mode, args.enable_command, args.confirm_real_robot)
     config = _load_config(args.config)
     status = StatusWriter()
@@ -498,6 +590,7 @@ def main() -> int:
         node = WalkerC1PicoTeleop(
             config, args.mode, args.enable_command, args.urdf,
             args.record, args.record_root, args.camera_topic, args.record_hz,
+            args.headset_mode, args.remote_vision_port, args.grip_reset_hold_s,
         )
         source = _make_source(args.source, args.mode)
         period = 1.0 / float(config["rate_hz"])

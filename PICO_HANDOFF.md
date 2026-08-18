@@ -1,13 +1,13 @@
 # Walker C1 PICO 遥操作接力文档
 
-更新日期：2026-08-12
+更新日期：2026-08-14
 
 本文档面向下一位继续开发或现场联调的同事，记录当前实现边界、验证结果、外部依赖、运行方法、已知风险和推荐接力顺序。
 
 ## 1. 当前结论
 
 Walker C1 已有一版独立的 PICO 头部、双臂、双手遥操作实现。以本文末尾
-“2026-08-12 现场续测”一节为当前状态；本节下面的早期清单保留为历史记录。
+“2026-08-14 最终按键映射”一节为当前状态；此前提到右 B Deadman 的内容均为历史记录。
 
 当前处于：
 
@@ -32,8 +32,8 @@ Walker C1 已有一版独立的 PICO 头部、双臂、双手遥操作实现。�
 
 当前仍未完成：
 
-- 已验证真实 PICO 设备、头显/双手柄位姿、全局时间戳和右 B；但手腕旋转方向和右臂
-  横向运动仍需完成现场闭环验收。
+- 已验证真实 PICO 设备、头显/双手柄位姿、全局时间戳、右臂多方向平移/旋转和抓取苹果；
+  后续仍需用多条正式采集任务验收连续性与数据质量。
 - 未连接 C1 真机读取实际关节名。
 - 未向 C1 真机发送任何 PICO 运动指令。
 - 未验证现场 C1 肘关节使用 `elbow_pitch_joint` 还是 `elbow_roll_joint`。
@@ -84,7 +84,7 @@ ubt_sim/teleoperation/control/walker_c1/
 | `test_pico_math.py` | 坐标和数学单元测试 |
 | `test_dual_arm_ik.py` | 双臂 FK/IK 恢复及小位移测试 |
 | `test_pico_ros.py` | ROS topic、消息维度、mode、Deadman 和模式保护 smoke test |
-| `PICO_TELEOP.md` | 面向操作者的运行说明 |
+| `README.md` | 唯一的操作者文档：启动、遥操作、采集、安全边界和常见问题 |
 
 真机只读检查见仓库根目录：
 
@@ -114,9 +114,10 @@ C1_REAL_ROBOT_READONLY_CHECK.md
 ## 5. 安全机制
 
 - 默认 `--mode preview`，不发布机器人命令。
-- 只有按住右 B 才捕获锚点并持续发送；松开立即解除使能。
+- 所有模式只有按住右 A 才捕获锚点并持续发送；松开立即解除使能。PICO 中必须关闭
+  `Switch w/ A Button`，再手动开启 `Send`。
 - 左摇杆按下触发急停锁定。
-- 松开其他按钮后按右 A 只能清除锁定，不会自动恢复运动。
+- 松开左摇杆后按右摇杆清除锁定，不会自动恢复运动。
 - 必须收到头部和双臂完整反馈才允许使能。
 - 双肘必须处于弯曲准备姿态，避免从伸直奇异位形启动。
 - PICO 时间戳超过 0.25 秒不变化时自动解除使能。
@@ -157,7 +158,7 @@ cd /ubt_sim/teleoperation/control/walker_c1 &&
 - 左右臂 FK/IK 和小位移目标。
 - ROS 命令面、28D 预览、16D 身体命令和双手 6D 命令。
 - 手部 mode 5。
-- 右 B Deadman、弯肘姿态门槛、real/sim Domain 和 mock/real 防误用。
+- 右 A Deadman、右 B 不使能机器人、弯肘姿态门槛、real/sim Domain 和 mock/real 防误用。
 
 自动测试不能替代真实 PICO 坐标和物理机器人验证。
 
@@ -1072,3 +1073,254 @@ R 键仍是纯场景 reset，不保存。
 现场 8 条的实际相机同步采样率约为 5.6--5.8 Hz，而非请求上限 30 Hz。新文件把时间戳测得的
 速率写为 `record_hz`，并将请求上限另存为 `requested_record_hz`。转换训练数据时应使用实际
 速率，不能简单标 30 Hz，否则动作节奏会被压快。当前离线与 ROS 测试共 20 项通过。
+
+### 18.9 PICO Remote Vision 可选模式（视频已现场连通）
+
+> 本节记录 Remote Vision 的实现过程。最初设计保留右 B Deadman，但现场确认 B 同时切换
+> 平面/双目画面；最终按键以 18.10 为准：所有模式统一使用右 A Deadman。
+
+#### 18.9.1 需求与最终方案
+
+本轮需求是增加一种显式可选的采集方式：操作者不用看电脑屏幕，而是在 PICO 内直接看 Isaac
+头部相机画面；任务完成后用手柄结束、保存并 reset。视频实现保持可选；现场验收后按用户要求
+把所有模式的 Deadman 统一从 B 改为 A，扳机和 Space 行为不变。
+
+最终采用两条相互独立的网络链路：
+
+```text
+位姿/按钮：PICO -> PC:4000 -> RoboticsServiceProcess -> gRPC:60061
+           -> xrobottoolkit_sdk -> pico_teleop.py
+
+仿真画面：PICO -> PC:13579 发送 OPEN_CAMERA
+           <- PC 回连 PICO 指定的视频端口，发送 H.264
+```
+
+因此视频不经过 Thinker Studio PC Service。PC Service 仍只负责原来的头显/手柄位姿；即使
+Remote Vision 失败，默认旧模式也没有新的运行依赖。
+
+#### 18.9.2 调研过程与没有采用的路径
+
+1. 先检查本机 `xrobottoolkit_sdk` 和 `pico_source.py`。SDK 能读取右 `Trigger`、右 `Grip`、
+   A、B 和摇杆按下；右 Trigger 已控制机器人手指，Grip 原先只读取、没有绑定功能。手柄上带
+   方框图标的 Capture 键没有暴露在当前 Python SDK，不能可靠用作 reset。
+2. 随后检查 PC Service 动态库中的视频相关符号。虽然生成接口中能看到类似
+   `StartPlayVideo` 的名字，但本机 headless server 没有对应的有效实现，不能从当前 Python
+   SDK 直接把 ROS 图像塞进 PC Service；该路径被放弃。
+3. 最后核对 XRoboToolkit 官方源码，确认 PICO Unity Client 本身已有 `Remote Vision`，官方
+   用独立的 `XRoboToolkit-Orin-Video-Sender` 把 ZED H.264 发送到头显。因此在 C1 项目里实现
+   同一协议，用 Isaac ROS Image 替代 ZED 图像，是与现有 PICO APK 最兼容的路径。
+
+官方依据：
+
+- [XRoboToolkit Unity Client](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client)：
+  `Remote Vision -> ZEDMINI -> Listen` 的使用方法。
+- [XRoboToolkit Orin Video Sender](https://github.com/XR-Robotics/XRoboToolkit-Orin-Video-Sender)：
+  13579 控制端口、`OPEN_CAMERA` 和 H.264 TCP 发送实现。
+
+#### 18.9.3 已复现的官方协议
+
+PICO 先连接电脑 TCP 13579。每条控制消息的外层是 4 字节大端 body 长度，body 内层为：
+
+```text
+int32 little-endian command_length
+UTF-8 command                         # OPEN_CAMERA / CLOSE_CAMERA
+int32 little-endian data_length
+bytes data
+```
+
+`OPEN_CAMERA` 的 data 是版本 1 `CameraRequestData`：
+
+```text
+CA FE                                 # magic
+01                                    # version
+7 * int32 little-endian:
+  width, height, fps, bitrate,
+  enableMvHevc, renderMode, videoPort
+uint8 cameraNameLength + cameraName
+uint8 picoIpLength + picoIp
+```
+
+收到请求后，电脑回连 PICO 请求中的视频端口。每个 H.264 access unit 按
+`4 字节大端 payload 长度 + payload` 发送。当前实现只接受 H.264；若 PICO 请求 HEVC，会明确
+报错而不是错误地发送另一种码流。请求的宽高必须是偶数，端口、分辨率、帧率和码率也会校验/
+限幅。视频目标使用控制连接的真实 peer IP，避免 PICO 上报了错误网卡地址时连错目标。
+
+#### 18.9.4 代码实现
+
+新增文件：
+
+| 文件 | 作用 |
+|---|---|
+| `pico_headset_view.py` | Remote Vision 控制服务、ROS Image 转换、FFmpeg 编码和视频回连 |
+| `test_pico_headset_view.py` | 协议、图像、H.264 分帧和真实编码离线测试 |
+
+`pico_headset_view.py` 的处理流程：
+
+1. 只有启用 `--headset-mode` 才检查 `ffmpeg`/`libx264`、绑定 `0.0.0.0:13579` 并订阅
+   `/sensor/camera/head/color/raw`。
+2. ROS 回调只替换“最新一帧”，不在遥操作主循环里编码；慢编码时直接丢弃旧画面，避免视频
+   处理阻塞 PICO 位姿读取和 ROS 控制。
+3. 支持 `rgb8`、`bgr8`、`rgba8`、`bgra8`、`mono8`，并正确处理 ROS Image 每行的 `step`
+   padding。图像按 PICO 请求尺寸等比例缩放并用黑边补齐，不拉伸。
+4. FFmpeg 使用 `libx264 + ultrafast + zerolatency + baseline + yuv420p + 无 B 帧`，插入 AUD、
+   SPS/PPS，并定期产生关键帧。
+5. `AnnexBAccessUnitParser` 处理跨 pipe read 边界的 3/4 字节 Annex-B start code，以 AUD 把
+   连续 H.264 字节流重新组成 PICO 期望的 access unit，再加大端长度发送。
+6. `CLOSE_CAMERA`、控制连接断开或进程退出时会停止编码、关闭视频 socket 和后台线程；再次
+   `Listen` 可以建立新会话。新版客户端可能先发 `AUDIO_SESSION`，本实现明确忽略音频协商，
+   只提供视频。
+
+`pico_teleop.py` 新增参数：
+
+```text
+--headset-mode              开启头显画面和 Grip 完成动作；自动启用 --record
+--remote-vision-port 13579  Remote Vision 控制端口
+--grip-reset-hold-s 1.0     Grip 有效长按时间
+```
+
+`--headset-mode` 只允许 `--mode sim --enable-command`，防止把仿真 reset 逻辑误带入 preview
+或真机模式。标准启动命令为：
+
+```bash
+./run_pico_teleop.sh --mode sim --source sdk --enable-command --headset-mode
+```
+
+#### 18.9.5 Grip 保存/reset 与防误触
+
+`pico_episode_recorder.py` 原先只有 Space ROS callback 能结束 episode。现在公共入口为
+`request_complete(trigger)`，Space 和 Grip 都调用它，之后共用完全相同的原子流程：
+
+```text
+只消费一次当前 buffer
+-> 停止遥操作并阻止新 episode
+-> 写 trajectory.hdf5
+-> 发布一次 /sim/cmd_reset
+-> reset.py --mode task
+-> 发布 /sim/episode_ready
+```
+
+HDF5 新增 `completion_trigger` attribute，用于区分 `Space key` 和
+`right Grip long press`，不改变原有数据集路径与 LeRobot 转换兼容性。
+
+Grip 使用模拟量迟滞：`>=0.80` 才算按下，`<=0.55` 才算完全释放。有效动作必须是：
+
+```text
+先松开 A 和 Grip -> 再单独按住 Grip 1 秒 -> 保存/reset -> 松开 Grip
+```
+
+按住 A 遥操作时的 Grip 不累计；如果松开 A 时 Grip 已经按住，该次 Grip 会锁定为无效，必须
+先释放再重新按。这样正常抓握、抓取过程和临时松 A 暂停不会自动结束 episode。Grip 完成入口
+对所有带 `--record` 的模式生效，不仅限于 `--headset-mode`。
+
+按钮兼容性：
+
+| 输入 | 普通模式 | `--headset-mode` |
+|---|---|---|
+| 右 A | 按住遥操作，松开保持 | 相同；必须关闭 PICO 的 `Switch w/ A Button` |
+| 右 B | 不控制机器人 | 不控制机器人；仅由 Remote Vision UI 切换显示方式 |
+| 右 Trigger | 右手开合 | 相同 |
+| 左摇杆按下 | 锁定急停 | 相同 |
+| 右摇杆按下 | 清除急停 | 相同 |
+| Space | 保存并 reset（带 `--record`） | 仍可作为备用 |
+| 右 Grip | 带 `--record` 时，释放 A/Grip 后长按 1 秒保存并 reset | 相同 |
+
+#### 18.9.6 视频依赖边界
+
+- 不加 `--headset-mode` 时不会构造 `PicoHeadsetView`，因此不绑定 13579、不订阅第二路相机、
+  不启动线程、不执行 FFmpeg 预检。
+- `--record` + Space 继续可用，同时增加右 Grip 长按的同一保存/reset 入口。
+- 不带 `--record` 时 Grip 不触发完成动作。
+- 右 A Deadman 是用户确认后的统一按键变更，与是否启用视频无关。
+
+#### 18.9.7 已做测试与尚未完成的验收
+
+本机已通过 4 项新增离线测试：
+
+1. 构造并解析真实格式的 `OPEN_CAMERA`/`CameraRequestData`。
+2. 在任意 chunk 边界（包括拆开的 start code）恢复 H.264 access unit。
+3. 验证带 row padding 的 BGR ROS 图像能正确转为 RGB。
+4. 实际调用本机 FFmpeg/libx264 编码 3 帧，并确认得到至少 3 个 AUD 分隔的 H.264 access unit。
+
+新增测试与 `test_pico_math.py` 合计 17 项通过，`git diff --check` 通过。宿主 Python 缺少
+`h5py`/`ikpy`，因此本轮没有在宿主重复运行依赖它们的 IK/HDF5 测试；此前容器内相关回归为
+20 项通过。本轮没有向仿真或真机发布控制命令。
+
+以下项目仍必须现场完成，不能提前宣称头显画面最终验收：
+
+- 当前运行容器内是否存在 `ffmpeg` 且包含 `libx264`；宿主机已确认存在，但宿主不能代替容器。
+- 真实 PICO 是否能连接电脑 13579 并成功接受电脑回连的视频 socket。
+- 当前安装 APK 的 `ZEDMINI` profile 请求的实际宽高、FPS、码率、H.264/HEVC 和显示布局。
+- 图像方向、宽高比、端到端延迟；旧版 APK 可能把 ZED 画面按 side-by-side 解释，需要根据实测
+  决定是否在发送端复制左右眼画面。
+- Remote Vision 打开后 B 会切换平面/双目画面，现场已确认影响操作体验；项目已不再用 B
+  控制机器人，改用右 A，避免画面切换污染同一条 episode。
+- Grip 模拟量阈值、长按一次只保存一条、场景与 task reset、HDF5 `completion_trigger`。
+
+#### 18.9.8 下次从这里继续的最短步骤
+
+1. 先按日常 README 启动 PC Service、仿真并执行 `reset.py --mode task`。
+2. 在现有容器 shell 中只检查一次编码器，避免反复 `docker exec`/密码：
+
+   ```bash
+   command -v ffmpeg
+   ffmpeg -hide_banner -encoders 2>/dev/null | grep libx264
+   ```
+
+3. 若存在编码器，直接启动：
+
+   ```bash
+   ./run_pico_teleop.sh --mode sim --source sdk --enable-command --headset-mode
+   ```
+
+   预期先看到：
+
+   ```text
+   PICO Remote Vision ready on 0.0.0.0:13579
+   PICO teleop mode=sim, COMMAND
+   ```
+
+4. PICO 原有 Tracking 继续 `Reconnect -> Head On -> Controller On -> Send`。随后在
+   `Remote Vision` 选择 `ZEDMINI -> Listen`，填写电脑 IP `192.168.1.4`，点 `Confirm`。
+5. 预期电脑日志依次出现 `control connected`、`opening PICO video ...`、
+   `video streaming started`。确认 PICO 的 `Switch w/ A Button` 未勾选，手动开启 `Send`，
+   再按住 A 做小范围遥操作。
+6. 做一条短任务，松开 A 和 Grip，再单独长按 Grip 1 秒；确认只生成一个 HDF5、场景和机器人
+   均 reset，并检查 `completion_trigger=right Grip long press`。
+
+若新模式启动时直接报告找不到 FFmpeg/libx264，只需在容器内补编码器；不要修改 PC Service、
+PICO SDK 或旧遥操作代码。若能出现 `control connected` 但没有 `opening PICO video`，优先保存
+收到的请求字节并核对 APK profile；若已经 `video streaming started` 但头显黑屏，则排查 H.264
+布局/decoder，而不是回头改坐标映射或 IK。
+
+#### 18.9.9 文档入口
+
+- 日常启动、PC Service、仿真、reset、旧/新遥操作命令：
+  `ubt_sim/teleoperation/control/walker_c1/README.md`
+- 历史排查、实测结论和跨会话继续点：本文件 `PICO_HANDOFF.md`
+
+### 18.10 2026-08-14 最终按键映射
+
+头显画面现场连通后发现：Remote Vision 本地把右 B 绑定为平面/双目切换。第一次按 B 已经开始
+机器人动作，但画面同时变成不需要的布局；第二次按 B 才切回。录制器不会因此生成两条文件，
+但两次 B 之间的错误观察/动作会进入同一 episode，因此不能继续把 B 当 Deadman。
+
+曾考虑修改 Unity 客户端、固定单目画面并重新打 APK；该方案需要 Unity/Android 构建、签名和
+重新安装，当前没有必要。XRoboToolkit 已提供 `Switch w/ A Button` 选项：未勾选时，A 不切换
+`Send`。现场确认该选项一直未勾选，因此采用下面的最终方案：
+
+```text
+PICO: Switch w/ A Button = Off，手动点一次 Send
+
+按住右 A       捕获锚点并控制机器人
+松开右 A       停止发布新动作并解除锚点
+右 B           不参与机器人控制，仅保留 Remote Vision 本地功能
+右 Trigger     控制右手开合
+左摇杆按下     锁定急停
+右摇杆按下     解除急停（仍需重新按 A 才恢复控制）
+松开 A/Grip 后长按右 Grip 1 秒
+                保存当前 episode，并执行场景 reset + task reset
+Isaac Space     与 Grip 共用相同保存/reset 流程，作为电脑端入口
+```
+
+这一按键映射对 preview/sim/real 和是否启用 `--headset-mode` 都一致。Grip 保存/reset 仅在启用
+录制器（`--record`，或隐含它的 `--headset-mode`）时生效；未启用录制时不会抢占 Grip。

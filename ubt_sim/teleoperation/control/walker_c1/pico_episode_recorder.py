@@ -209,22 +209,31 @@ class PicoEpisodeRecorder:
     def _complete_callback(self, msg: Bool) -> None:
         if not msg.data:
             return
+        self.request_complete("Space key")
+
+    def request_complete(self, trigger: str) -> bool:
+        """Finish the active episode once, from Space or a controller gesture."""
         episode = self._take_episode_snapshot()
         if episode is None:
-            return
+            return False
         self.node.episode_reset_blocked = True
         self.node.episode_reset_complete = False
-        self.node.disarm("Space pressed; saving episode")
+        self.node.disarm(f"{trigger}; saving episode")
         self._worker = threading.Thread(
-            target=self._save_and_reset, args=(episode,), daemon=True,
+            target=self._save_and_reset, args=(episode, trigger), daemon=True,
             name="pico_episode_save_reset",
         )
         self._worker.start()
+        return True
 
-    def _save_episode(self, episode: dict[str, list]) -> Optional[Path]:
+    def _save_episode(
+        self, episode: dict[str, list], completion_trigger: str = "unknown"
+    ) -> Optional[Path]:
         frame_count = len(episode["timestamp"])
         if frame_count == 0:
-            self.node.get_logger().warn("Space pressed with no recorded frames; resetting without save")
+            self.node.get_logger().warn(
+                "episode completed with no recorded frames; resetting without save"
+            )
             return None
         lengths = {key: len(values) for key, values in episode.items()}
         if len(set(lengths.values())) != 1:
@@ -244,6 +253,7 @@ class PicoEpisodeRecorder:
             output.attrs["record_hz"] = measured_hz
             output.attrs["requested_record_hz"] = self.record_hz
             output.attrs["timestamp_clock"] = "ros_image_header"
+            output.attrs["completion_trigger"] = completion_trigger
             output.create_dataset("puppet/arm_right_position_align/data", data=np.asarray(episode["arm_right"], dtype=np.float32))
             output.create_dataset("puppet/end_effector_right_position_align/data", data=np.asarray(episode["hand_right"], dtype=np.float32))
             output.create_dataset("puppet/arm_left_position_align/data", data=np.asarray(episode["arm_left"], dtype=np.float32))
@@ -269,9 +279,9 @@ class PicoEpisodeRecorder:
         )
         return filename
 
-    def _save_and_reset(self, episode: dict[str, list]) -> None:
+    def _save_and_reset(self, episode: dict[str, list], completion_trigger: str) -> None:
         try:
-            self._save_episode(episode)
+            self._save_episode(episode, completion_trigger)
             reset_msg = Bool()
             reset_msg.data = True
             # This publisher/subscription pair uses reliable ROS QoS.  Sending
@@ -290,7 +300,10 @@ class PicoEpisodeRecorder:
                 raise RuntimeError(
                     f"task reset failed ({result.returncode}): {result.stderr.strip()}"
                 )
-            self.node.get_logger().info("episode reset complete; release B for the next episode")
+            deadman_label = getattr(self.node, "deadman_label", "right B")
+            self.node.get_logger().info(
+                f"episode reset complete; release {deadman_label} for the next episode"
+            )
         except Exception as exc:
             self.node.get_logger().error(f"episode save/reset failed: {exc}")
         finally:

@@ -63,7 +63,7 @@ class PicoSource:
 class MockPicoSource:
     """Deterministic, small PICO motions for cloud/simulator validation.
 
-    Right B is held in every frame, so the regular deadman and anchor path are
+    Right A is held in every frame, so the regular deadman and anchor path are
     exercised.  This source is intentionally unavailable for ``mode=real``.
     """
 
@@ -102,8 +102,8 @@ class MockPicoSource:
             "RightController": {
                 "index_trig": trigger,
                 "grip": 0.0,
-                "key_one": False,
-                "key_two": True,
+                "key_one": True,
+                "key_two": False,
                 "axis": [0.0, 0.0],
                 "axis_click": False,
             },

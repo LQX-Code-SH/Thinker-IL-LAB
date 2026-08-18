@@ -4,7 +4,8 @@ import os
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import rclpy
 from rclpy.node import Node
@@ -103,7 +104,7 @@ class PicoRosSmokeTest(unittest.TestCase):
             counts = {key: len(value) for key, value in received.items()}
             released_controls = dict(frame.controls)
             released_controls["RightController"] = dict(frame.controls["RightController"])
-            released_controls["RightController"]["key_two"] = False
+            released_controls["RightController"]["key_one"] = False
             released = PicoFrame(
                 frame.headset_pose,
                 frame.left_controller_pose,
@@ -112,6 +113,26 @@ class PicoRosSmokeTest(unittest.TestCase):
                 frame.timestamp_ns + 1,
             )
             teleop.step(released)
+            for _ in range(5):
+                rclpy.spin_once(observer, timeout_sec=0.02)
+            self.assertFalse(teleop.armed)
+            self.assertEqual(counts, {key: len(value) for key, value in received.items()})
+
+            # B is deliberately ignored by the robot deadman.  XRoboToolkit
+            # may consume it locally to change the Remote Vision layout.
+            b_only_controls = dict(released.controls)
+            b_only_controls["RightController"] = dict(
+                released.controls["RightController"]
+            )
+            b_only_controls["RightController"]["key_two"] = True
+            b_only = PicoFrame(
+                released.headset_pose,
+                released.left_controller_pose,
+                released.right_controller_pose,
+                b_only_controls,
+                released.timestamp_ns + 1,
+            )
+            teleop.step(b_only)
             for _ in range(5):
                 rclpy.spin_once(observer, timeout_sec=0.02)
             self.assertFalse(teleop.armed)
@@ -141,6 +162,33 @@ class PicoRosSmokeTest(unittest.TestCase):
                 _validate_mode("sim", True, False)
         with self.assertRaises(SystemExit):
             _make_source("mock", "real")
+
+    def test_recording_grip_completion_requires_a_release_and_fresh_grip(self):
+        logger = SimpleNamespace(info=Mock())
+        node = SimpleNamespace(
+            recorder=SimpleNamespace(request_complete=Mock(return_value=True)),
+            grip_reset_hold_s=1.0,
+            grip_reset_started_at=None,
+            grip_reset_fired=False,
+            disarm=Mock(),
+            get_logger=Mock(return_value=logger),
+            _warn_throttled=Mock(),
+        )
+        handle = WalkerC1PicoTeleop._handle_grip_reset
+
+        # Grip pressed during A control must not turn into a completion when A
+        # is released.  Grip has to be released and deliberately pressed again.
+        self.assertFalse(handle(node, {"grip": 1.0}, True, 1.0))
+        self.assertTrue(node.grip_reset_fired)
+        self.assertTrue(handle(node, {"grip": 1.0}, False, 1.1))
+        node.recorder.request_complete.assert_not_called()
+        self.assertFalse(handle(node, {"grip": 0.0}, False, 1.2))
+
+        self.assertTrue(handle(node, {"grip": 1.0}, False, 2.0))
+        self.assertTrue(handle(node, {"grip": 1.0}, False, 3.01))
+        node.recorder.request_complete.assert_called_once_with(
+            "right Grip long press"
+        )
 
 
 if __name__ == "__main__":
