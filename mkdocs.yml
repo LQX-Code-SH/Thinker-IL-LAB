@@ -14,6 +14,7 @@ theme:
   name: material
   language: zh
   logo: assets/优必选logo.png
+  favicon: assets/优必选logo.png
   features:
     - navigation.tabs
     - navigation.sections
