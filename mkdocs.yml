@@ -7,15 +7,20 @@ repo_name: LQX-Code-SH/UBTECH-IL-LAB
 
 docs_dir: docs
 
+extra_css:
+  - stylesheets/extra.css
+
 theme:
   name: material
   language: zh
+  logo: assets/优必选logo.png
   features:
     - navigation.tabs
     - navigation.sections
     - navigation.top
     - navigation.indexes
     - navigation.path
+    - toc.integrate
     - search.suggest
     - search.highlight
     - content.code.copy
@@ -33,7 +38,6 @@ theme:
         icon: material/weather-sunny
         name: 切换至亮色模式
   icon:
-    logo: material/robot-industrial
     repo: fontawesome/brands/github
 
 nav:

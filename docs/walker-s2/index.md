@@ -37,6 +37,10 @@
 
 ## 部署效果
 
-| 仿真部署 | 真机部署 |
-|---|---|
-| <video src="../assets/walker仿真部署效果.mp4" controls muted width="100%"></video> | <video src="../assets/walker真机部署效果.mp4" controls muted width="100%"></video> |
+**仿真部署**
+
+<video src="../assets/walker仿真部署效果.mp4" controls muted width="100%"></video>
+
+**真机部署**
+
+<video src="../assets/walker真机部署效果.mp4" controls muted width="100%"></video>

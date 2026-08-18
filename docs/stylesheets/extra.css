@@ -1,0 +1,18 @@
+/* 页面布局与样式微调 */
+
+/* 左上角 logo 显示为圆形 */
+.md-logo img {
+  border-radius: 50%;
+}
+
+/*
+ * 放大页眉 logo：默认 img 高 1.2rem + 按钮 padding 0.4rem。
+ * 改为 1.8rem + 0.1rem，logo 放大 50% 而页眉总高度保持 2.4rem 不变。
+ */
+.md-header__button.md-logo {
+  padding: 0.1rem;
+}
+
+.md-header__button.md-logo img {
+  height: 1.8rem;
+}

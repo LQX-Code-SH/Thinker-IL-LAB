@@ -40,22 +40,21 @@ git submodule update --init
 一句话流程：**HDF5 采集数据 -> 转换为 LeRobot 数据集 -> 容器内训练 -> 离线评估 -> 部署（仿真/真机）**。
 
 ```
-仿真采集（ubt_sim）─┐
+仿真采集（ubt_sim）───┐
                     ├─► 数据转换 ─► 模型训练 ─► 离线评估 ─► 仿真部署验证 ─► 真机部署
-真机采集（遥操作）─┘   （HDF5 ->      （ACT /       （预测 vs      （回注 Isaac     （rollout /
-                       LeRobot v3）   Pi0.5）       真值 MSE）      Sim）           推理服务器）
+真机采集（遥操作）─────┘         
 ```
 
 ## 按机型进入
 
 | 机型 | 入口 | 端到端工作流 |
 |------|------|--------------|
-| 天工 Pro | [机型概览](tienkung/index.md) | [仿真工作流](tienkung/sim-workflow.md) / [真机工作流](tienkung/real-workflow.md) |
-| Walker S2 | [机型概览](walker-s2/index.md) | [仿真工作流](walker-s2/sim-workflow.md) / [真机工作流](walker-s2/real-workflow.md) |
+| 天工 Pro | [TienKung概览](tienkung/index.md) | [TienKung仿真工作流](tienkung/sim-workflow.md) / [TienKung真机工作流](tienkung/real-workflow.md) |
+| Walker S2 | [walker-s2概览](walker-s2/index.md) | [walker-s2仿真工作流](walker-s2/sim-workflow.md) / [walker-s2真机工作流](walker-s2/real-workflow.md) |
 
 ## 可选：下载测试数据与模型
 
-可从 HuggingFace 下载测试数据集与训练好的 ACT 模型（[数据集仓库](https://huggingface.co/datasets/qingxiangliu) / [模型仓库](https://huggingface.co/qingxiangliu/models)），使用项目自带 `hf_manager.py` 管理：
+可从 HuggingFace 下载测试数据集与训练好的 ACT 模型（[数据集仓库](https://huggingface.co/datasets/qingxiangliu) / [模型仓库](https://huggingface.co/qingxiangliu/models)），自行前往 HuggingFace 官网下载使用，或者使用项目自带 `hf_manager.py` 工具管理：
 
 ```bash
 cd ubt_IL/scripts/convert/common
@@ -64,12 +63,14 @@ export HF_ENDPOINT=https://hf-mirror.com          # （可选）国内加速镜�
 # 天工 Pro
 python hf_manager.py pull qingxiangliu/tienkung_sim_pick_place       # 仿真测试数据集
 python hf_manager.py pull qingxiangliu/tienkung_pick_up_merged       # 真机测试数据集
+python hf_manager.py pull qingxiangliu/tienkung_sim_pick_place_right13_act   # 仿真ACT抓取测试策略
 python hf_manager.py pull qingxiangliu/tienkung_pick_up_act          # 真机 ACT 测试策略
 
 # Walker S2
-python hf_manager.py pull qingxiangliu/Walker_S2_sim_10_2RGB         # 仿真测试数据集
-python hf_manager.py pull qingxiangliu/Wlaker_Pick_part_real_10d_2RGB  # 真机测试数据集
-python hf_manager.py pull qingxiangliu/Walker_S2_sim_10_2RGB_act     # 仿真 ACT 测试策略
+python hf_manager.py pull qingxiangliu/Walker_S2_sim_10_2RGB            # 仿真测试数据集
+python hf_manager.py pull qingxiangliu/Wlaker_Pick_part_real_10d_2RGB   # 真机测试数据集
+python hf_manager.py pull qingxiangliu/Walker_S2_sim_10_2RGB_act        # 仿真 ACT 测试策略
+python hf_manager.py pull qingxiangliu/walker_pick_part_real_10d_2RGB_act   # 真机ACT抓取测试策略
 ```
 
 > 下载的数据集保存于 `ubt_IL/dataset/`，模型保存于 `ubt_IL/model/`。完整用法见 [HF 数据/模型管理](common/hf-manage.md)。

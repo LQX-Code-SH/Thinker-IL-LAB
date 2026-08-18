@@ -4,6 +4,9 @@
 
 基于 [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) 与 [HuggingFace LeRobot](https://github.com/huggingface/lerobot) 框架构建。
 
+[:fontawesome-brands-github: **GitHub 仓库** · LQX-Code-SH/UBTECH-IL-LAB](https://github.com/LQX-Code-SH/UBTECH-IL-LAB){ .md-button .md-button--primary }
+[快速开始 :material-arrow-right:](getting-started.md){ .md-button }
+
 ## 核心能力
 
 | 能力 | 说明 | 状态 |
@@ -13,8 +16,8 @@
 | :material-database: 数据采集与转换 | HDF5 / LeRobot 格式数据采集，格式转换与清洗 | :material-check-circle: 已完成 |
 | :material-brain: 模型训练 | 基于 LeRobot 的模仿学习策略训练（ACT / Pi0.5） | :material-check-circle: 已完成 |
 | :material-robot: 真机部署 | 模型推理与真机控制部署（含推理服务器常驻预热） | :material-check-circle: 已完成 |
-| :material-robot-molecule: 支持机型 | TienKung Pro / Walker S2 | :material-check-circle: 已发布 |
-| :material-robot-molecule-outline: 其他机型 | Walker C1 / TienKung 3.0 | :material-progress-clock: 待发布 |
+| :material-robot: 支持机型 | TienKung Pro / Walker S2 | :material-check-circle: 已发布 |
+| :material-robot-outline: 其他机型 | Walker C1 / TienKung 3.0 | :material-progress-clock: 待发布 |
 
 ## 效果展示
 
@@ -26,13 +29,21 @@
 
 ### 部署效果
 
-| 天工 Pro 仿真 | 天工 Pro 真机 |
-|---|---|
-| <video src="assets/tienkung仿真部署效果.mp4" controls muted width="100%"></video> | <video src="assets/tienkung真机部署效果.mp4" controls muted width="100%"></video> |
+**天工 Pro 仿真**
 
-| Walker S2 仿真 | Walker S2 真机 |
-|---|---|
-| <video src="assets/walker仿真部署效果.mp4" controls muted width="100%"></video> | <video src="assets/walker真机部署效果.mp4" controls muted width="100%"></video> |
+<video src="assets/tienkung仿真部署效果.mp4" controls muted width="100%"></video>
+
+**天工 Pro 真机**
+
+<video src="assets/tienkung真机部署效果.mp4" controls muted width="100%"></video>
+
+**Walker S2 仿真**
+
+<video src="assets/walker仿真部署效果.mp4" controls muted width="100%"></video>
+
+**Walker S2 真机**
+
+<video src="assets/walker真机部署效果.mp4" controls muted width="100%"></video>
 
 ## 整体架构
 
