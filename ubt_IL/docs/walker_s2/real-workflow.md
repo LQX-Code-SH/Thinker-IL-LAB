@@ -20,7 +20,7 @@
 
 ## 0. 工作流总览
 
-```mermaid
+```
 A[真机遥操作采集] --> B[HDF5 数据转换] --> C[模型训练] --> D[离线 MSE 评估] --> E[真机部署/ 推理服务器] --> F[真机任务验证] 
 ```
 
@@ -188,7 +188,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 cd /ubt_IL/lerobot
 
 /lerobot/.venv/bin/python /ubt_IL/scripts/eval/eval_policy.py \
-  --policy-path /ubt_IL/model/walker_pick_part_real_10d_2RGB_act/checkpoints/last/pretrained_model \
+  --policy-path /ubt_IL/model/walker_pick_part_real_10d_2RGB_act/checkpoints/080000/pretrained_model \
   --dataset-path /ubt_IL/dataset/Wlaker_Pick_part_real_10d_2RGB \
   --episodes 10 \
   --inference-freq 1 \
@@ -225,9 +225,21 @@ cd /ubt_IL/lerobot
 **部署步骤**：
 
 ```bash
-# 1. 启动推理容器--机器人Vision板
+# 0. 进入开发者模式--机器人Vision板ubt容器
+ssh -p 2222 ubt@192.168.11.2/3  # 输入密码：Ubtubt@9880
+#向service请求进入开发者模式true为进入,false为退出
+ros2 service call /sys/task/developer_mode std_srvs/srv/SetBool "{data: true}"
+#true为开发者模式,false则为普通模式
+ros2 topic echo /sys/state/walker_mode
+
+# 1. 构建并启动推理容器--机器人Vision板
+# 1.1 拷贝项目到vision板
+scp 项目代码和模型 /home/walker/
+# 1.2 进入vision板并构建容器
 ssh walker@192.168.11.3 # 登陆机器人Vision板,密码aa
 cd 项目路径/ubt_IL/docker
+bash run.sh build
+# 1.3 启动容器
 bash run.sh start
 bash run.sh bash
 
@@ -236,7 +248,7 @@ bash /ubt_IL/scripts/deploy/walker_s2/robot_ready.sh
 
 # 3. 部署真机 10D 模型异步推理
 ROBOT_MODEL=walker_s2_10d \
-POLICY_PATH=/ubt_IL/model/walker_pick_part_real_10d_2RGB_act/checkpoints/last/pretrained_model \
+POLICY_PATH=/ubt_IL/model/walker_pick_part_real_10d_2RGB_act/checkpoints/080000/pretrained_model \
 INFERENCE_TYPE=act_async INFERENCE_HZ=1 \
 FPS=13 DURATION=60 \
 bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
@@ -299,11 +311,11 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 # 1. 拉起服务（容器内，后台预热到 READY；引擎 paused，不动机器人）
 cd /ubt_IL/scripts/deploy/walker_s2
 ROBOT_MODEL=walker_s2_10d \
-POLICY_PATH=/ubt_IL/model/walker_pick_part_real_10d_2RGB_act/checkpoints/last/pretrained_model \
+POLICY_PATH=/ubt_IL/model/walker_pick_part_real_10d_2RGB_act/checkpoints/080000/pretrained_model \
 INFERENCE_TYPE=act_async INFERENCE_HZ=1 FPS=15 \
 bash inference_server.sh
 
-# 2. 查询推理服务状态是否 READY
+# 2. 查询推理服务状态是否 READY,如果false可等待后再次查询
 bash inference_client.sh status
 
 # 3. 开始 / 停止推理（动！）
@@ -324,7 +336,7 @@ bash inference_client.sh shutdown
 ```bash
 cd /ubt_IL/scripts/deploy/walker_s2
 bash inference_client.sh launch \
-  --policy-path /ubt_IL/model/walker_pick_part_real_10d_2RGB_act/checkpoints/last/pretrained_model \
+  --policy-path /ubt_IL/model/walker_pick_part_real_10d_2RGB_act/checkpoints/080000/pretrained_model \
   --robot-model walker_s2_10d --inference-hz 2 --fps 13 \
   --remote --host 192.168.11.3 --ssh-user walker
 ```
