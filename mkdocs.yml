@@ -1,0 +1,93 @@
+site_name: UBTECH-IL-LAB
+site_description: 优必选机器人模仿学习工具链 - 基于 Isaac Sim 与 LeRobot 的完整模仿学习解决方案
+site_author: UBTECH Robotics
+site_url: https://lqx-code-sh.github.io/UBTECH-IL-LAB/
+repo_url: https://github.com/LQX-Code-SH/UBTECH-IL-LAB
+repo_name: LQX-Code-SH/UBTECH-IL-LAB
+
+docs_dir: docs
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - navigation.path
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: 切换至暗色模式
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: 切换至亮色模式
+  icon:
+    logo: material/robot-industrial
+    repo: fontawesome/brands/github
+
+nav:
+  - 首页: index.md
+  - 快速开始: getting-started.md
+  - 天工 Pro:
+    - 机型概览: tienkung/index.md
+    - 仿真环境与数据采集: tienkung/sim-setup.md
+    - 数据转换与训练: tienkung/convert-train.md
+    - 仿真工作流: tienkung/sim-workflow.md
+    - 真机工作流: tienkung/real-workflow.md
+    - ARM 板端部署: tienkung/arm-deploy.md
+  - Walker S2:
+    - 机型概览: walker-s2/index.md
+    - 仿真环境与数据采集: walker-s2/sim-setup.md
+    - 数据转换与训练: walker-s2/convert-train.md
+    - 仿真工作流: walker-s2/sim-workflow.md
+    - 真机工作流: walker-s2/real-workflow.md
+    - 真机部署: walker-s2/deploy.md
+    - 推理服务器: walker-s2/inference-server.md
+  - 通用参考:
+    - 数据转换详解: common/data-conversion.md
+    - 数据可视化与回放: common/playback.md
+    - HF 数据/模型管理: common/hf-manage.md
+  - 架构总览: architecture.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+      title: 本页内容
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+
+plugins:
+  - search:
+      lang:
+        - zh
+        - en
