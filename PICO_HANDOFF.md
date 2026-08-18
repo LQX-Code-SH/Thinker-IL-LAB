@@ -1324,3 +1324,459 @@ Isaac Space     与 Grip 共用相同保存/reset 流程，作为电脑端入口
 
 这一按键映射对 preview/sim/real 和是否启用 `--headset-mode` 都一致。Grip 保存/reset 仅在启用
 录制器（`--record`，或隐含它的 `--headset-mode`）时生效；未启用录制时不会抢占 Grip。
+
+## 19. 2026-08-18 PICO 裸手 tracking 与 C1 11DoF 灵巧手方案
+
+### 19.1 目标和不可破坏边界
+
+第一阶段只跑通 PICO 原生裸手 skeleton，不直接控制机械臂或灵巧手：
+
+```text
+PICO PXR/OpenXR hand tracking
+  -> 现有 XRoboToolkit Unity Client 状态 JSON
+  -> 现有 PC Service / libPXREARobotSDK.so
+  -> xrobotoolkit_sdk Python receiver
+  -> 26-joint HandTrackingData + 限频日志/调试 marker
+```
+
+必须保留现有 controller teleoperation。`pico_teleop.py` 的右 A Deadman、controller 锚点、
+`tracking_to_robot`、相对位姿、IK、安全门槛和 ROS 命令发布不重写；hand tracking 默认关闭，
+只通过新调试入口显式开启。第一阶段不实现 optimizer，也不把裸手数据发布成机器人命令。
+
+### 19.2 已确认的现有 PICO 输入链路
+
+当前头显应用是 XRoboToolkit Unity Client。其上游源码使用 Unity 2022.3.16f1 和内嵌
+PICO Unity Integration SDK 3.1.2：
+
+- controller：`PXR_Input.GetControllerPredictPosition/Rotation()`；
+- hand：`PXR_HandTracking.GetJointLocations(HandType, ref HandJointLocations)`；
+- UI 的 `Head`、`Controller`、`Hand` 开关彼此独立，选中的数据一起放入同一状态 JSON；
+- PICO 与 PC 继续使用现有 XRoboToolkit 网络连接，PC Service 再通过本机 gRPC
+  `127.0.0.1:60061` 向 `libPXREARobotSDK.so`/Python binding 提供数据。
+
+因此 MVP 不需要另建 UDP/TCP 协议，也不需要 MediaPipe、额外相机、数据手套或把 controller
+绑在手腕上。头显端应启用系统 Hand Tracking，在 XRoboToolkit 中打开 `Hand` 和 `Send`。
+
+本项目现有 `xrobotoolkit_sdk 1.0.2` 已实测导出：
+
+```text
+get_left_hand_tracking_state()   -> 26 x 7
+get_right_hand_tracking_state()  -> 26 x 7
+get_left_hand_is_active()        -> int, 0 low / 1 high
+get_right_hand_is_active()       -> int, 0 low / 1 high
+```
+
+26×7 每项为 `x,y,z,qx,qy,qz,qw`，位置单位 meter，quaternion 顺序明确为 `xyzw`。
+
+### 19.3 OpenXR 26-joint 顺序
+
+必须按 PICO 官方/OpenXR 顺序保留全部数据：
+
+| index | joint |
+|---:|---|
+| 0 | palm |
+| 1 | wrist |
+| 2–5 | thumb metacarpal / proximal / distal / tip |
+| 6–10 | index metacarpal / proximal / intermediate / distal / tip |
+| 11–15 | middle metacarpal / proximal / intermediate / distal / tip |
+| 16–20 | ring metacarpal / proximal / intermediate / distal / tip |
+| 21–25 | little metacarpal / proximal / intermediate / distal / tip |
+
+XRoboToolkit 上游 `test_hand_isactive.py` 曾把 index 0 的 palm 注释成 wrist，该注释不符合
+OpenXR 标准，项目实现必须使用 wrist index 1。
+
+### 19.4 坐标系策略
+
+现有 controller 现场标定确认 SDK pose 使用 OpenXR 右手系：
+
+```text
++X 向右，+Y 向上，-Z 向前，quaternion xyzw
+```
+
+XRoboToolkit Unity 的 `TrackingData.GetHandJsonData()` 直接发送 `Posef.Position/Orientation`；
+controller 预测 pose 也直接发送 PICO native pose 字段，没有在两者之间额外换轴。因此 hand MVP
+对全部 26 个 joint 复用 controller 已验收的 proper basis：
+
+```json
+[[0, 0, -1], [-1, 0, 0], [0, 1, 0]]
+```
+
+输出轴为机器人 `+X 前、+Y 左、+Z 上`。position 使用 `C p`，orientation 使用
+`C R C^T`，再明确输出 `xyzw`；禁止靠逐轴猜符号处理。第一轮现场仍要分别验证前、右、上和平移/
+旋转方向，因为当前只能从源码确认 reference-space 路径，不能替代真机观测。
+
+### 19.5 tracking validity 的真实能力边界
+
+PICO Unity 端实际取得并发送每关节：
+
+- `locationStatus`：orientation/position valid/tracked 位；
+- `radius`；
+- 整手 `isActive` 和 `handScale`。
+
+但当前 `xrobotoolkit_sdk 1.0.2` 的 pybind 只复制每关节 pose 和整手 `isActive`，丢弃了
+`locationStatus`、`radius` 和 `handScale`。MVP 不伪造 per-joint confidence：只把 `isActive > 0`、
+26×7 shape、有限值和非零 quaternion 共同作为保守 validity；tracking 丢失时不发布有效 marker，
+以后也不得进入 retarget/robot command。
+
+需要逐关节 validity 时的最小升级是重新编译 `XRoboToolkit-PC-Service-Pybind`，在现有 JSON
+解析处暴露已经收到的 `s/r/scale` 字段。无需改 Unity 网络协议，也不应先大改 PC Service。
+
+### 19.6 MVP 文件边界
+
+计划/实施文件：
+
+| 文件 | 作用 |
+|---|---|
+| `pico_hand_tracking.py` | 26 joint 名称、`HandTrackingData`、校验、同 controller 换基、finger helper |
+| `pico_source.py` | 仅增加默认关闭的可选 hand read；原 controller frame 字段和读取保持兼容 |
+| `pico_hand_debug.py` | 独立 receiver，约 8 Hz 摘要/全量打印，可选 ROS marker，不发布机器人命令 |
+| `run_pico_hand_tracking.sh` | 复用现有 CPython 3.10、PICO `.so` 和 ROS 环境 |
+| `test_pico_hand_tracking.py` | joint 顺序、shape、xyzw、坐标、validity、flexion、pinch 与 source 兼容测试 |
+
+预留但第一阶段不实现：
+
+```python
+robot_hand_q = retarget_hand(human_hand_data)
+```
+
+先提供 `get_finger_flexion()`、`get_thumb_opposition()`、`get_fingertip_positions()`。后续 26→11DoF
+应先在 Isaac Sim 使用左右手 URDF 的真实 11 个关节名，再区分真机 SDK 当前 6D 逻辑命令和是否存在
+未公开的独立 11DoF 接口。
+
+### 19.7 C1 手控制现状与后续选项
+
+Isaac Sim 每只手已有 11DoF：拇指 3DoF，其余四指各 2DoF。`action_process.py` 已支持两种输入：
+
+1. 现有 Astron SDK 风格 6D：thumb swing + thumb/index/middle/ring/little MCP；每个非 swing 值在仿真
+   展开到相应两级关节；
+2. 直接按 `L_/R_*_joint` 名称发送完整 11DoF dict，仿真会逐关节执行。
+
+后续控制人的手有三个递进选项：
+
+1. **几何规则映射（推荐先做）**：由各指骨段夹角得到 flexion，thumb-tip 距离/方向得到 opposition，
+   标定 open/fist/pinch 后映射到 11DoF joint limits；可解释、易加限速与丢失保护。
+2. **运动学优化 retargeting**：以 fingertip/palm 相对位置为目标，求 11DoF 约束优化；精度更好，但需
+   机器人手 FK、关节限位、连续性正则和自碰约束。
+3. **学习式映射**：采集人手 skeleton 与期望机器人姿态训练模型；只有前两种稳定并积累数据后再考虑。
+
+任何方案进入机器人控制前都必须增加：显式 enable/deadman、首次捕获锚点、tracking timeout、
+joint limit、逐帧限速、异常跳变拒绝，以及失跟踪保持/张开策略。第一阶段完全不发送这些命令。
+
+### 19.8 MVP 现场验收顺序
+
+1. 不启动 `--enable-command`，先运行独立 hand debug receiver。
+2. PICO 系统 Hand Tracking 开启；XRoboToolkit `Hand On -> Send`，controller 可关闭或保留。
+3. 确认左右手各 26 点、wrist index 1、meter、xyzw，摘要日志限制在 5–10 Hz。
+4. 分别做真实手前/右/上移动和手腕旋转，检查 robot-axis 输出方向。
+5. 弯食指，确认 index chain 和 `get_finger_flexion()` 明显变化。
+6. 做 thumb-index pinch，确认两 fingertip 距离明显减小。
+7. 把手移出视野，确认 `is_tracked=False`，marker 删除且没有机器人命令。
+8. 单独回归原 `run_pico_teleop.sh` controller 模式，确认行为和之前一致。
+
+当前本机没有运行 PC Service/PICO 数据，离线调用 SDK 得到 timestamp 0、左右 `isActive=0` 和
+26×7 全零；这只证明接口和 shape 存在，不算真实 hand tracking 验收。
+
+### 19.9 本轮实现与测试结果
+
+MVP 代码已经按 19.6 的边界实现：
+
+- controller 默认路径不导入 hand 模块；只有 `PicoSource(hand_tracking_enabled=True)` 才加载/检查
+  4 个 hand API。
+- `read_hands()` 只读取全局 timestamp 和左右手 skeleton/quality，不读取 head、controller pose、
+  trigger 或按键，所以现场可以不拿 controller。
+- `HandTrackingData` 保留 26 个命名 joint 的 position、`quaternion_xyzw`、保守 validity、左右手、
+  timestamp、单位和 reference-space 描述。
+- hand debug 默认 8 Hz 输出 wrist、五指 tip、食指 flexion 和 thumb-index distance；
+  `--all-joints` 输出全部 26 点。
+- `--ros-markers` 发布 `/pico/hand_tracking/markers` 的 wrist + 五指 tip spheres；失跟踪时发送
+  DELETE，不发布任何 C1 body/hand command。
+- `retarget_hand()` 只保留显式接口并抛出 `NotImplementedError`，防止第一阶段误发未经标定的
+  机器人手指值。
+
+容器内执行：
+
+```bash
+/usr/bin/python3 -B -m unittest -v \
+  test_pico_hand_tracking.py test_pico_math.py test_dual_arm_ik.py \
+  test_pico_ros.py test_pico_episode_recorder.py test_pico_headset_view.py
+```
+
+结果为 `33 tests passed`，覆盖新增 hand parsing/helper/source 隔离和原 controller ROS、IK、录制、
+视频回归。宿主 CPython 3.10 的 hand/math/video 24 项也通过；`git diff --check`、无写入语法检查和
+shell `bash -n` 通过。
+
+无 PC Service/PICO 状态实际启动 receiver 时，左右手均安全显示：
+
+```text
+is_tracked=False quality=0
+wrist/tips/flexion/pinch=unavailable
+```
+
+SDK 能正常关闭；进程未发布机器人命令。真实设备验收仍未完成，下一次最短步骤：
+
+```bash
+cd /ubt_sim/teleoperation/control/walker_c1
+./run_pico_hand_tracking.sh
+```
+
+随后在 PICO 端开启系统 Hand Tracking，XRoboToolkit 选择 `Hand On -> Send`。先完成 19.8 的
+26 点、方向、rotation、食指和 pinch 验收，再运行 `--ros-markers`；在此之前不得进入 26→11DoF
+控制实现。
+
+## 20. 2026-08-18 26-joint → C1 11DoF 离线重定向
+
+本节是第 19 节之后的下一阶段，取代 19.6/19.9 中“`retarget_hand()` 只抛异常”的历史状态。
+这一阶段不连接真实 PICO，也不把 mock transport 接到真机。
+
+### 20.1 资产真值纠正与自动审计
+
+运行时主资产是：
+
+```text
+ubt_sim/assets/robots/walker_c1/Collected_walker_c1_v1_sensorKpkd/
+  Collected_walker_astron_v1_sensorKpkd/walker_astron_v1_sensorKpkd_hands.usd
+```
+
+URDF 只能交叉参考，不能作为实际运行关节的最终依据。本轮用 `pxr.Usd` 直接打开上述 USD crate，
+遍历 `/walker_astron_v1/joints`，并检查了：
+
+- prim type 必须是 `PhysicsRevoluteJoint`；
+- `physics:jointEnabled=true` 且 `excludeFromArticulation=false`；
+- `PhysicsDriveAPI:angular`、body0/body1、axis、lower/upper limit；
+- `physxJoint:maxJointVelocity`；
+- `devices/walker_c1/config.py` 的左右 hand list 和 `ActionsCfg` 显式顺序；
+- `action_process.py` 对完整 11DoF named dict 的入口。
+
+新增 `inspect_c1_hand_usd.py` 会自动重复这套核对，并把主 USD、控制顺序和独立 retarget config
+三方比较；任何 joint 缺失、顺序或限位不一致都会返回非零退出码：
+
+```bash
+cd /ubt_sim/teleoperation/control/walker_c1
+/isaac-sim/python.sh -B inspect_c1_hand_usd.py
+```
+
+当前实测输出 `OK: 22 driven revolute joints match the retarget config and control order.`。主 USD
+`metersPerUnit=1`、`upAxis=Z`，关节 limit 和 max velocity 以 degree 存储，代码审计时明确换算为 radian。
+
+### 20.2 主 USD 确认的单手 11DoF
+
+控制顺序不是 USD 的字典/遍历顺序，而是 `WALKER_C1_LEFT_HAND_JOINTS`/
+`WALKER_C1_RIGHT_HAND_JOINTS` 传给 `JointPositionActionCfg` 的显式顺序：
+
+| i | semantic | left joint | left `[q_min,q_max]` rad | right joint | right `[q_min,q_max]` rad | parent→child / physical role |
+|---:|---|---|---|---|---|---|
+| 0 | thumb_cmp | `L_thumb_cmp_joint` | `[-0.96,0]` | `R_thumb_cmp_joint` | `[0,0.96]` | palm→thumb_cmp；镜像 base swing/opposition，现有 `thumb_swing` 也只映射到此轴 |
+| 1 | thumb_mpp | `L_thumb_mpp_joint` | `[0,1.04]` | `R_thumb_mpp_joint` | `[0,1.04]` | thumb_cmp→thumb_mpp；近端屈曲 |
+| 2 | thumb_ip | `L_thumb_ip_joint` | `[0,1.05]` | `R_thumb_ip_joint` | `[0,1.05]` | thumb_mpp→thumb_ip；远端/IP 屈曲 |
+| 3 | index_mpp | `L_index_mpp_joint` | `[0,1.46]` | `R_index_mpp_joint` | `[0,1.46]` | palm→index_mpp；近端/base 屈曲 |
+| 4 | index_ip | `L_index_ip_joint` | `[0,1.62]` | `R_index_ip_joint` | `[0,1.62]` | index_mpp→index_ip；压缩人手 PIP/DIP 后的远端屈曲 |
+| 5 | middle_mpp | `L_middle_mpp_joint` | `[0,1.46]` | `R_middle_mpp_joint` | `[0,1.46]` | palm→middle_mpp；近端/base 屈曲 |
+| 6 | middle_ip | `L_middle_ip_joint` | `[0,1.62]` | `R_middle_ip_joint` | `[0,1.62]` | middle_mpp→middle_ip；压缩后的远端屈曲 |
+| 7 | ring_mpp | `L_ring_mpp_joint` | `[0,1.46]` | `R_ring_mpp_joint` | `[0,1.46]` | palm→ring_mpp；近端/base 屈曲 |
+| 8 | ring_ip | `L_ring_ip_joint` | `[0,1.62]` | `R_ring_ip_joint` | `[0,1.62]` | ring_mpp→ring_ip；压缩后的远端屈曲 |
+| 9 | little_mpp | `L_little_mpp_joint` | `[0,1.46]` | `R_little_mpp_joint` | `[0,1.46]` | palm→little_mpp；近端/base 屈曲 |
+| 10 | little_ip | `L_little_ip_joint` | `[0,1.62]` | `R_little_ip_joint` | `[0,1.62]` | little_mpp→little_ip；压缩后的远端屈曲 |
+
+22 个 USD joint 都没有 mimic，均有独立 angular drive。USD 的
+`physxJoint:maxJointVelocity=119.748 deg/s=2.09 rad/s`；Isaac Lab actuator config 虽设置
+`velocity_limit_sim=3`，retargeter 使用主 USD 更保守的 2.09 rad/s。
+
+### 20.3 文件与接口
+
+| 文件 | 作用 |
+|---|---|
+| `pico_hand_retarget_config.json` | 主 USD 关节模型以及 sign/scale/offset/range/limit/smoothing/sensitivity |
+| `pico_hand_retarget.py` | 几何特征、纯 normalized mapping、11D 映射和 stateful safety filter |
+| `pico_hand_mock.py` | 八类完整 26-joint mock skeleton，不依赖 PICO |
+| `inspect_c1_hand_usd.py` | 主 USD + control list + retarget config 自动一致性检查 |
+| `pico_hand_offline_demo.py` | mock→retarget→ROS bridge→Isaac 的自动循环播放器 |
+| `run_pico_hand_offline_demo.sh` | 容器内离线 demo 入口 |
+| `test_pico_hand_retarget.py` | mapping、mock、安全滤波、payload 单元测试 |
+
+公开接口现在为：
+
+```python
+mapper = C1HandRetargeter()
+robot_hand_q = retarget_hand(hand_data, retargeter=mapper, dt_s=0.02)
+assert robot_hand_q.shape == (11,)
+```
+
+实时循环必须复用同一个 `mapper`，否则 smoothing、velocity limit 和 previous-valid hold 没有跨帧状态。
+receiver 默认仍不导入 retarget 模块；只有显式调用 `retarget_hand()` 才 lazy import，原 controller
+teleoperation 无变化。
+
+### 20.4 可解释几何映射
+
+对 index/middle/ring/little，每条 OpenXR chain 先计算：
+
+1. 相邻 bone direction 的三个夹角，作为合并后的 MCP/PIP/DIP bend；
+2. metacarpal→fingertip 距离除以各 bone length 总和，作为 tip reach/curl；
+3. bend 和 curl 按 config 权重归一化为 total flexion；
+4. proximal bend 与 total flexion 混合成 robot mpp；distal bends 与 total flexion 混合成 robot ip。
+
+因此不是把人的某个关节角直接复制给机器人；人手 3 个 bend 被压缩为 C1 的 2 个 joint。thumb 使用
+两段 bend 生成 mpp/ip，thumb-tip 与 index-tip 距离除以 palm width 生成 opposition，驱动镜像的 cmp，
+并给 thumb mpp/ip 和 index 一个小的 pinch assist。所有几何量对 wrist 平移/旋转不敏感。
+
+### 20.5 安全滤波
+
+`C1HandRetargeter` 当前具备：
+
+- 主 USD `q_min/q_max` 最终裁剪；
+- 每 joint 2.09 rad/s 逐帧速度限制；
+- 第一个有效帧默认也从 open-hand 初值按限速进入，避免首次握拳目标直接跳变；
+- 可配置 exponential smoothing（默认 time constant 0.08 s）；
+- 非法 joint、NaN、zero-length bone 或 `is_tracked=false` 统一进入 tracking-loss 分支；
+- 默认精确保持 previous valid command；首次就是 invalid 时输出 open hand；
+- 可选 `invalid_behavior=open/neutral`，fallback 同样经过 smoothing/velocity limit；
+- 可配置 hold timeout 后再转 open/neutral，默认无限 hold。
+
+这一层只返回 NumPy `(11,)`，不会自行发布 ROS/ZMQ 命令。真正接 PICO 控制前仍要在更上层增加显式
+hand-control enable/deadman，不能把“收到了 skeleton”直接等同于“允许控制机器人”。
+
+### 20.6 mock 与 Isaac 离线播放器
+
+完整 mock pose：
+
+```text
+open_hand
+fist
+index_flex
+ring_flex
+little_flex
+thumb_index_pinch
+tripod
+cylindrical_grasp
+```
+
+它们都生成左右手完整 26-joint `HandTrackingData`，position 单位 meter，便于不连接 PICO 时重复测试。
+先只看目标向量：
+
+```bash
+./run_pico_hand_offline_demo.sh --dry-run --side both --cycles 1
+```
+
+正常 C1 仿真和自动 ROS bridge 已启动时：
+
+```bash
+source /opt/ros/humble/setup.bash
+source /opt/ubt_sim/walker_sdk_ros2_msgs/install/setup.bash
+cd /ubt_sim/teleoperation/control/walker_c1
+ROS_DOMAIN_ID=146 ./run_pico_hand_offline_demo.sh --side both
+```
+
+循环顺序固定为
+`open→fist→open→pinch→tripod→open→ring flex→open→little flex→open→cylindrical grasp`。
+`ring_flex` 只驱动无名指 `mpp/ip`，`little_flex` 只驱动小指 `mpp/ip`；两者前后插入 open，
+用于明确验证主 USD 中两根手指及控制通道彼此独立。默认通过
+`/mc/{left,right}_hand/command` 发送完整 11-name `JointCommand`；现有 bridge 的 `hand_cb()` 不限制
+6D SDK names，会原样转成 full named dict，`action_process._expand_hand_command()` 再按实际 sim joint
+名称执行。不能同时运行 controller teleoperation 或其他 hand publisher。
+
+### 20.7 A：已经离线验证的软件部分
+
+- 用主 USD crate 直接验证 22 个 joint type、drive、parent/child、limits、velocity 和左右镜像符号；
+- 控制 order 与 `ActionsCfg` 列表严格一致，不使用 USD traversal 顺序；
+- 八种 mock、左右手均输出 finite `(11,)` 且不越主 USD limits；
+- open 与 fist 的 11D 范数明显不同；
+- index_flex 只有 index mpp/ip 明显变化；
+- pinch 主要变化 thumb+index，tripod 再加入 middle，cylindrical 覆盖五指；
+- left/right thumb cmp 符号镜像，其余屈曲量一致；
+- invalid tracking 精确保持上一有效命令，NaN 也走相同保护；
+- smoothing、2.09 rad/s 限速、open/neutral fallback 均有测试；
+- demo dry-run 的每只手 payload 是按 control order 排列的完整 11-name dict；
+- 原 hand receiver 仍是 opt-in，原 controller 入口和坐标映射文件未改。
+
+主 USD 自动审计、mock/retarget/dry-run 已实际运行。用户随后在现有 Isaac Sim 中完成 GUI 视觉验收：
+open/fist/pinch/tripod/cylindrical 均能运动；新增 `ring_flex` 与 `little_flex` 能分别独立驱动无名指和
+小指，确认主 USD articulation、full 11-name payload 和现有 action processor 的运行路径一致。
+
+### 20.8 B：只有真实 PICO 才能验证的部分
+
+2026-08-18 已用真实 PICO 验证：左右手均能进入 `is_tracked=true quality=1`，PC 连续收到完整 26 点；
+右手实测 wrist、五 fingertip、`index flexion` 和 thumb-index distance 均为有效动态数值，单手丢失
+时对应数据安全变为 unavailable。以下项目仍需现场继续确认/调参：
+
+- PICO 手 skeleton 与 controller 是否完全共享同一 reference space；
+- 实际手腕前/右/上与 rotation 的方向和 quaternion convention；
+- 真实用户 open/fist 的 bend 分布是否匹配当前 normalization reference；
+- 真实 pinch distance/palm width 阈值、拇指 opposition sensitivity；
+- 左右手个体尺寸、遮挡、抖动和 `isActive` 丢失时的现场行为；
+- 从真实 skeleton 驱动仿真时的主观自然度，以及最终 sign/scale/offset/smoothing 微调；
+- 若需要 per-joint validity，升级 pybind 后对 PICO `locationStatus` 的现场验证；
+- 真机是否存在独立 11DoF SDK 接口。当前只确认 Isaac 支持 full 11DoF，不能把仿真接口能力外推到真机。
+
+真实 PICO 接入前仍应先完成 19.8 的纯 skeleton 验收；接入后只调
+`pico_hand_retarget_config.json`，不要回头重写已经验收的 controller 坐标逻辑。
+
+### 20.9 本轮测试记录
+
+主 USD 审计：
+
+```bash
+/isaac-sim/python.sh -B \
+  /ubt_sim/teleoperation/control/walker_c1/inspect_c1_hand_usd.py
+```
+
+本轮实际使用临时 `usd-core` 的同一 `pxr.Usd` API 在宿主读取主 USD，临时环境在审计后已删除；上面是
+容器内可重复执行的等价命令。结果：22 个 driven revolute joints 的 type、independent/no-mimic、parent/child、q limits、velocity、
+左右符号、config 和 control order 全部一致。
+
+宿主 CPython 3.10 离线回归：
+
+```bash
+python3 -B -m unittest -v \
+  test_pico_hand_retarget.py test_pico_hand_tracking.py \
+  test_pico_math.py test_pico_headset_view.py
+```
+
+结果 `44 tests passed`，其中包含把 demo full 11-name payload 直接送入现有
+`action_process._extract_command_targets()` 的隔离测试，确认没有退化为旧 6D 展开。另外：
+
+- demo 的 ROS transport 强制核对仿真 `ROS_DOMAIN_ID=146`，Domain 0 或未设置时拒绝发布；
+
+- `run_pico_hand_offline_demo.sh --dry-run --side left/right` 均成功输出八类 mock 的 full 11D；
+- `git diff --check`、新增 Python AST/JSON parsing、两个 shell `bash -n` 全部通过；
+- `pico_teleop.py`、`pico_math.py`、`pico_teleop_config.json`、C1 `config.py/action_process.py` 均为零 diff；
+- 宿主单独运行 `test_dual_arm_ik.py` 因宿主未装 `ikpy` 在 collection 阶段退出；这是环境依赖，
+  同一原测试此前已在容器 33 项 controller/IK/ROS/recorder/video 回归中通过，本轮未修改 IK/controller。
+
+## 21. 2026-08-18 真实 PICO → C1 11DoF 仿真 teleop
+
+在真实 PICO 左右手 skeleton 均通过接收验收后，新增独立入口 `pico_hand_live.py` 与
+`run_pico_hand_live.sh`。它复用 `PicoSource(hand_tracking_enabled=true)` 和持久化
+`C1HandRetargeter`，但不修改 `pico_teleop.py`。当前只控制手指；wrist pose 继续保留，但不发布
+机械臂或 body 命令。手指映射验收后再新增可选 `hand+arm` 模式。
+
+### 21.1 模式和命令边界
+
+- `--mode preview` 是默认值：实时输出左右 `q11_rad`、五指 normalized flexion 和 pinch distance，
+  不加载 ROS、不创建 publisher；
+- `--mode sim` 必须同时显式给出 `--enable-command` 且 `ROS_DOMAIN_ID=146`；
+- 代码没有 `real` 模式，不能从此入口切到真机；
+- 只发布 `/mc/{left,right}_hand/command` 的完整 11-name `JointCommand`，不发布 body/arm 命令；
+- 必须停止 offline demo、controller teleoperation 和其他 hand publisher 后再运行。
+
+直接测试右手：
+
+```bash
+cd /ubt_sim/teleoperation/control/walker_c1
+ROS_DOMAIN_ID=146 ./run_pico_hand_live.sh \
+  --mode sim --side right --enable-command
+```
+
+程序永远从 `DISARMED` 启动。按 `a` 后，选定手需要连续 tracking valid 0.5 秒才进入 `ARMED`；
+按 `d` 立即停止发布，`q`/`Ctrl+C` 退出。任一选定手 invalid 时立即停止发布，持续 0.30 秒后撤销
+解锁；tracking 恢复不会自动重新解锁。每次刚进入 ARMED 都重置 mapper，从 open command 按主 USD
+2.09 rad/s 限速进入当前真实手姿态。
+
+### 21.2 软件验证
+
+`test_pico_hand_live.py` 覆盖：显式 arm、连续有效 dwell、双手任一 invalid 拒绝 arm、tracking loss
+立即停发/超时 disarm、恢复不自动 re-arm、operator disarm、双手 full named 11D payload、invalid 时
+空 payload、preview 拒绝 command flag、sim 双重确认和 Domain 146 guard。与 tracking/retarget 测试
+合并运行共 37 项通过；shell `bash -n`、Python bytecode compile 和 `git diff --check` 通过。
+
+用户已按 21.1 使用真实 PICO 完成 PICO skeleton → 11DoF → Isaac Sim 现场验收，并确认手指 teleop
+动作表现正常。当前阶段因此冻结为可回退基线；下一阶段在独立可选模式中加入 wrist→arm，不回改
+已经验收的 finger mapping。后续若需微调，只改 `pico_hand_retarget_config.json`。

@@ -4,7 +4,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 import time
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    try:
+        from .pico_hand_tracking import HandTrackingData
+    except ImportError:
+        from pico_hand_tracking import HandTrackingData
 
 
 @dataclass(frozen=True)
@@ -14,10 +20,14 @@ class PicoFrame:
     right_controller_pose: Any
     controls: dict
     timestamp_ns: int
+    # Optional and default-off so the established controller teleoperation
+    # frame contract remains backward compatible.
+    left_hand: HandTrackingData | None = None
+    right_hand: HandTrackingData | None = None
 
 
 class PicoSource:
-    def __init__(self):
+    def __init__(self, hand_tracking_enabled: bool = False, tracking_to_output=None):
         try:
             import xrobotoolkit_sdk as sdk
         except ImportError as exc:
@@ -26,10 +36,61 @@ class PicoSource:
                 "from xgmr_tmp/pico/pico_teleop/deps first"
             ) from exc
         self.sdk = sdk
+        self.hand_tracking_enabled = bool(hand_tracking_enabled)
+        self.tracking_to_output = tracking_to_output
+        self._parse_hand_tracking_state = None
+        if self.hand_tracking_enabled:
+            try:
+                from .pico_hand_tracking import parse_hand_tracking_state
+            except ImportError:
+                from pico_hand_tracking import parse_hand_tracking_state
+            self._parse_hand_tracking_state = parse_hand_tracking_state
+            required = (
+                "get_left_hand_tracking_state",
+                "get_right_hand_tracking_state",
+                "get_left_hand_is_active",
+                "get_right_hand_is_active",
+            )
+            missing = [name for name in required if not hasattr(sdk, name)]
+            if missing:
+                raise RuntimeError(
+                    "installed xrobotoolkit_sdk does not expose hand tracking: "
+                    + ", ".join(missing)
+                    + "; install/rebuild XRoboToolkit-PC-Service-Pybind with "
+                    "26-joint hand APIs"
+                )
         self.sdk.init()
 
     def close(self) -> None:
         self.sdk.close()
+
+    def _read_hands(
+        self, timestamp_ns: int
+    ) -> tuple[HandTrackingData, HandTrackingData]:
+        if not self.hand_tracking_enabled:
+            raise RuntimeError("hand tracking was not enabled for this PicoSource")
+        sdk = self.sdk
+        parse_hand_tracking_state = self._parse_hand_tracking_state
+        left_hand = parse_hand_tracking_state(
+            "left",
+            sdk.get_left_hand_tracking_state(),
+            sdk.get_left_hand_is_active(),
+            timestamp_ns,
+            self.tracking_to_output,
+        )
+        right_hand = parse_hand_tracking_state(
+            "right",
+            sdk.get_right_hand_tracking_state(),
+            sdk.get_right_hand_is_active(),
+            timestamp_ns,
+            self.tracking_to_output,
+        )
+        return left_hand, right_hand
+
+    def read_hands(self) -> tuple[HandTrackingData, HandTrackingData]:
+        """Read only hand APIs, allowing operation with no controllers paired."""
+        timestamp_ns = int(self.sdk.get_time_stamp_ns())
+        return self._read_hands(timestamp_ns)
 
     def read(self) -> PicoFrame:
         sdk = self.sdk
@@ -51,12 +112,19 @@ class PicoSource:
                 "axis_click": bool(sdk.get_right_axis_click()),
             },
         }
+        timestamp_ns = int(sdk.get_time_stamp_ns())
+        left_hand = None
+        right_hand = None
+        if self.hand_tracking_enabled:
+            left_hand, right_hand = self._read_hands(timestamp_ns)
         return PicoFrame(
             headset_pose=sdk.get_headset_pose(),
             left_controller_pose=sdk.get_left_controller_pose(),
             right_controller_pose=sdk.get_right_controller_pose(),
             controls=controls,
-            timestamp_ns=int(sdk.get_time_stamp_ns()),
+            timestamp_ns=timestamp_ns,
+            left_hand=left_hand,
+            right_hand=right_hand,
         )
 
 

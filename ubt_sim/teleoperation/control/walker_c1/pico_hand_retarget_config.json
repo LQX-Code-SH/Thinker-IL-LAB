@@ -1,0 +1,216 @@
+{
+  "schema_version": 1,
+  "asset": {
+    "usd_path": "ubt_sim/assets/robots/walker_c1/Collected_walker_c1_v1_sensorKpkd/Collected_walker_astron_v1_sensorKpkd/walker_astron_v1_sensorKpkd_hands.usd",
+    "robot_prim_path": "/walker_astron_v1",
+    "joint_prim_path": "/walker_astron_v1/joints",
+    "limit_source": "runtime main USD PhysicsRevoluteJoint limits, converted degree to radian",
+    "control_order_source": "ubt_sim/source/ubt_sim/devices/walker_c1/config.py WALKER_C1_LEFT_HAND_JOINTS/WALKER_C1_RIGHT_HAND_JOINTS",
+    "verified_utc_date": "2026-08-18"
+  },
+  "joint_order": [
+    "thumb_cmp",
+    "thumb_mpp",
+    "thumb_ip",
+    "index_mpp",
+    "index_ip",
+    "middle_mpp",
+    "middle_ip",
+    "ring_mpp",
+    "ring_ip",
+    "little_mpp",
+    "little_ip"
+  ],
+  "joints": {
+    "thumb_cmp": {
+      "joint_name": {"left": "L_thumb_cmp_joint", "right": "R_thumb_cmp_joint"},
+      "parent_link": {"left": "L_palm_link", "right": "R_palm_link"},
+      "child_link": {"left": "L_thumb_cmp_link", "right": "R_thumb_cmp_link"},
+      "physical_role": "thumb base swing/opposition; mirrored palm-to-thumb-base revolute axis",
+      "q_min_rad": {"left": -0.96, "right": 0.0},
+      "q_max_rad": {"left": 0.0, "right": 0.96},
+      "joint_range_rad": 0.96,
+      "sign": {"left": -1.0, "right": 1.0},
+      "scale": 1.0,
+      "offset_rad": {"left": 0.0, "right": 0.0},
+      "velocity_limit_rad_s": 2.09
+    },
+    "thumb_mpp": {
+      "joint_name": {"left": "L_thumb_mpp_joint", "right": "R_thumb_mpp_joint"},
+      "parent_link": {"left": "L_thumb_cmp_link", "right": "R_thumb_cmp_link"},
+      "child_link": {"left": "L_thumb_mpp_link", "right": "R_thumb_mpp_link"},
+      "physical_role": "thumb proximal flexion after the opposition link",
+      "q_min_rad": {"left": 0.0, "right": 0.0},
+      "q_max_rad": {"left": 1.04, "right": 1.04},
+      "joint_range_rad": 1.04,
+      "sign": {"left": 1.0, "right": 1.0},
+      "scale": 1.0,
+      "offset_rad": {"left": 0.0, "right": 0.0},
+      "velocity_limit_rad_s": 2.09
+    },
+    "thumb_ip": {
+      "joint_name": {"left": "L_thumb_ip_joint", "right": "R_thumb_ip_joint"},
+      "parent_link": {"left": "L_thumb_mpp_link", "right": "R_thumb_mpp_link"},
+      "child_link": {"left": "L_thumb_ip_link", "right": "R_thumb_ip_link"},
+      "physical_role": "thumb distal/interphalangeal flexion",
+      "q_min_rad": {"left": 0.0, "right": 0.0},
+      "q_max_rad": {"left": 1.05, "right": 1.05},
+      "joint_range_rad": 1.05,
+      "sign": {"left": 1.0, "right": 1.0},
+      "scale": 1.0,
+      "offset_rad": {"left": 0.0, "right": 0.0},
+      "velocity_limit_rad_s": 2.09
+    },
+    "index_mpp": {
+      "joint_name": {"left": "L_index_mpp_joint", "right": "R_index_mpp_joint"},
+      "parent_link": {"left": "L_palm_link", "right": "R_palm_link"},
+      "child_link": {"left": "L_index_mpp_link", "right": "R_index_mpp_link"},
+      "physical_role": "index proximal/base flexion from the palm",
+      "q_min_rad": {"left": 0.0, "right": 0.0},
+      "q_max_rad": {"left": 1.46, "right": 1.46},
+      "joint_range_rad": 1.46,
+      "sign": {"left": 1.0, "right": 1.0},
+      "scale": 1.0,
+      "offset_rad": {"left": 0.0, "right": 0.0},
+      "velocity_limit_rad_s": 2.09
+    },
+    "index_ip": {
+      "joint_name": {"left": "L_index_ip_joint", "right": "R_index_ip_joint"},
+      "parent_link": {"left": "L_index_mpp_link", "right": "R_index_mpp_link"},
+      "child_link": {"left": "L_index_ip_link", "right": "R_index_ip_link"},
+      "physical_role": "index compressed distal flexion; robot has no separate human PIP/DIP pair",
+      "q_min_rad": {"left": 0.0, "right": 0.0},
+      "q_max_rad": {"left": 1.62, "right": 1.62},
+      "joint_range_rad": 1.62,
+      "sign": {"left": 1.0, "right": 1.0},
+      "scale": 1.0,
+      "offset_rad": {"left": 0.0, "right": 0.0},
+      "velocity_limit_rad_s": 2.09
+    },
+    "middle_mpp": {
+      "joint_name": {"left": "L_middle_mpp_joint", "right": "R_middle_mpp_joint"},
+      "parent_link": {"left": "L_palm_link", "right": "R_palm_link"},
+      "child_link": {"left": "L_middle_mpp_link", "right": "R_middle_mpp_link"},
+      "physical_role": "middle proximal/base flexion from the palm",
+      "q_min_rad": {"left": 0.0, "right": 0.0},
+      "q_max_rad": {"left": 1.46, "right": 1.46},
+      "joint_range_rad": 1.46,
+      "sign": {"left": 1.0, "right": 1.0},
+      "scale": 1.0,
+      "offset_rad": {"left": 0.0, "right": 0.0},
+      "velocity_limit_rad_s": 2.09
+    },
+    "middle_ip": {
+      "joint_name": {"left": "L_middle_ip_joint", "right": "R_middle_ip_joint"},
+      "parent_link": {"left": "L_middle_mpp_link", "right": "R_middle_mpp_link"},
+      "child_link": {"left": "L_middle_ip_link", "right": "R_middle_ip_link"},
+      "physical_role": "middle compressed distal flexion; robot has no separate human PIP/DIP pair",
+      "q_min_rad": {"left": 0.0, "right": 0.0},
+      "q_max_rad": {"left": 1.62, "right": 1.62},
+      "joint_range_rad": 1.62,
+      "sign": {"left": 1.0, "right": 1.0},
+      "scale": 1.0,
+      "offset_rad": {"left": 0.0, "right": 0.0},
+      "velocity_limit_rad_s": 2.09
+    },
+    "ring_mpp": {
+      "joint_name": {"left": "L_ring_mpp_joint", "right": "R_ring_mpp_joint"},
+      "parent_link": {"left": "L_palm_link", "right": "R_palm_link"},
+      "child_link": {"left": "L_ring_mpp_link", "right": "R_ring_mpp_link"},
+      "physical_role": "ring proximal/base flexion from the palm",
+      "q_min_rad": {"left": 0.0, "right": 0.0},
+      "q_max_rad": {"left": 1.46, "right": 1.46},
+      "joint_range_rad": 1.46,
+      "sign": {"left": 1.0, "right": 1.0},
+      "scale": 1.0,
+      "offset_rad": {"left": 0.0, "right": 0.0},
+      "velocity_limit_rad_s": 2.09
+    },
+    "ring_ip": {
+      "joint_name": {"left": "L_ring_ip_joint", "right": "R_ring_ip_joint"},
+      "parent_link": {"left": "L_ring_mpp_link", "right": "R_ring_mpp_link"},
+      "child_link": {"left": "L_ring_ip_link", "right": "R_ring_ip_link"},
+      "physical_role": "ring compressed distal flexion; robot has no separate human PIP/DIP pair",
+      "q_min_rad": {"left": 0.0, "right": 0.0},
+      "q_max_rad": {"left": 1.62, "right": 1.62},
+      "joint_range_rad": 1.62,
+      "sign": {"left": 1.0, "right": 1.0},
+      "scale": 1.0,
+      "offset_rad": {"left": 0.0, "right": 0.0},
+      "velocity_limit_rad_s": 2.09
+    },
+    "little_mpp": {
+      "joint_name": {"left": "L_little_mpp_joint", "right": "R_little_mpp_joint"},
+      "parent_link": {"left": "L_palm_link", "right": "R_palm_link"},
+      "child_link": {"left": "L_little_mpp_link", "right": "R_little_mpp_link"},
+      "physical_role": "little proximal/base flexion from the palm",
+      "q_min_rad": {"left": 0.0, "right": 0.0},
+      "q_max_rad": {"left": 1.46, "right": 1.46},
+      "joint_range_rad": 1.46,
+      "sign": {"left": 1.0, "right": 1.0},
+      "scale": 1.0,
+      "offset_rad": {"left": 0.0, "right": 0.0},
+      "velocity_limit_rad_s": 2.09
+    },
+    "little_ip": {
+      "joint_name": {"left": "L_little_ip_joint", "right": "R_little_ip_joint"},
+      "parent_link": {"left": "L_little_mpp_link", "right": "R_little_mpp_link"},
+      "child_link": {"left": "L_little_ip_link", "right": "R_little_ip_link"},
+      "physical_role": "little compressed distal flexion; robot has no separate human PIP/DIP pair",
+      "q_min_rad": {"left": 0.0, "right": 0.0},
+      "q_max_rad": {"left": 1.62, "right": 1.62},
+      "joint_range_rad": 1.62,
+      "sign": {"left": 1.0, "right": 1.0},
+      "scale": 1.0,
+      "offset_rad": {"left": 0.0, "right": 0.0},
+      "velocity_limit_rad_s": 2.09
+    }
+  },
+  "mapping": {
+    "default_dt_s": 0.02,
+    "initialize_from_open": true,
+    "velocity_limits_enabled": true,
+    "smoothing": {
+      "enabled": true,
+      "time_constant_s": 0.08,
+      "max_dt_s": 0.1
+    },
+    "invalid_tracking": {
+      "behavior": "hold",
+      "hold_timeout_s": null,
+      "timeout_fallback": "open"
+    },
+    "neutral_normalized": 0.12,
+    "flexion_sensitivity": {
+      "thumb": 1.0,
+      "index": 1.0,
+      "middle": 1.0,
+      "ring": 1.0,
+      "little": 1.0
+    },
+    "human_flexion_reference_rad": {
+      "thumb": {"total": 1.45, "proximal": 0.7, "distal": 0.75},
+      "index": {"total": 2.45, "proximal": 0.85, "distal": 1.6},
+      "middle": {"total": 2.45, "proximal": 0.85, "distal": 1.6},
+      "ring": {"total": 2.45, "proximal": 0.85, "distal": 1.6},
+      "little": {"total": 2.45, "proximal": 0.85, "distal": 1.6}
+    },
+    "geometry_weights": {
+      "bend": 0.8,
+      "tip_curl": 0.2,
+      "tip_curl_reference": 0.55,
+      "mpp_total": 0.6,
+      "mpp_proximal": 0.4,
+      "ip_total": 0.55,
+      "ip_distal": 0.45
+    },
+    "thumb_opposition": {
+      "closed_distance_over_palm_width": 0.2,
+      "open_distance_over_palm_width": 1.25,
+      "cmp_opposition_weight": 1.0,
+      "mpp_opposition_assist": 0.35,
+      "ip_opposition_assist": 0.25,
+      "index_pinch_assist": 0.12
+    }
+  }
+}
