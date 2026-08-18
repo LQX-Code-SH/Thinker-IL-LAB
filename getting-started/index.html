@@ -55,6 +55,8 @@
       
     
     
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -96,8 +98,7 @@
   <nav class="md-header__inner md-grid" aria-label="页眉">
     <a href=".." title="UBTECH-IL-LAB" class="md-header__button md-logo" aria-label="UBTECH-IL-LAB" data-md-component="logo">
       
-  
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18.41 4 16 6.41v.18L18.41 9H22v2h-4.41L16 9.41V12h-1a2 2 0 0 1-2-2V7.5H9.86c-.09.37-.24.72-.44 1.05L15.18 19H20a2 2 0 0 1 2 2v1H2v-1a2 2 0 0 1 2-2h6.61l-4.69-8.5a4.006 4.006 0 0 1-3.81-3A4 4 0 0 1 5 2.63c2.13-.55 4.31.73 4.86 2.87H13V3a2 2 0 0 1 2-2h1v2.59L17.59 2H22v2zM6 4.5a2 2 0 0 0-2 2 2 2 0 0 0 2 2 2 2 0 0 0 2-2 2 2 0 0 0-2-2"/></svg>
+  <img src="../assets/优必选logo.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -366,12 +367,13 @@
   
 
 
-<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="导航栏" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
     <a href=".." title="UBTECH-IL-LAB" class="md-nav__button md-logo" aria-label="UBTECH-IL-LAB" data-md-component="logo">
       
-  
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18.41 4 16 6.41v.18L18.41 9H22v2h-4.41L16 9.41V12h-1a2 2 0 0 1-2-2V7.5H9.86c-.09.37-.24.72-.44 1.05L15.18 19H20a2 2 0 0 1 2 2v1H2v-1a2 2 0 0 1 2-2h6.61l-4.69-8.5a4.006 4.006 0 0 1-3.81-3A4 4 0 0 1 5 2.63c2.13-.55 4.31.73 4.86 2.87H13V3a2 2 0 0 1 2-2h1v2.59L17.59 2H22v2zM6 4.5a2 2 0 0 0-2 2 2 2 0 0 0 2 2 2 2 0 0 0 2-2 2 2 0 0 0-2-2"/></svg>
+  <img src="../assets/优必选logo.png" alt="logo">
 
     </a>
     UBTECH-IL-LAB
@@ -1212,89 +1214,6 @@
               </div>
             
             
-              
-              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
-                <div class="md-sidebar__scrollwrap">
-                  <div class="md-sidebar__inner">
-                    
-
-  
-
-<nav class="md-nav md-nav--secondary" aria-label="本页内容">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      本页内容
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#代码获取" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        代码获取
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#环境要求" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        环境要求
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#全流程一览" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        全流程一览
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#按机型进入" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        按机型进入
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#可选下载测试数据与模型" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        可选：下载测试数据与模型
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-                  </div>
-                </div>
-              </div>
-            
           
           
             <div class="md-content" data-md-component="content">
@@ -1377,10 +1296,9 @@
 </table>
 <h2 id="全流程一览">全流程一览<a class="headerlink" href="#全流程一览" title="Permanent link">&para;</a></h2>
 <p>一句话流程：<strong>HDF5 采集数据 -&gt; 转换为 LeRobot 数据集 -&gt; 容器内训练 -&gt; 离线评估 -&gt; 部署（仿真/真机）</strong>。</p>
-<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>仿真采集（ubt_sim）─┐
+<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>仿真采集（ubt_sim）───┐
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>                    ├─► 数据转换 ─► 模型训练 ─► 离线评估 ─► 仿真部署验证 ─► 真机部署
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>真机采集（遥操作）─┘   （HDF5 -&gt;      （ACT /       （预测 vs      （回注 Isaac     （rollout /
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>                       LeRobot v3）   Pi0.5）       真值 MSE）      Sim）           推理服务器）
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>真机采集（遥操作）─────┘         
 </code></pre></div>
 <h2 id="按机型进入">按机型进入<a class="headerlink" href="#按机型进入" title="Permanent link">&para;</a></h2>
 <table>
@@ -1394,30 +1312,32 @@
 <tbody>
 <tr>
 <td>天工 Pro</td>
-<td><a href="../tienkung/">机型概览</a></td>
-<td><a href="../tienkung/sim-workflow/">仿真工作流</a> / <a href="../tienkung/real-workflow/">真机工作流</a></td>
+<td><a href="../tienkung/">TienKung概览</a></td>
+<td><a href="../tienkung/sim-workflow/">TienKung仿真工作流</a> / <a href="../tienkung/real-workflow/">TienKung真机工作流</a></td>
 </tr>
 <tr>
 <td>Walker S2</td>
-<td><a href="../walker-s2/">机型概览</a></td>
-<td><a href="../walker-s2/sim-workflow/">仿真工作流</a> / <a href="../walker-s2/real-workflow/">真机工作流</a></td>
+<td><a href="../walker-s2/">walker-s2概览</a></td>
+<td><a href="../walker-s2/sim-workflow/">walker-s2仿真工作流</a> / <a href="../walker-s2/real-workflow/">walker-s2真机工作流</a></td>
 </tr>
 </tbody>
 </table>
 <h2 id="可选下载测试数据与模型">可选：下载测试数据与模型<a class="headerlink" href="#可选下载测试数据与模型" title="Permanent link">&para;</a></h2>
-<p>可从 HuggingFace 下载测试数据集与训练好的 ACT 模型（<a href="https://huggingface.co/datasets/qingxiangliu">数据集仓库</a> / <a href="https://huggingface.co/qingxiangliu/models">模型仓库</a>），使用项目自带 <code>hf_manager.py</code> 管理：</p>
+<p>可从 HuggingFace 下载测试数据集与训练好的 ACT 模型（<a href="https://huggingface.co/datasets/qingxiangliu">数据集仓库</a> / <a href="https://huggingface.co/qingxiangliu/models">模型仓库</a>），自行前往 HuggingFace 官网下载使用，或者使用项目自带 <code>hf_manager.py</code> 工具管理：</p>
 <div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>ubt_IL/scripts/convert/common
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HF_ENDPOINT</span><span class="o">=</span>https://hf-mirror.com<span class="w">          </span><span class="c1"># （可选）国内加速镜像</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># 天工 Pro</span>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_sim_pick_place<span class="w">       </span><span class="c1"># 仿真测试数据集</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_pick_up_merged<span class="w">       </span><span class="c1"># 真机测试数据集</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_pick_up_act<span class="w">          </span><span class="c1"># 真机 ACT 测试策略</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="c1"># Walker S2</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Walker_S2_sim_10_2RGB<span class="w">         </span><span class="c1"># 仿真测试数据集</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Wlaker_Pick_part_real_10d_2RGB<span class="w">  </span><span class="c1"># 真机测试数据集</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Walker_S2_sim_10_2RGB_act<span class="w">     </span><span class="c1"># 仿真 ACT 测试策略</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_sim_pick_place_right13_act<span class="w">   </span><span class="c1"># 仿真ACT抓取测试策略</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_pick_up_act<span class="w">          </span><span class="c1"># 真机 ACT 测试策略</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Walker S2</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Walker_S2_sim_10_2RGB<span class="w">            </span><span class="c1"># 仿真测试数据集</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Wlaker_Pick_part_real_10d_2RGB<span class="w">   </span><span class="c1"># 真机测试数据集</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Walker_S2_sim_10_2RGB_act<span class="w">        </span><span class="c1"># 仿真 ACT 测试策略</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/walker_pick_part_real_10d_2RGB_act<span class="w">   </span><span class="c1"># 真机ACT抓取测试策略</span>
 </code></pre></div>
 <blockquote>
 <p>下载的数据集保存于 <code>ubt_IL/dataset/</code>，模型保存于 <code>ubt_IL/model/</code>。完整用法见 <a href="../common/hf-manage/">HF 数据/模型管理</a>。</p>
@@ -1477,7 +1397,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.indexes", "navigation.path", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.indexes", "navigation.path", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
     
     
       <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
