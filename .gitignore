@@ -74,3 +74,6 @@ ubt_sim/teleoperation/control/walker/camera_*.png
 ubt_IL/scripts/deploy/output/*
 .codebuddy/*
 ubt_IL/scripts/eval/output/*
+docs/*
+site/*
+mkdocs.yml

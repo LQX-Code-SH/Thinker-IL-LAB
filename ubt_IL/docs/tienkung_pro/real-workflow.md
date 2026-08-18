@@ -322,30 +322,30 @@ mkdir /home/nvidia/vla/   # 创建工作目录
 # 将项目代码复制到此处
 scp *项目代码* nvidia@192.168.41.2:/home/nvidia/vla/
 # 构建conda环境env_vla
-cd /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64
-bash setup_env.sh  
+cd /home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64
+bash setup_env.sh
 
 # 1. 机器人端启动相机服务（仅真机部署需要）
 conda activate env_vla
-bash /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64/image_server_host.sh
+bash /home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64/image_server_host.sh
 
 # 若机器人端未安装pyorbbec相机驱动请安装相关依赖包（仅安装一次）
 python3 -m pip install evdev
 python3 -m pip install pyorbbecsdk2
 
 # （可选）机器人相机预览测试
-bash /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64/image_client_host.sh --show
+bash /home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64/image_client_host.sh --show
 
 # 2. 机器人预备动作（抬起右手）
-bash /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64/robot_ready.sh     # 机器人准备动作
+bash /home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64/robot_ready.sh     # 机器人准备动作
 
 # 3. 运行推理脚本
 conda activate env_vla
 # 部署 26-DOF 模型（默认）
-POLICY_PATH=/home/nvidia/vla/TienKung-IL-LAB/ubt_IL/model/tienkung_pick_up_act/checkpoints/100000/pretrained_model  DURATION=60 bash /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64/rollout_host.sh
+POLICY_PATH=/home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/model/tienkung_pick_up_act/checkpoints/100000/pretrained_model  DURATION=60 bash /home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64/rollout_host.sh
 
 # 4. （可选）数据集回放，在真机上播放采集的动作
-/usr/bin/python3 /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/replay.py --dataset /home/nvidia/vla/TienKung-IL-LAB/ubt_IL/dataset/tienkung_pick_up_the_apple_all --episode 0 --rate 30
+/usr/bin/python3 /home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/replay.py --dataset /home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/dataset/tienkung_pick_up_the_apple_all --episode 0 --rate 30
 ```
 
 #### 关键参数

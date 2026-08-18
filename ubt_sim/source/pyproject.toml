@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/UBTECH-IL-LAB/ubt_sim"
+Homepage = "https://github.com/LQX-Code-SH/UBTECH-IL-LAB"
 
 [tool.setuptools]
 packages = {find = {where = ["."]}}

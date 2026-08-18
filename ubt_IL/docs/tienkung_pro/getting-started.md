@@ -21,8 +21,8 @@ git config --global https.proxy http://127.0.0.1:7897
 export GIT_LFS_PROXY="http://127.0.0.1:7897"   # LFS 走代理
 
 # 克隆仓库（先跳过 LFS 与子模块，加速克隆）
-GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/UBTECH-Robot/TienKung-IL-LAB.git
-cd TienKung-IL-LAB
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/LQX-Code-SH/UBTECH-IL-LAB.git
+cd UBTECH-IL-LAB
 git lfs pull                 # 拉取 LFS 大文件（USD 模型/贴图等仿真资源）
 git submodule update --init  # 初始化 lerobot 子模块
 ```
