@@ -1,4 +1,4 @@
-# Walker S2：仿真环境与数据采集
+# Walker S2：仿真平台（`ubt_sim`）
 
 Walker S2 仿真基于 NVIDIA Isaac Sim（Isaac Lab 2.2.0）构建，通过 ROS2-ZMQ 桥接将仿真状态与图像以**与真机一致的 ROS2 话题**对外发布，实现 sim-to-real 一致的遥操作与数据采集。整套环境运行在 Docker 容器内。
 
@@ -65,7 +65,7 @@ UBT_SIM_TASK=UBTSim-WalkerS2-PickPart-v0 bash /ubt_sim/scripts/start_sim.sh   # 
 
 运行效果（抓放任务）：
 
-<video src="../assets/walker.mp4" controls muted width="100%"></video>
+<video src="../../assets/walker.mp4" controls muted width="100%"></video>
 
 - 默认加载 `UBTSim-WalkerS2-PartSorting-v0`（仓库零件分拣）：桌面上有 4 个零件（`part_a_ori` / `part_a_red` / `part_b_blue` / `part_b_ori`）和一个收纳箱。
 - **按 `R` 键**可复位机器人/场景；也可通过采集脚本 `--reset-scene` 发布 `/sim/cmd_reset`。
@@ -214,4 +214,4 @@ bridge-stop   单独停止桥接
 - **X11 不可用 / 仿真窗口不显示**：宿主机执行 `xhost +`，确认 `DISPLAY` 已透传；无显示器时仅可用 `UBT_SIM_LOAD_ONLY=1` 预览。
 - **键盘遥操作无法捕获键鼠**：headless 容器内无法使用 pynput，请在宿主机（有图形界面）执行 `keyboard_ee_control.py`。
 
-采集完成后进入下一步：[数据转换与训练](convert-train.md)。
+采集完成后进入下一步：[模仿学习平台（`ubt_IL`）](convert-train.md)。

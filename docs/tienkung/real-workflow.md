@@ -59,7 +59,7 @@ HF_HUB_OFFLINE=1 lerobot-dataset-viz \
 
 ![tienkung 真机数据集可视化界面](../assets/tienkung真机数据集可视化.png)
 
-> `--root` 须指向包含 `meta/` 的数据集目录本身。完整环境变量见 [数据转换与训练](convert-train.md#2-数据转换hdf5---lerobot)。
+> `--root` 须指向包含 `meta/` 的数据集目录本身。完整环境变量见 [模仿学习平台（`ubt_IL`）](convert-train.md#2-数据转换hdf5---lerobot)。
 
 ## 4. 模型训练
 
@@ -160,7 +160,7 @@ bash /ubt_IL/scripts/deploy/tienkung_pro/rollout.sh
 
 **部署效果演示**（真机部署运行效果）：
 
-<video src="../assets/tienkung真机部署效果.mp4" controls muted width="100%"></video>
+<video src="../../assets/tienkung真机部署效果.mp4" controls muted width="100%"></video>
 
 ### 方案 B：机器人本体 Jetson AGX Orin 板内部署
 

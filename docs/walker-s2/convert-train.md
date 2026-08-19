@@ -1,4 +1,4 @@
-# Walker S2：数据转换与训练
+# Walker S2：模仿学习平台（`ubt_IL`）
 
 > 对应代码：`ubt_IL/scripts/{convert,train,eval}`（容器内执行）
 > 前置：HDF5 数据已就绪（[仿真采集](sim-setup.md)或真机采集）

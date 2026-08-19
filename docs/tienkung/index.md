@@ -27,8 +27,8 @@
 
 按使用顺序：
 
-1. [仿真环境与数据采集](sim-setup.md) - 容器构建、启动仿真、批量采集 HDF5、相机测试、数据预览
-2. [数据转换与训练](convert-train.md) - HDF5 -> LeRobot 转换、ACT 训练、离线评估
+1. [仿真平台（ubt_sim）](sim-setup.md) - 容器构建、启动仿真、批量采集 HDF5、相机测试、数据预览
+2. [模仿学习平台（`ubt_IL`）](convert-train.md) - HDF5 -> LeRobot 转换、ACT 训练、离线评估
 3. [仿真工作流](sim-workflow.md) - 端到端：仿真采集 -> 转换 -> 训练 -> 评估 -> 回注仿真部署
 4. [真机工作流](real-workflow.md) - 端到端：真机采集 -> 转换 -> 训练 -> 评估 -> 真机部署
 5. [ARM 板端部署](arm-deploy.md) - Jetson AGX Orin 板内无 Docker 部署（双 Python 栈）
@@ -37,8 +37,8 @@
 
 **仿真部署**
 
-<video src="../assets/tienkung仿真部署效果.mp4" controls muted width="100%"></video>
+<video src="../../assets/tienkung仿真部署效果.mp4" controls muted width="100%"></video>
 
 **真机部署**
 
-<video src="../assets/tienkung真机部署效果.mp4" controls muted width="100%"></video>
+<video src="../../assets/tienkung真机部署效果.mp4" controls muted width="100%"></video>

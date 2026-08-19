@@ -1,4 +1,4 @@
-# UBTEDU IL Lab
+# UBTECH-IL-LAB
 
 优必选 EDU 版机器人模仿学习工具链，为 **天工 Pro（TienKung Pro）** 与 **Walker S2** 机器人提供从仿真数据采集到真机部署的完整模仿学习解决方案。
 
@@ -29,21 +29,36 @@
 
 ### 部署效果
 
+<div class="grid video-grid" markdown>
+<div markdown>
+
 **天工 Pro 仿真**
 
 <video src="assets/tienkung仿真部署效果.mp4" controls muted width="100%"></video>
+
+</div>
+<div markdown>
 
 **天工 Pro 真机**
 
 <video src="assets/tienkung真机部署效果.mp4" controls muted width="100%"></video>
 
+</div>
+<div markdown>
+
 **Walker S2 仿真**
 
 <video src="assets/walker仿真部署效果.mp4" controls muted width="100%"></video>
 
+</div>
+<div markdown>
+
 **Walker S2 真机**
 
 <video src="assets/walker真机部署效果.mp4" controls muted width="100%"></video>
+
+</div>
+</div>
 
 ## 整体架构
 
@@ -78,6 +93,7 @@
 - [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) - 高保真机器人仿真环境
 - [HuggingFace LeRobot](https://github.com/huggingface/lerobot) - 模仿学习框架（ACT 策略、数据格式与训练/推理工具链）
 - [Thinker Studio](https://thinkercosmos.ubtrobot.com/#/studio) - 优必选遥操数采平台
+- [Thinker cosmos开源社区](https://thinkercosmos.ubtrobot.com/#/open-source-center?ref=header-nav) - 优必选开源中心
 
 ## License
 

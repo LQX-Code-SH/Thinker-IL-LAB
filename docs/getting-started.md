@@ -60,17 +60,46 @@ git submodule update --init
 cd ubt_IL/scripts/convert/common
 export HF_ENDPOINT=https://hf-mirror.com          # （可选）国内加速镜像
 
-# 天工 Pro
-python hf_manager.py pull qingxiangliu/tienkung_sim_pick_place       # 仿真测试数据集
+# 下载测试数据集
+python hf_manager.py pull <数据集路径/模型路径>      # 仿真测试数据集
+# 下载案例
 python hf_manager.py pull qingxiangliu/tienkung_pick_up_merged       # 真机测试数据集
-python hf_manager.py pull qingxiangliu/tienkung_sim_pick_place_right13_act   # 仿真ACT抓取测试策略
 python hf_manager.py pull qingxiangliu/tienkung_pick_up_act          # 真机 ACT 测试策略
 
-# Walker S2
-python hf_manager.py pull qingxiangliu/Walker_S2_sim_10_2RGB            # 仿真测试数据集
-python hf_manager.py pull qingxiangliu/Wlaker_Pick_part_real_10d_2RGB   # 真机测试数据集
-python hf_manager.py pull qingxiangliu/Walker_S2_sim_10_2RGB_act        # 仿真 ACT 测试策略
-python hf_manager.py pull qingxiangliu/walker_pick_part_real_10d_2RGB_act   # 真机ACT抓取测试策略
 ```
+
+### 数据集列表
+
+**天工 Pro**
+
+| 仓库 | 体积 | 格式 | 说明 |
+|------|------|------|------|
+| [`tienkung_sim_pick_place`](https://huggingface.co/datasets/qingxiangliu/tienkung_sim_pick_place) ★ | 1.1 MB | LeRobot | 仿真抓取苹果 |
+| [`tienkung_pick_up_merged`](https://huggingface.co/datasets/qingxiangliu/tienkung_pick_up_merged) ★ | 1.6 GB | LeRobot | 真机抓取合并数据集 |
+| [`tienkung_pick_up_the_apple_all`](https://huggingface.co/datasets/qingxiangliu/tienkung_pick_up_the_apple_all) | 426.9 MB | LeRobot | 真机抓取苹果 |
+| [`tienkung_pick_up_the_bottle_all`](https://huggingface.co/datasets/qingxiangliu/tienkung_pick_up_the_bottle_all) | 481.0 MB | LeRobot | 真机抓取瓶子 |
+| [`tienkung_pick_up_the_red_bottle_all`](https://huggingface.co/datasets/qingxiangliu/tienkung_pick_up_the_red_bottle_all) | 685.2 MB | LeRobot | 真机抓取红色瓶子 |
+| [`tienkung_real_merged`](https://huggingface.co/datasets/qingxiangliu/tienkung_real_merged) | 379.3 MB | LeRobot | 真机抓取瓶子（国创） |
+
+**Walker S2**
+
+| 仓库 | 体积 | 格式 | 说明 |
+|------|------|------|------|
+| [`Walker_S2_sim_10_2RGB`](https://huggingface.co/datasets/qingxiangliu/Walker_S2_sim_10_2RGB) ★ | 119.2 MB | LeRobot | 仿真抓取零件 |
+| [`Walker-s2-pick-part-sim`](https://huggingface.co/datasets/qingxiangliu/Walker-s2-pick-part-sim) | 4.3 GB | HDF5 | 仿真抓取零件 |
+| [`Walker_S2_real_10_2RGB`](https://huggingface.co/datasets/qingxiangliu/Walker_S2_real_10_2RGB) | 157.5 MB | LeRobot | 真机抓取多零件 |
+| [`Wlaker_Pick_part_real_10d_2RGB`](https://huggingface.co/datasets/qingxiangliu/Wlaker_Pick_part_real_10d_2RGB) ★ | 24.2 MB | LeRobot | 真机抓取零件 |
+| [`walker-s2-pick-part-real-hdf5`](https://huggingface.co/datasets/qingxiangliu/walker-s2-pick-part-real-hdf5) | 21.6 GB | HDF5 | 真机抓取多零件 |
+| [`walker_pick_part_real_hdf5`](https://huggingface.co/datasets/qingxiangliu/walker_pick_part_real_hdf5) | 9.7 GB | HDF5 | 真机抓取零件 |
+| [`walker_pick_sort`](https://huggingface.co/datasets/qingxiangliu/walker_pick_sort) | 11.5 GB | HDF5 | 真机分拣零件 |
+
+### 模型列表（ACT 策略）
+
+| 仓库 | 体积 | 说明 |
+|------|------|------|
+| [`tienkung_sim_pick_place_right13_act`](https://huggingface.co/qingxiangliu/tienkung_sim_pick_place_right13_act) | 591 MB | 天工仿真 ACT 抓取测试策略 |
+| [`tienkung_pick_up_act`](https://huggingface.co/qingxiangliu/tienkung_pick_up_act) | 591 MB | 天工真机 ACT 测试策略 |
+| [`Walker_S2_sim_10_2RGB_act`](https://huggingface.co/qingxiangliu/Walker_S2_sim_10_2RGB_act) | 1.9 GB | Walker S2 仿真 ACT 测试策略 |
+| [`walker_pick_part_real_10d_2RGB_act`](https://huggingface.co/qingxiangliu/walker_pick_part_real_10d_2RGB_act) | 1.7 GB | Walker S2 真机 ACT 抓取测试策略 |
 
 > 下载的数据集保存于 `ubt_IL/dataset/`，模型保存于 `ubt_IL/model/`。完整用法见 [HF 数据/模型管理](common/hf-manage.md)。

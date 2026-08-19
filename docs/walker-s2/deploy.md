@@ -69,7 +69,7 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 
 ## 离线策略评估
 
-部署前建议先跑离线 MSE 评估（`ubt_IL/scripts/eval/eval_policy.py`，与天工共用），见 [数据转换与训练 §6](convert-train.md#6-策略评估离线-mse)。
+部署前建议先跑离线 MSE 评估（`ubt_IL/scripts/eval/eval_policy.py`，与天工共用），见 [模仿学习平台（`ubt_IL`） §6](convert-train.md#6-策略评估离线-mse)。
 
 ## 推理服务器（常驻预热）
 

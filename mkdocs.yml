@@ -46,15 +46,15 @@ nav:
   - 快速开始: getting-started.md
   - 天工 Pro:
     - 机型概览: tienkung/index.md
-    - 仿真环境与数据采集: tienkung/sim-setup.md
-    - 数据转换与训练: tienkung/convert-train.md
+    - 仿真平台（ubt_sim）: tienkung/sim-setup.md
+    - 模仿学习平台（ubt_IL）: tienkung/convert-train.md
     - 仿真工作流: tienkung/sim-workflow.md
     - 真机工作流: tienkung/real-workflow.md
     - ARM 板端部署: tienkung/arm-deploy.md
   - Walker S2:
     - 机型概览: walker-s2/index.md
-    - 仿真环境与数据采集: walker-s2/sim-setup.md
-    - 数据转换与训练: walker-s2/convert-train.md
+    - 仿真平台（ubt_sim）: walker-s2/sim-setup.md
+    - 模仿学习平台（ubt_IL）: walker-s2/convert-train.md
     - 仿真工作流: walker-s2/sim-workflow.md
     - 真机工作流: walker-s2/real-workflow.md
     - 真机部署: walker-s2/deploy.md

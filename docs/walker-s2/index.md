@@ -28,8 +28,8 @@
 
 按使用顺序：
 
-1. [仿真环境与数据采集](sim-setup.md) - 容器构建、启动仿真、批量采集、机器人控制器工具
-2. [数据转换与训练](convert-train.md) - HDF5 -> LeRobot 转换、ACT / Pi0.5 训练、离线评估
+1. [仿真平台（ubt_sim）](sim-setup.md) - 容器构建、启动仿真、批量采集、机器人控制器工具
+2. [模仿学习平台（`ubt_IL`）](convert-train.md) - HDF5 -> LeRobot 转换、ACT / Pi0.5 训练、离线评估
 3. [仿真工作流](sim-workflow.md) - 端到端：仿真采集 -> 转换 -> 训练 -> 评估 -> 回注仿真部署
 4. [真机工作流](real-workflow.md) - 端到端：真机采集 -> 转换 -> 训练 -> 评估 -> 真机部署
 5. [真机部署](deploy.md) - rollout 部署详解、安全预检、ROBOT_MODELS 注册表、在线评估
@@ -39,8 +39,8 @@
 
 **仿真部署**
 
-<video src="../assets/walker仿真部署效果.mp4" controls muted width="100%"></video>
+<video src="../../assets/walker仿真部署效果.mp4" controls muted width="100%"></video>
 
 **真机部署**
 
-<video src="../assets/walker真机部署效果.mp4" controls muted width="100%"></video>
+<video src="../../assets/walker真机部署效果.mp4" controls muted width="100%"></video>

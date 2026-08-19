@@ -58,7 +58,7 @@ HF_HUB_OFFLINE=1 lerobot-dataset-viz \
 
 ![Walker 真机数据预览](../assets/walker真机数据预览.jpg)
 
-> 重点检查：图像分辨率、state/action 维度与顺序、grip 量程、是否存在空 episode。完整环境变量见 [数据转换与训练](convert-train.md#2-数据转换hdf5---lerobot)。
+> 重点检查：图像分辨率、state/action 维度与顺序、grip 量程、是否存在空 episode。完整环境变量见 [模仿学习平台（`ubt_IL`）](convert-train.md#2-数据转换hdf5---lerobot)。
 
 ## 4. 模型训练
 
@@ -129,7 +129,7 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 
 **部署效果演示**（真机部署运行效果）：
 
-<video src="../assets/walker真机部署效果.mp4" controls muted width="100%"></video>
+<video src="../../assets/walker真机部署效果.mp4" controls muted width="100%"></video>
 
 完整环境变量、安全预检、ROBOT_MODELS 注册表与在线评估（记录推理轨迹）见 [真机部署](deploy.md)。
 

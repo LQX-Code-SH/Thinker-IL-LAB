@@ -1,4 +1,4 @@
-# 天工 Pro：仿真环境与数据采集
+# 天工 Pro：仿真平台（`ubt_sim`）
 
 天工 Pro 仿真基于 NVIDIA Isaac Sim（Isaac Lab 2.2.0）构建，通过 ROS2-ZMQ 桥接将仿真状态与图像以**与真机一致的 ROS2 话题**对外发布，实现 sim-to-real 一致的遥操作与数据采集。整套环境运行在 Docker 容器内。
 
@@ -70,7 +70,7 @@ bash /ubt_sim/scripts/start_sim.sh     # 启动仿真，并自动拉起 ROS2-ZMQ
 
 运行效果（抓放任务）：
 
-<video src="../assets/tienkung.mp4" controls muted width="100%"></video>
+<video src="../../assets/tienkung.mp4" controls muted width="100%"></video>
 
 常用环境变量/参数（可叠加）：
 
@@ -146,4 +146,4 @@ bridge-stop   单独停止桥接
 - **`save_data.sh` 连续失败熔断**：多为桥接未就绪。先确认仿真窗口在运行、桥接进程存在（`pgrep -f tienkung_pro_ros2_zmq_bridge`），或单独 `bash run.sh bridge-start`。
 - **X11 不可用 / 仿真窗口不显示**：宿主机执行 `xhost +`，确认 `DISPLAY` 已透传；无显示器时仅可用 `UBT_SIM_LOAD_ONLY=1` 预览。
 
-采集完成后进入下一步：[数据转换与训练](convert-train.md)。
+采集完成后进入下一步：[模仿学习平台（`ubt_IL`）](convert-train.md)。

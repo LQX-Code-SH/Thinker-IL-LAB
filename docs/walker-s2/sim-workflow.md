@@ -10,7 +10,7 @@
 
 ## 1. 前置：仿真数据采集
 
-数据来源为 Isaac Sim 仿真器采集（`ubt_sim` 项目），完整步骤见 [仿真环境与数据采集](sim-setup.md)。
+数据来源为 Isaac Sim 仿真器采集（`ubt_sim` 项目），完整步骤见 [仿真平台（ubt_sim）](sim-setup.md)。
 
 ```bash
 # ① 启动仿真环境与任务
@@ -59,7 +59,7 @@ TASK_NAME=walker_s2_sim_pick_part \
 bash /ubt_IL/scripts/convert/walker_s2/convert.sh
 ```
 
-配置选择、完整环境变量与可视化检查见 [数据转换与训练 §2-3](convert-train.md#2-数据转换hdf5---lerobot)。
+配置选择、完整环境变量与可视化检查见 [模仿学习平台（`ubt_IL`） §2-3](convert-train.md#2-数据转换hdf5---lerobot)。
 
 ![walker 仿真数据预览](../assets/walker仿真数据预览.jpg)
 
@@ -76,7 +76,7 @@ STEPS=50000 SAVE_FREQ=5000 BATCH_SIZE=8 \
 bash /ubt_IL/scripts/train/walker_s2/train.sh
 ```
 
-ACT / Pi0.5 完整训练配方见 [数据转换与训练 §4-5](convert-train.md#4-模型训练act)。
+ACT / Pi0.5 完整训练配方见 [模仿学习平台（`ubt_IL`） §4-5](convert-train.md#4-模型训练act)。
 
 ## 5. 策略评估（离线 MSE）
 
@@ -95,7 +95,7 @@ cd /ubt_IL/lerobot
 
 ![walker 仿真离线评估](../assets/walker仿真离线评估.png)
 
-参数说明见 [数据转换与训练 §6](convert-train.md#6-策略评估离线-mse)。
+参数说明见 [模仿学习平台（`ubt_IL`） §6](convert-train.md#6-策略评估离线-mse)。
 
 ## 6. 模型部署（回注仿真）
 
@@ -134,7 +134,7 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 
 部署效果：
 
-<video controls muted loop width="100%" src="../assets/walker仿真部署效果.mp4"></video>
+<video controls muted loop width="100%" src="../../assets/walker仿真部署效果.mp4"></video>
 
 完整环境变量、ROBOT_MODELS 注册表与安全预检说明见 [真机部署](deploy.md)。
 

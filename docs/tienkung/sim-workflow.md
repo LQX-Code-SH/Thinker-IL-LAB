@@ -10,7 +10,7 @@
 
 ## 1. 前置：仿真数据采集（ubt_sim）
 
-仿真 HDF5 数据由 `ubt_sim` 项目采集，完整步骤见 [仿真环境与数据采集](sim-setup.md)。要点：
+仿真 HDF5 数据由 `ubt_sim` 项目采集，完整步骤见 [仿真平台（ubt_sim）](sim-setup.md)。要点：
 
 ```bash
 # ① 在 ubt_sim 容器内启动仿真（自动拉起 ROS2-ZMQ 桥接）
@@ -55,7 +55,7 @@ TASK_NAME=tienkung_sim_pick_place \
 bash /ubt_IL/scripts/convert/tienkung_pro/convert.sh
 ```
 
-转换配置选择、完整环境变量与可视化检查见 [数据转换与训练 §2-3](convert-train.md#2-数据转换hdf5---lerobot)。
+转换配置选择、完整环境变量与可视化检查见 [模仿学习平台（`ubt_IL`） §2-3](convert-train.md#2-数据转换hdf5---lerobot)。
 
 ![tienkung 仿真数据集可视化界面](../assets/tienkung仿真数据集可视化.png)
 
@@ -72,7 +72,7 @@ STEPS=80000 SAVE_FREQ=20000 BATCH_SIZE=8 \
 bash /ubt_IL/scripts/train/tienkung_pro/train.sh
 ```
 
-完整参数说明见 [数据转换与训练 §4](convert-train.md#4-模型训练)。
+完整参数说明见 [模仿学习平台（`ubt_IL`） §4](convert-train.md#4-模型训练)。
 
 ## 5. 策略评估（离线 MSE）
 
@@ -90,7 +90,7 @@ bash /ubt_IL/scripts/train/tienkung_pro/train.sh
 
 ![天工模型离线评估曲线](../assets/tienkung模型离线评估曲线.png)
 
-参数说明见 [数据转换与训练 §5](convert-train.md#5-策略评估离线-mse)。
+参数说明见 [模仿学习平台（`ubt_IL`） §5](convert-train.md#5-策略评估离线-mse)。
 
 ## 6. 模型部署（仿真）
 
@@ -141,7 +141,7 @@ python /ubt_IL/scripts/deploy/tienkung_pro/image_client.py --count 60
 
 部署效果演示：
 
-<video controls muted loop width="100%" src="../assets/tienkung仿真部署效果.mp4"></video>
+<video controls muted loop width="100%" src="../../assets/tienkung仿真部署效果.mp4"></video>
 
 ## 7. 常见问题
 

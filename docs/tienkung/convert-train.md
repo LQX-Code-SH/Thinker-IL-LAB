@@ -1,4 +1,4 @@
-# 天工 Pro：数据转换与训练
+# 天工 Pro：模仿学习平台（`ubt_IL`）
 
 > 对应代码：`ubt_IL/scripts/{convert,train,eval}`（容器内执行）
 > 前置：已按 [快速开始](../getting-started.md) 克隆代码并初始化子模块；HDF5 数据已就绪（[仿真采集](sim-setup.md)或真机采集）
