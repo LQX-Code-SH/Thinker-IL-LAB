@@ -538,7 +538,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -566,7 +566,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -769,7 +769,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -797,7 +797,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -1482,7 +1482,7 @@
 <p>模型部署时，<code>RECORD_ACTIONS=1</code>（默认开）记录 rollout 动作，用于分析模型预测轨迹、机器人执行轨迹、ACT 融合轨迹。记录文件保存于 <code>ubt_IL/scripts/deploy/output</code>。</p>
 <p><img alt="在线推理分析曲线" src="../../assets/%E5%9C%A8%E7%BA%BF%E6%8E%A8%E7%90%86%E5%88%86%E6%9E%90%E6%9B%B2%E7%BA%BF.png" /></p>
 <h2 id="离线策略评估">离线策略评估<a class="headerlink" href="#离线策略评估" title="Permanent link">&para;</a></h2>
-<p>部署前建议先跑离线 MSE 评估（<code>ubt_IL/scripts/eval/eval_policy.py</code>，与天工共用），见 <a href="../convert-train/#6-策略评估离线-mse">数据转换与训练 §6</a>。</p>
+<p>部署前建议先跑离线 MSE 评估（<code>ubt_IL/scripts/eval/eval_policy.py</code>，与天工共用），见 <a href="../convert-train/#6-策略评估离线-mse">模仿学习平台（<code>ubt_IL</code>） §6</a>。</p>
 <h2 id="推理服务器常驻预热">推理服务器（常驻预热）<a class="headerlink" href="#推理服务器常驻预热" title="Permanent link">&para;</a></h2>
 <p>长时间/多任务常驻部署用推理服务器，免每次冷启动，支持 <code>start/stop/home/load</code> 指令与远程拉起，详见 <a href="../inference-server/">推理服务器</a>。</p>
 <h2 id="常见问题">常见问题<a class="headerlink" href="#常见问题" title="Permanent link">&para;</a></h2>

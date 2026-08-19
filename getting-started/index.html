@@ -541,6 +541,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="可选：下载测试数据与模型">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#数据集列表" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        数据集列表
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#模型列表act-策略" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        模型列表（ACT 策略）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -642,7 +670,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -670,7 +698,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -868,7 +896,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -896,7 +924,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -1327,18 +1355,149 @@
 <div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>ubt_IL/scripts/convert/common
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HF_ENDPOINT</span><span class="o">=</span>https://hf-mirror.com<span class="w">          </span><span class="c1"># （可选）国内加速镜像</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># 天工 Pro</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_sim_pick_place<span class="w">       </span><span class="c1"># 仿真测试数据集</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_pick_up_merged<span class="w">       </span><span class="c1"># 真机测试数据集</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_sim_pick_place_right13_act<span class="w">   </span><span class="c1"># 仿真ACT抓取测试策略</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># 下载测试数据集</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>&lt;数据集路径/模型路径&gt;<span class="w">      </span><span class="c1"># 仿真测试数据集</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="c1"># 下载案例</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_pick_up_merged<span class="w">       </span><span class="c1"># 真机测试数据集</span>
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/tienkung_pick_up_act<span class="w">          </span><span class="c1"># 真机 ACT 测试策略</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Walker S2</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Walker_S2_sim_10_2RGB<span class="w">            </span><span class="c1"># 仿真测试数据集</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Wlaker_Pick_part_real_10d_2RGB<span class="w">   </span><span class="c1"># 真机测试数据集</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/Walker_S2_sim_10_2RGB_act<span class="w">        </span><span class="c1"># 仿真 ACT 测试策略</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>python<span class="w"> </span>hf_manager.py<span class="w"> </span>pull<span class="w"> </span>qingxiangliu/walker_pick_part_real_10d_2RGB_act<span class="w">   </span><span class="c1"># 真机ACT抓取测试策略</span>
 </code></pre></div>
+<h3 id="数据集列表">数据集列表<a class="headerlink" href="#数据集列表" title="Permanent link">&para;</a></h3>
+<p><strong>天工 Pro</strong></p>
+<table>
+<thead>
+<tr>
+<th>仓库</th>
+<th>体积</th>
+<th>格式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/tienkung_sim_pick_place"><code>tienkung_sim_pick_place</code></a> ★</td>
+<td>1.1 MB</td>
+<td>LeRobot</td>
+<td>仿真抓取苹果</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/tienkung_pick_up_merged"><code>tienkung_pick_up_merged</code></a> ★</td>
+<td>1.6 GB</td>
+<td>LeRobot</td>
+<td>真机抓取合并数据集</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/tienkung_pick_up_the_apple_all"><code>tienkung_pick_up_the_apple_all</code></a></td>
+<td>426.9 MB</td>
+<td>LeRobot</td>
+<td>真机抓取苹果</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/tienkung_pick_up_the_bottle_all"><code>tienkung_pick_up_the_bottle_all</code></a></td>
+<td>481.0 MB</td>
+<td>LeRobot</td>
+<td>真机抓取瓶子</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/tienkung_pick_up_the_red_bottle_all"><code>tienkung_pick_up_the_red_bottle_all</code></a></td>
+<td>685.2 MB</td>
+<td>LeRobot</td>
+<td>真机抓取红色瓶子</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/tienkung_real_merged"><code>tienkung_real_merged</code></a></td>
+<td>379.3 MB</td>
+<td>LeRobot</td>
+<td>真机抓取瓶子（国创）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Walker S2</strong></p>
+<table>
+<thead>
+<tr>
+<th>仓库</th>
+<th>体积</th>
+<th>格式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/Walker_S2_sim_10_2RGB"><code>Walker_S2_sim_10_2RGB</code></a> ★</td>
+<td>119.2 MB</td>
+<td>LeRobot</td>
+<td>仿真抓取零件</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/Walker-s2-pick-part-sim"><code>Walker-s2-pick-part-sim</code></a></td>
+<td>4.3 GB</td>
+<td>HDF5</td>
+<td>仿真抓取零件</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/Walker_S2_real_10_2RGB"><code>Walker_S2_real_10_2RGB</code></a></td>
+<td>157.5 MB</td>
+<td>LeRobot</td>
+<td>真机抓取多零件</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/Wlaker_Pick_part_real_10d_2RGB"><code>Wlaker_Pick_part_real_10d_2RGB</code></a> ★</td>
+<td>24.2 MB</td>
+<td>LeRobot</td>
+<td>真机抓取零件</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/walker-s2-pick-part-real-hdf5"><code>walker-s2-pick-part-real-hdf5</code></a></td>
+<td>21.6 GB</td>
+<td>HDF5</td>
+<td>真机抓取多零件</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/walker_pick_part_real_hdf5"><code>walker_pick_part_real_hdf5</code></a></td>
+<td>9.7 GB</td>
+<td>HDF5</td>
+<td>真机抓取零件</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qingxiangliu/walker_pick_sort"><code>walker_pick_sort</code></a></td>
+<td>11.5 GB</td>
+<td>HDF5</td>
+<td>真机分拣零件</td>
+</tr>
+</tbody>
+</table>
+<h3 id="模型列表act-策略">模型列表（ACT 策略）<a class="headerlink" href="#模型列表act-策略" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>仓库</th>
+<th>体积</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://huggingface.co/qingxiangliu/tienkung_sim_pick_place_right13_act"><code>tienkung_sim_pick_place_right13_act</code></a></td>
+<td>591 MB</td>
+<td>天工仿真 ACT 抓取测试策略</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/qingxiangliu/tienkung_pick_up_act"><code>tienkung_pick_up_act</code></a></td>
+<td>591 MB</td>
+<td>天工真机 ACT 测试策略</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/qingxiangliu/Walker_S2_sim_10_2RGB_act"><code>Walker_S2_sim_10_2RGB_act</code></a></td>
+<td>1.9 GB</td>
+<td>Walker S2 仿真 ACT 测试策略</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/qingxiangliu/walker_pick_part_real_10d_2RGB_act"><code>walker_pick_part_real_10d_2RGB_act</code></a></td>
+<td>1.7 GB</td>
+<td>Walker S2 真机 ACT 抓取测试策略</td>
+</tr>
+</tbody>
+</table>
 <blockquote>
 <p>下载的数据集保存于 <code>ubt_IL/dataset/</code>，模型保存于 <code>ubt_IL/model/</code>。完整用法见 <a href="../common/hf-manage/">HF 数据/模型管理</a>。</p>
 </blockquote>

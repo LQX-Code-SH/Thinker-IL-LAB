@@ -543,7 +543,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -571,7 +571,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -945,7 +945,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -973,7 +973,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -1400,7 +1400,7 @@
 </code></pre></div>
 <p><img alt="tienkung 真机数据集可视化界面" src="../../assets/tienkung%E7%9C%9F%E6%9C%BA%E6%95%B0%E6%8D%AE%E9%9B%86%E5%8F%AF%E8%A7%86%E5%8C%96.png" /></p>
 <blockquote>
-<p><code>--root</code> 须指向包含 <code>meta/</code> 的数据集目录本身。完整环境变量见 <a href="../convert-train/#2-数据转换hdf5---lerobot">数据转换与训练</a>。</p>
+<p><code>--root</code> 须指向包含 <code>meta/</code> 的数据集目录本身。完整环境变量见 <a href="../convert-train/#2-数据转换hdf5---lerobot">模仿学习平台（<code>ubt_IL</code>）</a>。</p>
 </blockquote>
 <h2 id="4-模型训练">4. 模型训练<a class="headerlink" href="#4-模型训练" title="Permanent link">&para;</a></h2>
 <blockquote>
@@ -1522,7 +1522,7 @@
 </tbody>
 </table>
 <p><strong>部署效果演示</strong>（真机部署运行效果）：</p>
-<video src="../assets/tienkung真机部署效果.mp4" controls muted width="100%"></video>
+<video src="../../assets/tienkung真机部署效果.mp4" controls muted width="100%"></video>
 
 <h3 id="方案-b机器人本体-jetson-agx-orin-板内部署">方案 B：机器人本体 Jetson AGX Orin 板内部署<a class="headerlink" href="#方案-b机器人本体-jetson-agx-orin-板内部署" title="Permanent link">&para;</a></h3>
 <p>自包含部署包 <code>ubt_IL/scripts/deploy/tienkung_pro/arm_64/</code>，不依赖 Docker，详见 <a href="../arm-deploy/">ARM 板端部署</a>。</p>

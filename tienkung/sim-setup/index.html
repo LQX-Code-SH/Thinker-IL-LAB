@@ -29,7 +29,7 @@
     
     
       
-        <title>仿真环境与数据采集 - UBTECH-IL-LAB</title>
+        <title>仿真平台（ubt_sim） - UBTECH-IL-LAB</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#天工-pro仿真环境与数据采集" class="md-skip">
+        <a href="#天工-pro仿真平台ubt_sim" class="md-skip">
           跳转至
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              仿真环境与数据采集
+              仿真平台（ubt_sim）
             
           </span>
         </div>
@@ -552,7 +552,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -570,7 +570,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -742,7 +742,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -940,7 +940,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -968,7 +968,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -1347,7 +1347,7 @@
   
 
 
-<h1 id="天工-pro仿真环境与数据采集">天工 Pro：仿真环境与数据采集<a class="headerlink" href="#天工-pro仿真环境与数据采集" title="Permanent link">&para;</a></h1>
+<h1 id="天工-pro仿真平台ubt_sim">天工 Pro：仿真平台（<code>ubt_sim</code>）<a class="headerlink" href="#天工-pro仿真平台ubt_sim" title="Permanent link">&para;</a></h1>
 <p>天工 Pro 仿真基于 NVIDIA Isaac Sim（Isaac Lab 2.2.0）构建，通过 ROS2-ZMQ 桥接将仿真状态与图像以<strong>与真机一致的 ROS2 话题</strong>对外发布，实现 sim-to-real 一致的遥操作与数据采集。整套环境运行在 Docker 容器内。</p>
 <p><img alt="TienKung Pro 仿真界面预览" src="../../assets/tienkung-pro%E4%BB%BF%E7%9C%9F%E7%95%8C%E9%9D%A2%E9%A2%84%E8%A7%88.png" /></p>
 <p>架构（三进程，<strong>Python 不可混用</strong>）：</p>
@@ -1466,7 +1466,7 @@
 <li>关闭仿真窗口时，<code>start_sim.sh</code> 的退出陷阱会自动停止桥接进程。</li>
 </ul>
 <p>运行效果（抓放任务）：</p>
-<video src="../assets/tienkung.mp4" controls muted width="100%"></video>
+<video src="../../assets/tienkung.mp4" controls muted width="100%"></video>
 
 <p>常用环境变量/参数（可叠加）：</p>
 <table>
@@ -1550,7 +1550,7 @@
 <li><strong><code>save_data.sh</code> 连续失败熔断</strong>：多为桥接未就绪。先确认仿真窗口在运行、桥接进程存在（<code>pgrep -f tienkung_pro_ros2_zmq_bridge</code>），或单独 <code>bash run.sh bridge-start</code>。</li>
 <li><strong>X11 不可用 / 仿真窗口不显示</strong>：宿主机执行 <code>xhost +</code>，确认 <code>DISPLAY</code> 已透传；无显示器时仅可用 <code>UBT_SIM_LOAD_ONLY=1</code> 预览。</li>
 </ul>
-<p>采集完成后进入下一步：<a href="../convert-train/">数据转换与训练</a>。</p>
+<p>采集完成后进入下一步：<a href="../convert-train/">模仿学习平台（<code>ubt_IL</code>）</a>。</p>
 
 
 

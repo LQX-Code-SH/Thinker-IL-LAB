@@ -538,7 +538,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -566,7 +566,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -769,7 +769,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -797,7 +797,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -1338,7 +1338,7 @@
 <div class="language-text highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>仿真数据采集(hdf5) -&gt; 数据转换 -&gt; 模型训练(ACT/Pi0.5) -&gt; 离线 MSE 评估 -&gt; 仿真部署
 </code></pre></div>
 <h2 id="1-前置仿真数据采集">1. 前置：仿真数据采集<a class="headerlink" href="#1-前置仿真数据采集" title="Permanent link">&para;</a></h2>
-<p>数据来源为 Isaac Sim 仿真器采集（<code>ubt_sim</code> 项目），完整步骤见 <a href="../sim-setup/">仿真环境与数据采集</a>。</p>
+<p>数据来源为 Isaac Sim 仿真器采集（<code>ubt_sim</code> 项目），完整步骤见 <a href="../sim-setup/">仿真平台（ubt_sim）</a>。</p>
 <div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># ① 启动仿真环境与任务</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>ubt_sim/docker
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>bash<span class="w"> </span>run.sh<span class="w"> </span>bash
@@ -1379,7 +1379,7 @@
 <a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="nv">TASK_NAME</span><span class="o">=</span>walker_s2_sim_pick_part<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>bash<span class="w"> </span>/ubt_IL/scripts/convert/walker_s2/convert.sh
 </code></pre></div>
-<p>配置选择、完整环境变量与可视化检查见 <a href="../convert-train/#2-数据转换hdf5---lerobot">数据转换与训练 §2-3</a>。</p>
+<p>配置选择、完整环境变量与可视化检查见 <a href="../convert-train/#2-数据转换hdf5---lerobot">模仿学习平台（<code>ubt_IL</code>） §2-3</a>。</p>
 <p><img alt="walker 仿真数据预览" src="../../assets/walker%E4%BB%BF%E7%9C%9F%E6%95%B0%E6%8D%AE%E9%A2%84%E8%A7%88.jpg" /></p>
 <h2 id="4-模型训练">4. 模型训练<a class="headerlink" href="#4-模型训练" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># 使用默认配置训练（仿真 ACT 10D 2RGB）</span>
@@ -1391,7 +1391,7 @@
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="nv">STEPS</span><span class="o">=</span><span class="m">50000</span><span class="w"> </span><span class="nv">SAVE_FREQ</span><span class="o">=</span><span class="m">5000</span><span class="w"> </span><span class="nv">BATCH_SIZE</span><span class="o">=</span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>bash<span class="w"> </span>/ubt_IL/scripts/train/walker_s2/train.sh
 </code></pre></div>
-<p>ACT / Pi0.5 完整训练配方见 <a href="../convert-train/#4-模型训练act">数据转换与训练 §4-5</a>。</p>
+<p>ACT / Pi0.5 完整训练配方见 <a href="../convert-train/#4-模型训练act">模仿学习平台（<code>ubt_IL</code>） §4-5</a>。</p>
 <h2 id="5-策略评估离线-mse">5. 策略评估（离线 MSE）<a class="headerlink" href="#5-策略评估离线-mse" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span>/ubt_IL/lerobot
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>/lerobot/.venv/bin/python<span class="w"> </span>/ubt_IL/scripts/eval/eval_policy.py<span class="w"> </span><span class="se">\</span>
@@ -1405,7 +1405,7 @@
 <a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span>--device<span class="w"> </span>cuda
 </code></pre></div>
 <p><img alt="walker 仿真离线评估" src="../../assets/walker%E4%BB%BF%E7%9C%9F%E7%A6%BB%E7%BA%BF%E8%AF%84%E4%BC%B0.png" /></p>
-<p>参数说明见 <a href="../convert-train/#6-策略评估离线-mse">数据转换与训练 §6</a>。</p>
+<p>参数说明见 <a href="../convert-train/#6-策略评估离线-mse">模仿学习平台（<code>ubt_IL</code>） §6</a>。</p>
 <h2 id="6-模型部署回注仿真">6. 模型部署（回注仿真）<a class="headerlink" href="#6-模型部署回注仿真" title="Permanent link">&para;</a></h2>
 <p>仿真部署与真机共用 <code>rollout.sh</code> / 推理服务器，差异在于：</p>
 <ul>
@@ -1439,7 +1439,7 @@
 <a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>/usr/bin/python3<span class="w"> </span>scripts/deploy/walker_s2/preview_camera.py<span class="w"> </span>--robot<span class="w"> </span>walker_s2_10d
 </code></pre></div>
 <p>部署效果：</p>
-<video controls muted loop width="100%" src="../assets/walker仿真部署效果.mp4"></video>
+<video controls muted loop width="100%" src="../../assets/walker仿真部署效果.mp4"></video>
 
 <p>完整环境变量、ROBOT_MODELS 注册表与安全预检说明见 <a href="../deploy/">真机部署</a>。</p>
 <h3 id="推理服务器常驻预热外部调用">推理服务器（常驻预热/外部调用）<a class="headerlink" href="#推理服务器常驻预热外部调用" title="Permanent link">&para;</a></h3>

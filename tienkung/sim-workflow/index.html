@@ -543,7 +543,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -571,7 +571,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -906,7 +906,7 @@
   <span class="md-ellipsis">
     
   
-    仿真环境与数据采集
+    仿真平台（ubt_sim）
   
 
     
@@ -934,7 +934,7 @@
   <span class="md-ellipsis">
     
   
-    数据转换与训练
+    模仿学习平台（ubt_IL）
   
 
     
@@ -1321,7 +1321,7 @@
 <div class="language-text highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>仿真数据采集(hdf5) -&gt; 数据转换(LeRobot 数据集) -&gt; 模型训练(ACT) -&gt; 策略评估(离线 MSE) -&gt; 模型部署(rollout.sh 回注仿真器)
 </code></pre></div>
 <h2 id="1-前置仿真数据采集ubt_sim">1. 前置：仿真数据采集（ubt_sim）<a class="headerlink" href="#1-前置仿真数据采集ubt_sim" title="Permanent link">&para;</a></h2>
-<p>仿真 HDF5 数据由 <code>ubt_sim</code> 项目采集，完整步骤见 <a href="../sim-setup/">仿真环境与数据采集</a>。要点：</p>
+<p>仿真 HDF5 数据由 <code>ubt_sim</code> 项目采集，完整步骤见 <a href="../sim-setup/">仿真平台（ubt_sim）</a>。要点：</p>
 <div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># ① 在 ubt_sim 容器内启动仿真（自动拉起 ROS2-ZMQ 桥接）</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>bash<span class="w"> </span>/ubt_sim/scripts/start_sim.sh<span class="w">          </span><span class="c1"># 可加 --headless 提速采集</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
@@ -1357,7 +1357,7 @@
 <a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="nv">TASK_NAME</span><span class="o">=</span>tienkung_sim_pick_place<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>bash<span class="w"> </span>/ubt_IL/scripts/convert/tienkung_pro/convert.sh
 </code></pre></div>
-<p>转换配置选择、完整环境变量与可视化检查见 <a href="../convert-train/#2-数据转换hdf5---lerobot">数据转换与训练 §2-3</a>。</p>
+<p>转换配置选择、完整环境变量与可视化检查见 <a href="../convert-train/#2-数据转换hdf5---lerobot">模仿学习平台（<code>ubt_IL</code>） §2-3</a>。</p>
 <p><img alt="tienkung 仿真数据集可视化界面" src="../../assets/tienkung%E4%BB%BF%E7%9C%9F%E6%95%B0%E6%8D%AE%E9%9B%86%E5%8F%AF%E8%A7%86%E5%8C%96.png" /></p>
 <h2 id="4-模型训练">4. 模型训练<a class="headerlink" href="#4-模型训练" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># 使用默认配置训练</span>
@@ -1369,7 +1369,7 @@
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="nv">STEPS</span><span class="o">=</span><span class="m">80000</span><span class="w"> </span><span class="nv">SAVE_FREQ</span><span class="o">=</span><span class="m">20000</span><span class="w"> </span><span class="nv">BATCH_SIZE</span><span class="o">=</span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>bash<span class="w"> </span>/ubt_IL/scripts/train/tienkung_pro/train.sh
 </code></pre></div>
-<p>完整参数说明见 <a href="../convert-train/#4-模型训练">数据转换与训练 §4</a>。</p>
+<p>完整参数说明见 <a href="../convert-train/#4-模型训练">模仿学习平台（<code>ubt_IL</code>） §4</a>。</p>
 <h2 id="5-策略评估离线-mse">5. 策略评估（离线 MSE）<a class="headerlink" href="#5-策略评估离线-mse" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>/lerobot/.venv/bin/python<span class="w"> </span>/ubt_IL/scripts/eval/eval_policy.py<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--policy-path<span class="w"> </span>/ubt_IL/model/tienkung_sim_pick_place_act/checkpoints/last/pretrained_model<span class="w"> </span><span class="se">\</span>
@@ -1382,7 +1382,7 @@
 <a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span>--device<span class="w"> </span>cuda
 </code></pre></div>
 <p><img alt="天工模型离线评估曲线" src="../../assets/tienkung%E6%A8%A1%E5%9E%8B%E7%A6%BB%E7%BA%BF%E8%AF%84%E4%BC%B0%E6%9B%B2%E7%BA%BF.png" /></p>
-<p>参数说明见 <a href="../convert-train/#5-策略评估离线-mse">数据转换与训练 §5</a>。</p>
+<p>参数说明见 <a href="../convert-train/#5-策略评估离线-mse">模仿学习平台（<code>ubt_IL</code>） §5</a>。</p>
 <h2 id="6-模型部署仿真">6. 模型部署（仿真）<a class="headerlink" href="#6-模型部署仿真" title="Permanent link">&para;</a></h2>
 <p>脚本：<code>/ubt_IL/scripts/deploy/tienkung_pro/rollout.sh</code>。仿真部署使用 ubt_sim 代替机器人真机进行测试——该仿真环境与真机 ROS 话题部署和通信方法一致，可用于真机部署前的验证工作，避免真机动作错误造成损坏等严重后果。仿真模块容器独立运行，与模型训练推理容器在同一主机通过本地回环 <code>127.0.0.1</code> 网段进行 ROS 通信。</p>
 <p><strong>部署步骤</strong>（仿真容器与推理容器分别操作）：</p>
@@ -1460,7 +1460,7 @@
 </table>
 <p>部署后观察仿真器中机器人按策略执行抓放；可用 <code>reset.py</code> 复位、<code>replay.py</code> 回放验证。</p>
 <p>部署效果演示：</p>
-<video controls muted loop width="100%" src="../assets/tienkung仿真部署效果.mp4"></video>
+<video controls muted loop width="100%" src="../../assets/tienkung仿真部署效果.mp4"></video>
 
 <h2 id="7-常见问题">7. 常见问题<a class="headerlink" href="#7-常见问题" title="Permanent link">&para;</a></h2>
 <table>
