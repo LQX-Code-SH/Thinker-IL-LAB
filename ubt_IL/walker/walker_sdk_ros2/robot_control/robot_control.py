@@ -466,6 +466,62 @@ class RobotController(Node):
         """所有关节名列表（只读）"""
         return list(self.all_joints)
 
+    def wait_until_position(self, target, timeout=10.0, tolerance=0.05):
+        """等待实际关节位置收敛到目标附近（settle 检查）。
+
+        move_to_position(wait=True) 只表示轨迹点发布完毕；真机关节还需要继续
+        收敛。此方法基于 /mc/sdk/robot_state 检查实际位置误差，与仿真侧
+        WalkerS2Controller.wait_until_position 行为对齐。
+
+        Args:
+            target: {joint_name: angle} 字典（只检查出现的关节），
+                    或长度 n_joints 的完整目标向量
+            timeout: 超时时间（秒）
+            tolerance: 判定到位的误差阈值（rad）
+        Returns:
+            (bool, misses): 到位返回 (True, [])；超时返回 (False,
+            [(joint_name, current, target, err), ...])，按误差降序
+        """
+        if isinstance(target, dict):
+            check = {name: float(angle) for name, angle in target.items()}
+        else:
+            vec = np.array(target, dtype=float)
+            if vec.shape != (self.n_joints,):
+                self.get_logger().error(
+                    f"Target shape {vec.shape} != ({self.n_joints},)"
+                )
+                return False, []
+            check = {name: float(vec[i]) for i, name in enumerate(self.all_joints)}
+
+        idx_map = {name: self.all_joints.index(name) for name in check}
+        deadline = time.time() + timeout
+        last_pos = None
+
+        while time.time() < deadline:
+            pos = self.get_current_position()
+            if pos is not None:
+                last_pos = pos
+                misses = [
+                    (name, float(pos[idx_map[name]]), tgt,
+                     abs(float(pos[idx_map[name]]) - tgt))
+                    for name, tgt in check.items()
+                    if abs(float(pos[idx_map[name]]) - tgt) > tolerance
+                ]
+                if not misses:
+                    return True, []
+            time.sleep(0.05)
+
+        if last_pos is None:
+            return False, [(name, None, tgt, None) for name, tgt in check.items()]
+
+        misses = [
+            (name, float(last_pos[idx_map[name]]), tgt,
+             abs(float(last_pos[idx_map[name]]) - tgt))
+            for name, tgt in check.items()
+        ]
+        misses.sort(key=lambda item: item[3], reverse=True)
+        return False, misses
+
     # ---- 手部关节 API ----
 
     # ========================================================================
@@ -1222,20 +1278,78 @@ class RobotController(Node):
     move_right_arm = move_right_arm_joints
 
     def move_to_ready_pose(self, duration_sec=None, wait=True, staged=True):
-        """Move to ready pose (arms down standing position).
+        """3 段初始化（BT pick_ready_pose_sequence，与仿真侧对齐）：
+        肩部外展+旋转(5s) -> 肩部俯仰+折叠肘部+肘部旋转(5s) ->
+        最终姿态+头部/腰部归位(3s)。
+
+        每段发布完成后做 settle 检查（tolerance=0.05 rad），关节实际到位后
+        再进入下一段，避免中间段误差累积导致跟踪失败。
 
         Args:
-            duration_sec: total duration (seconds), default 3s direct / 20s staged
-            staged: if True, execute 4 safety stages sequentially
-            wait: block until completion
+            duration_sec: 分段运动总时长（秒），默认 13.0，按 5/5/3s 比例缩放；
+                不足 13.0s 强制按 13.0s 执行（stage 1 大角度外展至少需要 ~5s）
+            wait: 保留 API 兼容；分段为保证安全顺序始终阻塞执行
+            staged: True=3 段对齐仿真流程；"legacy"=旧 4 段抬臂过肩流程；False=直达
+        Returns:
+            bool: True=成功，False=失败
+        """
+        if not staged:
+            return self.move_to_pose_dict(
+                READY_POSE, duration_sec=duration_sec or 3.0, wait=wait)
 
-        Uses move_joints internally — works with all control modes.
+        if staged == "legacy":
+            return self._move_to_ready_pose_legacy(duration_sec, wait)
+
+        if not wait:
+            self.get_logger().warning("Staged init requires wait=True, forcing sync")
+            wait = True
+
+        duration_sec = float(duration_sec if duration_sec is not None else 13.0)
+        # BT 固定三段 5/5/3s；stage 1（shoulder_yaw ∓2.0 rad + shoulder_roll 0.65 rad
+        # 大角度外展）至少需要 ~5s，总时长不足 13.0s 强制按 13.0s 执行
+        if duration_sec < 13.0:
+            self.get_logger().warning(
+                f"Ready pose duration {duration_sec:.2f}s too short for staged motion "
+                f"(stage 1 needs ~5s); using 13.00s"
+            )
+            duration_sec = 13.0
+
+        stages = [
+            ("1/3 肩部外展 + 旋转", READY_STAGE_1_POSE, 5.0 / 13.0),
+            ("2/3 肩部俯仰 + 折叠肘部 + 肘部旋转", READY_STAGE_2_POSE, 5.0 / 13.0),
+            ("3/3 最终姿态 + 头部/腰部归位", READY_POSE, 3.0 / 13.0),
+        ]
+
+        for label, pose, ratio in stages:
+            stage_duration = duration_sec * ratio
+            self.get_logger().info(f"Ready pose stage {label}: {stage_duration:.2f}s")
+            if not self.move_to_pose_dict(pose, duration_sec=stage_duration, wait=True):
+                self.get_logger().error(f"Ready pose stage failed: {label}")
+                return False
+            # settle 检查：确保关节实际到位后再进入下一段（与仿真侧一致，
+            # 未收敛视为本段失败，避免误差耦合累积）
+            arrived, misses = self.wait_until_position(
+                pose, timeout=10.0, tolerance=0.05)
+            if not arrived:
+                self.get_logger().error(
+                    f"Ready pose stage '{label}' settle failed: "
+                    f"{len(misses)} joint(s) not converged within 10.0s "
+                    f"(tolerance=0.050 rad): {misses[:5]}"
+                )
+                return False
+
+        return True
+
+    def _move_to_ready_pose_legacy(self, duration_sec=None, wait=True):
+        """旧 4 段 init 流程（抬臂过肩路径，--legacy-init 回退用）。
+
+        Stage 1a: shoulder pitch + elbow roll（抬臂过肩 + 深折叠肘）
+        Stage 1b: elbow yaw
+        Stage 2:  shoulder pitch return
+        Stage 3:  full READY_POSE
         """
         if duration_sec is None:
-            duration_sec = 20.0 if staged else 3.0
-
-        if not staged:
-            return self.move_to_pose_dict(READY_POSE, duration_sec=duration_sec, wait=wait)
+            duration_sec = 20.0
 
         if not wait:
             self.get_logger().warning("Staged init requires wait=True, forcing sync")
@@ -1247,11 +1361,11 @@ class RobotController(Node):
 
         stages = [
             ("1a/4 shoulder pitch + elbow roll",
-             READY_STAGE_1_PITCH_ROLL_POSE, duration_sec * 0.35),
+             LEGACY_READY_STAGE_1_PITCH_ROLL_POSE, duration_sec * 0.35),
             ("1b/4 elbow yaw",
-             READY_STAGE_1_ELBOW_YAW_POSE, duration_sec * 0.35),
+             LEGACY_READY_STAGE_1_ELBOW_YAW_POSE, duration_sec * 0.35),
             ("2/4 shoulder pitch return",
-             READY_STAGE_2_POSE, duration_sec * 0.2),
+             LEGACY_READY_STAGE_2_POSE, duration_sec * 0.2),
             ("3/4 full READY_POSE",
              READY_POSE, duration_sec * 0.1),
         ]
@@ -1263,15 +1377,82 @@ class RobotController(Node):
                 return False
         return True
 
-    def move_to_home(self, duration_sec=15.0, wait=True):
-        """Move all joints to zero in safe order.
+    def move_to_home(self, duration_sec=15.0, wait=True, staged=True):
+        """3 段归零（BT return_zero_sequence，与仿真侧对齐）：
+        收肩俯仰(5s) -> 展开肘部(5s) -> 全部归零(5s)。
+
+        从任意位姿（通常为 READY_POSE 附近）安全地回到 home 全零位
+        （双臂 + 头部 + 腰部）。与 move_to_ready_pose 共用中间姿态（逆序）。
+        每段发布完成后做 settle 检查（tolerance=0.05 rad）。
+
+        Args:
+            duration_sec: 分段运动总时长（秒），默认 15.0，按 5/5/5s 比例缩放；
+                不足 15.0s 强制按 15.0s 执行（段 2 大角度展开至少需要 ~5s）
+            wait: 保留 API 兼容；分段为保证安全顺序始终阻塞执行
+            staged: True=3 段对齐仿真流程；"legacy"=旧 4 段顺序回零；False=直达全零
+        Returns:
+            bool: True=成功，False=失败
+        """
+        if not staged:
+            saved_lock = self.lock_joints.copy()
+            self.set_lock_joints({"waist_yaw_joint"})
+            try:
+                return self.move_to_pose_dict(
+                    HOME_POSE, duration_sec=duration_sec, wait=wait)
+            finally:
+                self.set_lock_joints(list(saved_lock))
+
+        if staged == "legacy":
+            return self._move_to_home_legacy(duration_sec, wait)
+
+        if not wait:
+            self.get_logger().warning("Staged home requires wait=True, forcing sync")
+            wait = True
+
+        duration_sec = float(duration_sec if duration_sec is not None else 15.0)
+        # BT 固定三段 5/5/5s；段 2（elbow_roll 1.7 rad 展开 + shoulder_pitch 0.7 rad
+        # 回正）至少需要 ~5s，总时长不足 15.0s 强制按 15.0s 执行
+        if duration_sec < 15.0:
+            self.get_logger().warning(
+                f"Home duration {duration_sec:.2f}s too short for staged motion "
+                f"(stage 2 needs ~5s); using 15.00s"
+            )
+            duration_sec = 15.0
+
+        stages = [
+            ("1/3 收肩俯仰", HOME_STAGE_1_POSE, 1.0 / 3.0),
+            ("2/3 展开肘部", HOME_STAGE_2_POSE, 1.0 / 3.0),
+            ("3/3 全部归零（双臂 + 头部 + 腰部）", HOME_POSE, 1.0 / 3.0),
+        ]
+
+        for label, pose, ratio in stages:
+            stage_duration = duration_sec * ratio
+            self.get_logger().info(f"Home stage {label}: {stage_duration:.2f}s")
+            if not self.move_to_pose_dict(pose, duration_sec=stage_duration, wait=True):
+                self.get_logger().error(f"Home stage failed: {label}")
+                return False
+            # settle 检查：确保关节实际到位后再进入下一段（与 init/仿真侧一致）
+            arrived, misses = self.wait_until_position(
+                pose, timeout=10.0, tolerance=0.05)
+            if not arrived:
+                self.get_logger().error(
+                    f"Home stage '{label}' settle failed: "
+                    f"{len(misses)} joint(s) not converged within 10.0s "
+                    f"(tolerance=0.050 rad): {misses[:5]}"
+                )
+                return False
+
+        return True
+
+    def _move_to_home_legacy(self, duration_sec=15.0, wait=True):
+        """旧 4 段回零流程（--legacy-home 回退用）。
 
         Stage 1: head                 (independent, safe first)
         Stage 2: wrists + elbow_yaw   (clear end-effectors)
         Stage 3: elbow_roll           (fold elbows)
         Stage 4: shoulders            (lower arms)
 
-        Locked joints are temporarily unlocked.
+        Locked joints are temporarily unlocked (waist stays locked).
         """
         saved_lock = self.lock_joints.copy()
 
@@ -2615,9 +2796,11 @@ def main(args=None):
             "  %(prog)s --joints R_elbow_yaw_joint --monitor  # 监控关节实时位置\n"
             "  %(prog)s --hand left --hand-open            # 左手张开\n"
             "  %(prog)s --grip both --grip-move 0.02       # 双侧夹爪移动到 0.02m\n"
-            "  %(prog)s --init                             # 分4步安全移动到预备姿态（默认）\n"
+            "  %(prog)s --init                             # 分3步移动到预备姿态（对齐仿真，默认13s）\n"
             "  %(prog)s --home                             # 手臂关节回零（分3步安全顺序）\n"
-            "  %(prog)s --init --direct-init               # 直达预备姿态（3s）\n"
+            "  %(prog)s --init --direct-init               # 直达预备姿态（不分步）\n"
+            "  %(prog)s --init --legacy-init               # 旧4段抬臂过肩流程（回退用）\n"
+            "  %(prog)s --home --legacy-home               # 旧4段顺序回零流程（回退用）\n"
             "  %(prog)s --demo                             # 安全演示（位置模式）\n"
 
             "  %(prog)s --demo --mode velocity             # 速度模式演示\n"
@@ -2661,15 +2844,23 @@ def main(args=None):
     actions.add_argument("--print-state", action="store_true",
                          help="打印全部身体关节状态后退出")
     actions.add_argument("--init", action="store_true",
-                         help="移动到预备姿态（默认分4步安全执行，--direct-init 直达）")
+                         help="移动到预备姿态（分3步对齐仿真流程，每段带 settle 检查，默认13s）")
     actions.add_argument("--init-duration", type=float, default=None, metavar="SEC",
-                         help="预备姿态总时长（秒），默认20")
+                         help="预备姿态总时长（秒），默认13（不足13强制13）")
+    actions.add_argument("--init-settle-timeout", type=float, default=10.0, metavar="SEC",
+                         help="init 完成后最终收敛检查超时（秒），默认10")
+    actions.add_argument("--init-tolerance", type=float, default=0.08, metavar="RAD",
+                         help="最终收敛检查误差阈值（rad），默认0.08")
     actions.add_argument("--direct-init", action="store_true",
                          help="直达预备姿态（不分步，3s），覆盖默认分步行为")
+    actions.add_argument("--legacy-init", action="store_true",
+                         help="旧4段抬臂过肩流程（真机回退用）")
     actions.add_argument("--home", action="store_true",
-                         help="所有手臂关节回零（分3步安全顺序）")
+                         help="所有关节回零（分3步对齐仿真流程，每段带 settle 检查，默认15s）")
     actions.add_argument("--home-duration", type=float, default=None, metavar="SEC",
-                         help="回零总时长（秒），默认15")
+                         help="回零总时长（秒），默认15（不足15强制15）")
+    actions.add_argument("--legacy-home", action="store_true",
+                         help="旧4段顺序回零流程（head/腕肘/肘/肩，回退用）")
     actions.add_argument("--demo", action="store_true",
                          help="安全演示：右臂 elbow_yaw +-0.5 rad 往返运动")
     actions.add_argument("--head-test", action="store_true",
@@ -2824,29 +3015,77 @@ def main(args=None):
             cmd_print_state(controller)
         elif cli_args.init:
             cmd_print_state(controller)
-            staged = not cli_args.direct_init
+            if cli_args.direct_init:
+                staged, mode, default_dur = False, "直达", 3.0
+            elif cli_args.legacy_init:
+                staged, mode, default_dur = "legacy", "旧4段(抬臂过肩)", 20.0
+            else:
+                staged, mode, default_dur = True, "分3步(对齐仿真)", 13.0
             duration = cli_args.init_duration
-            mode = "直达" if cli_args.direct_init else "分步(4段)"
-            print(f"\n=== 预备姿态（{mode}，{duration or 20.0:.0f}s）===")
+            print(f"\n=== 预备姿态（{mode}，{duration or default_dur:.0f}s）===")
             input("按回车开始（Ctrl+C 取消）...")
             if controller.move_to_ready_pose(
                 duration_sec=duration, staged=staged,
             ):
+                # 最终收敛检查（对齐仿真 CLI：READY_POSE 全关节 0.08 rad）
+                if staged:
+                    arrived, misses = controller.wait_until_position(
+                        READY_POSE,
+                        timeout=cli_args.init_settle_timeout,
+                        tolerance=cli_args.init_tolerance,
+                    )
+                    if arrived:
+                        print(f"✓ 预备姿态已到位（误差 ≤ {cli_args.init_tolerance:.3f} rad）")
+                    else:
+                        print(
+                            f"⚠️ 预备姿态未完全到位（超时 {cli_args.init_settle_timeout:.1f}s，"
+                            f"阈值 {cli_args.init_tolerance:.3f} rad）："
+                            + ", ".join(
+                                f"{m[0]} err={m[3]:.3f}" if m[3] is not None else f"{m[0]} 无状态"
+                                for m in misses[:5]
+                            )
+                        )
                 print("Done - ready pose reached")
                 cmd_print_state(controller)
             else:
                 print("Failed - ready pose")
         elif cli_args.home:
             cmd_print_state(controller)
-            dur = cli_args.home_duration or 15.0
-            print(f"\n=== 回零（分4步，{dur:.0f}s）===")
-            print("  1/4 head")
-            print("  2/4 wrists + elbow_yaw")
-            print("  3/4 elbow_roll")
-            print("  4/4 shoulders")
+            if cli_args.legacy_home:
+                staged = "legacy"
+                dur = cli_args.home_duration or 15.0
+                print(f"\n=== 回零（旧4段，{dur:.0f}s）===")
+                print("  1/4 head")
+                print("  2/4 wrists + elbow_yaw")
+                print("  3/4 elbow_roll")
+                print("  4/4 shoulders")
+            else:
+                staged = True
+                dur = cli_args.home_duration or 15.0
+                print(f"\n=== 回零（分3步对齐仿真，{dur:.0f}s）===")
+                print("  1/3 收肩俯仰")
+                print("  2/3 展开肘部")
+                print("  3/3 全部归零（双臂 + 头部 + 腰部）")
             input("按回车开始（Ctrl+C 取消）...")
-            if controller.move_to_home(duration_sec=dur):
-                print("Done - all arm joints at zero")
+            if controller.move_to_home(duration_sec=dur, staged=staged):
+                # 最终收敛检查：HOME_POSE 全关节
+                arrived, misses = controller.wait_until_position(
+                    HOME_POSE,
+                    timeout=cli_args.init_settle_timeout,
+                    tolerance=cli_args.init_tolerance,
+                )
+                if arrived:
+                    print(f"✓ 已回到零位（误差 ≤ {cli_args.init_tolerance:.3f} rad）")
+                else:
+                    print(
+                        f"⚠️ 未完全回零（超时 {cli_args.init_settle_timeout:.1f}s，"
+                        f"阈值 {cli_args.init_tolerance:.3f} rad）："
+                        + ", ".join(
+                            f"{m[0]} err={m[3]:.3f}" if m[3] is not None else f"{m[0]} 无状态"
+                            for m in misses[:5]
+                        )
+                    )
+                print("Done - all joints at zero")
                 cmd_print_state(controller)
             else:
                 print("Failed - home")

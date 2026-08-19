@@ -2,6 +2,8 @@
 
 优必选EDU版机器人模仿学习工具链
 
+📖 在线文档站点：<https://lqx-code-sh.github.io/UBTECH-IL-LAB/>
+
 ## 项目简介
 
 本项目基于 [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) 与 [LeRobot](https://github.com/huggingface/lerobot) 框架开发，为天工（TienKung）及 Walker S2 机器人提供完整的模仿学习工具链，涵盖以下核心能力：
@@ -109,6 +111,7 @@ git submodule update --init
 - [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) - 高保真机器人仿真环境
 - [HuggingFace LeRobot](https://github.com/huggingface/lerobot) - 模仿学习框架（ACT 策略、数据格式与训练/推理工具链）
 - [Thinker Studio](https://thinkercosmos.ubtrobot.com/#/studio) - 优必选遥操数采平台
+- [优必选开源中心](https://thinkercosmos.ubtrobot.com/#/open-source-center?ref=header-nav) - 优必选开源项目集合
 
 感谢以上社区与所有贡献者的卓越工作。如本项目对您有帮助，欢迎 Star ⭐ 支持。
 

@@ -53,11 +53,16 @@ __all__ = [
     "HEAD_TEST_AMPLITUDE",
     "HEAD_TEST_PERIOD",
     "HEAD_TEST_DEFAULT_CYCLES",
-    # 预备姿态
+    # 预备姿态 / 归零姿态
     "READY_POSE",
-    "READY_STAGE_1_PITCH_ROLL_POSE",
-    "READY_STAGE_1_ELBOW_YAW_POSE",
+    "READY_STAGE_1_POSE",
     "READY_STAGE_2_POSE",
+    "HOME_POSE",
+    "HOME_STAGE_1_POSE",
+    "HOME_STAGE_2_POSE",
+    "LEGACY_READY_STAGE_1_PITCH_ROLL_POSE",
+    "LEGACY_READY_STAGE_1_ELBOW_YAW_POSE",
+    "LEGACY_READY_STAGE_2_POSE",
 ]
 
 # ============================================================================
@@ -264,16 +269,61 @@ READY_POSE = {
     "waist_yaw_joint":          0.0000,
 }
 
-# 初始化分段 1a：直接复制仿真侧 walker_s2_controller.py 的 init 流程
-READY_STAGE_1_PITCH_ROLL_POSE = {
+# ---- 分段初始化中间姿态（BT pick_ready_pose_sequence，三段 5/5/3s，与仿真侧对齐）----
+# 数值逐关节照抄仿真 utils/constants.py，保证 sim2real init 路径一致。
+# 段 1 肩部外展 + 旋转：shoulder_roll=-0.65、shoulder_yaw=∓2.0，elbow_roll 展开到 0
+READY_STAGE_1_POSE = {
+    "L_shoulder_pitch_joint": 0.0000,
+    "L_shoulder_roll_joint": -0.6500,
+    "L_shoulder_yaw_joint": -2.0000,
+    "L_elbow_roll_joint": 0.0000,
+    "L_elbow_yaw_joint": 1.5000,
+    "L_wrist_pitch_joint": 0.0000,
+    "L_wrist_roll_joint": 0.0000,
+    "R_shoulder_pitch_joint": 0.0000,
+    "R_shoulder_roll_joint": -0.6500,
+    "R_shoulder_yaw_joint": 2.0000,
+    "R_elbow_roll_joint": 0.0000,
+    "R_elbow_yaw_joint": -1.5000,
+    "R_wrist_pitch_joint": 0.0000,
+    "R_wrist_roll_joint": 0.0000,
+}
+
+# 段 2 肩部俯仰 + 折叠肘部 + 肘部旋转：shoulder_pitch=∓0.7、elbow_roll=-1.7
+READY_STAGE_2_POSE = {
+    "L_shoulder_pitch_joint": -0.7000,
+    "L_shoulder_roll_joint": -0.6500,
+    "L_shoulder_yaw_joint": -2.0000,
+    "L_elbow_roll_joint": -1.7000,
+    "L_elbow_yaw_joint": 1.5000,
+    "L_wrist_pitch_joint": 0.0000,
+    "L_wrist_roll_joint": 0.0000,
+    "R_shoulder_pitch_joint": 0.7000,
+    "R_shoulder_roll_joint": -0.6500,
+    "R_shoulder_yaw_joint": 2.0000,
+    "R_elbow_roll_joint": -1.7000,
+    "R_elbow_yaw_joint": -1.5000,
+    "R_wrist_pitch_joint": 0.0000,
+    "R_wrist_roll_joint": 0.0000,
+}
+# 段 3 最终姿态 = READY_POSE（含 head/waist 归位）
+
+# ---- home 归零流程（BT return_zero_sequence，三段 5/5/5s，与仿真侧对齐）----
+# home 与 init 共用中间姿态（逆序）：段 1 收肩俯仰 = READY_STAGE_2_POSE，
+# 段 2 展开肘部 = READY_STAGE_1_POSE，段 3 全部归零 = HOME_POSE。
+HOME_POSE = {name: 0.0 for name in BODY_JOINT_NAMES}
+HOME_STAGE_1_POSE = READY_STAGE_2_POSE
+HOME_STAGE_2_POSE = READY_STAGE_1_POSE
+
+# ---- 旧 4 段流程中间姿态（--legacy-init 回退用，抬臂过肩路径）----
+LEGACY_READY_STAGE_1_PITCH_ROLL_POSE = {
     "L_shoulder_yaw_joint": -1.5600,
     "R_shoulder_yaw_joint": 1.5600,
     "L_elbow_yaw_joint": 1.5000,
     "R_elbow_yaw_joint": -1.5000,
 }
 
-# 初始化分段 1b：抬肩/收肘/调整腕 pitch
-READY_STAGE_1_ELBOW_YAW_POSE = {
+LEGACY_READY_STAGE_1_ELBOW_YAW_POSE = {
     "L_shoulder_pitch_joint":   -2.000,
     "R_shoulder_pitch_joint":   2.000,
     "L_wrist_pitch_joint": 0.8000,
@@ -282,8 +332,7 @@ READY_STAGE_1_ELBOW_YAW_POSE = {
     "R_elbow_roll_joint":        -2.5000,
 }
 
-# 初始化分段 2：肩 pitch 回到最终预备姿态，再执行完整 READY_POSE
-READY_STAGE_2_POSE = {
+LEGACY_READY_STAGE_2_POSE = {
     "L_shoulder_pitch_joint": READY_POSE["L_shoulder_pitch_joint"],
     "R_shoulder_pitch_joint": READY_POSE["R_shoulder_pitch_joint"],
 }
