@@ -64,6 +64,7 @@ nav:
       - 机型概览: walker-s2/index.md
       - 仿真全流程: walker-s2/sim-workflow.md
       - 真机全流程: walker-s2/real-workflow.md
+      - 应用案例: walker-s2/application-case.md
       - 参考文档:
           - 真机部署: walker-s2/deploy.md
           - 推理服务器: walker-s2/inference-server.md
