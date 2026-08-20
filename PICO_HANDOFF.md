@@ -84,7 +84,7 @@ ubt_sim/teleoperation/control/walker_c1/
 | `test_pico_math.py` | 坐标和数学单元测试 |
 | `test_dual_arm_ik.py` | 双臂 FK/IK 恢复及小位移测试 |
 | `test_pico_ros.py` | ROS topic、消息维度、mode、Deadman 和模式保护 smoke test |
-| `README.md` | 唯一的操作者文档：启动、遥操作、采集、安全边界和常见问题 |
+| `PICO_README.md`（仓库根目录） | 操作者文档：启动、遥操作、采集和常见问题 |
 
 真机只读检查见仓库根目录：
 
@@ -1295,7 +1295,7 @@ PICO SDK 或旧遥操作代码。若能出现 `control connected` 但没有 `ope
 #### 18.9.9 文档入口
 
 - 日常启动、PC Service、仿真、reset、旧/新遥操作命令：
-  `ubt_sim/teleoperation/control/walker_c1/README.md`
+  `PICO_README.md`
 - 历史排查、实测结论和跨会话继续点：本文件 `PICO_HANDOFF.md`
 
 ### 18.10 2026-08-14 最终按键映射
@@ -1890,3 +1890,33 @@ ROS_DOMAIN_ID=146 ./run_pico_hand_live.sh \
 手命令、arm anchor 不更新；超时仍 disarm。不能无限延长，也不能据此宣称闭拳 tracking 已解决。
 后续若要降低抓取难度，应单独标定 live teleop 的抓取输出上限/灵敏度，使真人半握映射到已经验证的
 苹果 grip 范围；不要放宽右肘安全限制，也不要改动已验收的 controller 坐标映射。
+
+## 23. 2026-08-19 裸手 hand-arm 数据采集补全
+
+核对确认第 22 节的 `pico_hand_live.py` 原先只有空格 reset，没有实例化 episode recorder，因此键盘
+`a` 虽能启动右腕＋右臂＋11DoF 手控制，却不会采集或落盘。本轮为显式 `--record` 模式补齐：
+
+- `a` 必须通过原有 tracking、open-hand、RobotState、右肘和 0.5 秒 dwell 检查；真正进入 `ARMED`
+  后才调用 `start_episode()`，拒绝启动不会建立空 episode；
+- 终端空格与 Isaac Sim 主窗口空格统一调用 recorder 的单次完成入口，按
+  `DISARMED -> HDF5 save -> scene reset -> task reset -> fresh RobotState` 执行；保存/reset 期间不再
+  读取按键或发布遥操作命令，重复事件被忽略；
+- `d` 或短暂 tracking loss 只暂停控制，不结束当前 episode，再次按 `a` 可继续，只有空格划分数据；
+- 默认独立保存到 `/ubt_sim/dataset/walker_c1_pico_hand/<timestamp>/trajectory.hdf5`，避免和 controller
+  遥操作的 26D 数据混目录。
+
+裸手控制发送 11 个独立手关节，原 `/mc/{side}_hand/joint_states` 是为了真机 SDK 兼容而压缩的 6D
+平均状态，不能用于完整裸手示教。因此 bridge 保留原 6D topic 不变，另发布仿真专用
+`/sim/{side}_hand/joint_states_full`；recorder 保存 14D 双臂＋22D 双手的完整 36D state/action，并在
+HDF5 attrs 中写入左右手 joint order、`recording_source=pico_hand_tracking` 和完成触发来源。对应转换
+配置为 `ubt_IL/scripts/convert/configs/Walker_C1_36_1RGB.json`。
+
+启动命令：
+
+```bash
+ROS_DOMAIN_ID=146 ./run_pico_hand_live.sh \
+  --control hand-arm --mode sim --side right --enable-command --record
+```
+
+操作循环：张开右手并按 `a`，看到 `RECORDING STARTED` 后示教；完成后按一次空格；等待日志出现
+`episode reset complete; press [a] to start the next episode`，再开始下一条。

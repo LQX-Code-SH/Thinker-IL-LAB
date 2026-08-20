@@ -287,13 +287,27 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--tracking-timeout-s", type=float, default=0.30)
     parser.add_argument("--robot-state-timeout-s", type=float, default=0.50)
     parser.add_argument("--initial-open-threshold", type=float, default=0.45)
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="record A-started, Space-completed 36D hand-arm HDF5 episodes",
+    )
+    parser.add_argument(
+        "--record-root",
+        default="/ubt_sim/dataset/walker_c1_pico_hand",
+    )
+    parser.add_argument(
+        "--camera-topic",
+        default="/sensor/camera/head/color/raw",
+    )
+    parser.add_argument("--record-hz", type=float, default=30.0)
     parser.add_argument("--sim-domain-id", type=int, default=DEFAULT_SIM_ROS_DOMAIN_ID)
     return parser.parse_args(argv)
 
 
 def validate_args(args: argparse.Namespace) -> tuple[str, ...]:
-    if args.read_hz <= 0.0 or args.print_hz <= 0.0:
-        raise ValueError("--read-hz and --print-hz must be positive")
+    if args.read_hz <= 0.0 or args.print_hz <= 0.0 or args.record_hz <= 0.0:
+        raise ValueError("--read-hz, --print-hz, and --record-hz must be positive")
     if args.valid_dwell_s < 0.0 or args.tracking_timeout_s < 0.0:
         raise ValueError("gate timing values must be non-negative")
     if args.robot_state_timeout_s <= 0.0:
@@ -311,6 +325,8 @@ def validate_args(args: argparse.Namespace) -> tuple[str, ...]:
             raise ValueError("--control hand-arm requires --mode sim")
         if args.side != "right":
             raise ValueError("first hand-arm version is right-side only; pass --side right")
+    if args.record and args.control != "hand-arm":
+        raise ValueError("--record requires --control hand-arm")
     return selected_sides(args.side)
 
 
@@ -324,6 +340,7 @@ def run(args: argparse.Namespace) -> int:
     arm_retargeter = None
     key_reader = None
     gate = None
+    recorder = None
     if args.control == "hand-arm":
         try:
             arm_retargeter = C1WristArmRetargeter(
@@ -348,6 +365,46 @@ def run(args: argparse.Namespace) -> int:
             tracking_timeout_s=args.tracking_timeout_s,
         )
         key_reader = TerminalKeyReader()
+    if args.record:
+        try:
+            try:
+                from .pico_episode_recorder import PicoEpisodeRecorder
+            except ImportError:
+                from pico_episode_recorder import PicoEpisodeRecorder
+
+            def disarm_for_recording(reason: str) -> None:
+                gate.disarm()
+                arm_retargeter.disarm()
+                retargeter.reset()
+                hand_arm_io.node.get_logger().info(f"DISARMED: {reason}")
+
+            recorder = PicoEpisodeRecorder(
+                hand_arm_io.node,
+                args.record_root,
+                args.camera_topic,
+                args.record_hz,
+                body_positions=arm_retargeter.joint_positions,
+                hand_joint_names={
+                    side: retargeter.joint_names(side)
+                    for side in ("left", "right")
+                },
+                hand_state_topics={
+                    "left": "/sim/left_hand/joint_states_full",
+                    "right": "/sim/right_hand/joint_states_full",
+                },
+                disarm_callback=disarm_for_recording,
+                reset_callback=lambda: hand_arm_io.reset_scene_and_robot(
+                    spin_after_publish=False
+                ),
+                task="walker_c1_pico_hand_tracking_right_pick_place",
+                recording_source="pico_hand_tracking",
+                ready_label="[a]",
+            )
+        except Exception:
+            source.close()
+            if hand_arm_io is not None:
+                hand_arm_io.close()
+            raise
 
     print(f"PICO live control started: control={args.control}")
     print("joint order: thumb_cmp, thumb_mpp, thumb_ip, index_mpp, index_ip, "
@@ -357,12 +414,20 @@ def run(args: argparse.Namespace) -> int:
     else:
         controls = "[a] arm, [d] disarm, [q] quit"
         if args.control == "hand-arm":
-            controls += ", [space] reset scene + robot"
+            if recorder is None:
+                controls += ", [space] reset scene + robot"
+            else:
+                controls += ", [space] save episode + reset"
         print(f"SIMULATION COMMAND: starts DISARMED; {controls}")
         if args.control == "hand-arm":
             print(
                 "Before [a]: look forward, keep the right wrist still in a comfortable "
                 "middle pose, and open the fingers"
+            )
+        if recorder is not None:
+            print(
+                f"RECORDING ENABLED: a successful [a] starts an episode; [space] "
+                f"saves to {args.record_root} and resets"
             )
 
     read_period = 1.0 / args.read_hz
@@ -383,6 +448,9 @@ def run(args: argparse.Namespace) -> int:
                 headset_pose = None
                 if hand_arm_io is not None:
                     hand_arm_io.spin_once(timeout_sec=0.0)
+                    if recorder is not None and recorder.finishing:
+                        time.sleep(min(read_period, 0.02))
+                        continue
                     hand_frame = source.read_hand_frame()
                     headset_pose = hand_frame.headset_pose
                     left_hand = hand_frame.left_hand
@@ -413,6 +481,13 @@ def run(args: argparse.Namespace) -> int:
                             sides,
                             args.initial_open_threshold,
                         )
+                    if (
+                        arm_ready
+                        and recorder is not None
+                        and gate is not None
+                        and gate.state != "armed"
+                    ):
+                        arm_ready, arm_reason = recorder.inputs_ready()
                     if gate is not None and gate.state == "armed" and arm_ready:
                         arm_result = arm_retargeter.solve(headset_pose, hands)
                         arm_ready = bool(arm_result.valid)
@@ -429,6 +504,15 @@ def run(args: argparse.Namespace) -> int:
                     if key == "q":
                         break
                     if key == " " and hand_arm_io is not None:
+                        if recorder is not None and recorder.active:
+                            if recorder.request_complete("Space key"):
+                                print(
+                                    "SAVING: episode closed; writing HDF5 and resetting "
+                                    "scene + robot ..."
+                                )
+                            last_tick = time.monotonic()
+                            next_print = 0.0
+                            continue
                         gate.disarm()
                         arm_retargeter.disarm()
                         retargeter.reset()
@@ -480,6 +564,14 @@ def run(args: argparse.Namespace) -> int:
                                     "ARMED: right wrist controls right arm; "
                                     "right skeleton controls 11DoF hand"
                                 )
+                                if recorder is not None:
+                                    already_active = recorder.active
+                                    recorder.start_episode()
+                                    recording_state = "resumed" if already_active else "started"
+                                    print(
+                                        f"RECORDING {recording_state.upper()}: press [space] "
+                                        "to save and reset"
+                                    )
                         else:
                             print("ARMED: publishing selected hand commands to simulation")
                     elif update.just_disarmed:
@@ -491,6 +583,20 @@ def run(args: argparse.Namespace) -> int:
                         if hand_arm_io is not None:
                             if payload and arm_result is not None and arm_result.valid:
                                 hand_arm_io.publish(arm_result.commands, payload)
+                                if recorder is not None:
+                                    body_command = {
+                                        name: float(value)
+                                        for side, values in arm_result.commands.items()
+                                        for name, value in zip(
+                                            arm_retargeter.solvers[side].joint_names,
+                                            values,
+                                        )
+                                    }
+                                    recorder.note_body_command(body_command)
+                                    for group, values in payload.items():
+                                        recorder.note_hand_command(
+                                            group.removesuffix("_hand"), values
+                                        )
                         elif payload:
                             publisher.publish(payload)
 

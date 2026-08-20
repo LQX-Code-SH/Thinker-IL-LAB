@@ -1,0 +1,137 @@
+{
+    "observation.images.camera_head": {
+        "dtype": "video",
+        "shape": [480, 640, 3],
+        "names": ["height", "width", "channel"],
+        "video_info": {
+            "video.fps": 30.0,
+            "video.codec": "libx264",
+            "video.pix_fmt": "yuv420p",
+            "video.is_depth_map": false,
+            "has_audio": false
+        }
+    },
+    "observation.state": {
+        "dtype": "float32",
+        "shape": [36],
+        "names": [
+            "L_shoulder_pitch_joint.pos",
+            "L_shoulder_roll_joint.pos",
+            "L_shoulder_yaw_joint.pos",
+            "L_elbow_pitch_joint.pos",
+            "L_elbow_yaw_joint.pos",
+            "L_wrist_pitch_joint.pos",
+            "L_wrist_roll_joint.pos",
+            "R_shoulder_pitch_joint.pos",
+            "R_shoulder_roll_joint.pos",
+            "R_shoulder_yaw_joint.pos",
+            "R_elbow_pitch_joint.pos",
+            "R_elbow_yaw_joint.pos",
+            "R_wrist_pitch_joint.pos",
+            "R_wrist_roll_joint.pos",
+            "L_thumb_cmp_joint.pos",
+            "L_thumb_mpp_joint.pos",
+            "L_thumb_ip_joint.pos",
+            "L_index_mpp_joint.pos",
+            "L_index_ip_joint.pos",
+            "L_middle_mpp_joint.pos",
+            "L_middle_ip_joint.pos",
+            "L_ring_mpp_joint.pos",
+            "L_ring_ip_joint.pos",
+            "L_little_mpp_joint.pos",
+            "L_little_ip_joint.pos",
+            "R_thumb_cmp_joint.pos",
+            "R_thumb_mpp_joint.pos",
+            "R_thumb_ip_joint.pos",
+            "R_index_mpp_joint.pos",
+            "R_index_ip_joint.pos",
+            "R_middle_mpp_joint.pos",
+            "R_middle_ip_joint.pos",
+            "R_ring_mpp_joint.pos",
+            "R_ring_ip_joint.pos",
+            "R_little_mpp_joint.pos",
+            "R_little_ip_joint.pos"
+        ]
+    },
+    "action": {
+        "dtype": "float32",
+        "shape": [36],
+        "names": [
+            "L_shoulder_pitch_joint.pos",
+            "L_shoulder_roll_joint.pos",
+            "L_shoulder_yaw_joint.pos",
+            "L_elbow_pitch_joint.pos",
+            "L_elbow_yaw_joint.pos",
+            "L_wrist_pitch_joint.pos",
+            "L_wrist_roll_joint.pos",
+            "R_shoulder_pitch_joint.pos",
+            "R_shoulder_roll_joint.pos",
+            "R_shoulder_yaw_joint.pos",
+            "R_elbow_pitch_joint.pos",
+            "R_elbow_yaw_joint.pos",
+            "R_wrist_pitch_joint.pos",
+            "R_wrist_roll_joint.pos",
+            "L_thumb_cmp_joint.pos",
+            "L_thumb_mpp_joint.pos",
+            "L_thumb_ip_joint.pos",
+            "L_index_mpp_joint.pos",
+            "L_index_ip_joint.pos",
+            "L_middle_mpp_joint.pos",
+            "L_middle_ip_joint.pos",
+            "L_ring_mpp_joint.pos",
+            "L_ring_ip_joint.pos",
+            "L_little_mpp_joint.pos",
+            "L_little_ip_joint.pos",
+            "R_thumb_cmp_joint.pos",
+            "R_thumb_mpp_joint.pos",
+            "R_thumb_ip_joint.pos",
+            "R_index_mpp_joint.pos",
+            "R_index_ip_joint.pos",
+            "R_middle_mpp_joint.pos",
+            "R_middle_ip_joint.pos",
+            "R_ring_mpp_joint.pos",
+            "R_ring_ip_joint.pos",
+            "R_little_mpp_joint.pos",
+            "R_little_ip_joint.pos"
+        ]
+    },
+    "episode_index": {
+        "dtype": "int64",
+        "shape": [1],
+        "names": null
+    },
+    "frame_index": {
+        "dtype": "int64",
+        "shape": [1],
+        "names": null
+    },
+    "index": {
+        "dtype": "int64",
+        "shape": [1],
+        "names": null
+    },
+    "task_index": {
+        "dtype": "int64",
+        "shape": [1],
+        "names": null
+    },
+    "hdf5_mapping": {
+        "observation.state": [
+            "puppet/arm_left_position_align/data",
+            "puppet/arm_right_position_align/data",
+            "puppet/end_effector_left_position_align/data",
+            "puppet/end_effector_right_position_align/data"
+        ],
+        "action": [
+            "action/arm_left_position_align/data",
+            "action/arm_right_position_align/data",
+            "action/end_effector_left_position_align/data",
+            "action/end_effector_right_position_align/data"
+        ],
+        "observation.images.camera_head": {
+            "hdf5_key": "camera_observations/color_images/camera_head",
+            "encoding": "jpeg",
+            "image_size": [640, 480]
+        }
+    }
+}

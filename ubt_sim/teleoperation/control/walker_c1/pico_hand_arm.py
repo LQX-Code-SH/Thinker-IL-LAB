@@ -358,6 +358,7 @@ class RosHandArmSimulationIO:
         self,
         *,
         reset_script: str | Path = DEFAULT_TASK_RESET_SCRIPT,
+        spin_after_publish: bool = True,
     ) -> None:
         """Reset the Isaac scene once, then run the existing staged task reset.
 
@@ -372,7 +373,8 @@ class RosHandArmSimulationIO:
         message = self.Bool()
         message.data = True
         self.reset_publisher.publish(message)
-        self.spin_once(timeout_sec=0.0)
+        if spin_after_publish:
+            self.spin_once(timeout_sec=0.0)
         # Match the already proven episode-reset ordering: let Isaac consume
         # the scene edge before publishing the staged task pose.
         time.sleep(0.2)

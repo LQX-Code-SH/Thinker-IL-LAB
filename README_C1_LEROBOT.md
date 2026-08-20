@@ -1,7 +1,7 @@
 # Walker C1（Astron）：仿真采集、训练与推理
 
 > PICO 仿真遥操作与数据采集入口见
-> [`ubt_sim/teleoperation/control/walker_c1/README.md`](ubt_sim/teleoperation/control/walker_c1/README.md)。
+> [PICO_README.md](PICO_README.md)。
 
 以下命令均在仓库根目录执行。当前流程使用单个头部 RGB 相机、30 FPS、26维状态和26维动作。
 
@@ -70,7 +70,19 @@ ubt_IL/
 
 初始 reset 和苹果落稳过程不录制，轨迹从准备姿势开始，并包含抓放结束后的右臂归位；左臂和头部在 reset 后保持固定。
 
-当前 Diffusion Policy 使用 `horizon=64`、`n_action_steps=32`、`n_obs_steps=2`，训练默认 `batch_size=8`、`steps=50000`。
+当前 Diffusion Policy 参数如下：
+
+| 参数 | 值 | 30 Hz 下的含义 |
+| --- | ---: | --- |
+| `n_obs_steps` | 2 | 使用当前帧和前一帧观测 |
+| `horizon` | 16 | 每次生成约 0.53 秒的动作候选序列 |
+| `n_action_steps` | 8 | 每次只执行约 0.27 秒，然后重新观测和推理 |
+| `drop_n_last_frames` | 7 | 不从 episode 最后 7 帧开始取样，避免实际执行段落入填充区 |
+| `num_train_timesteps` | 100 | DDPM 训练前向加噪时刻数 |
+| `num_inference_steps` | 10 | 每次策略推理的反向去噪步数 |
+
+训练仍默认使用 `batch_size=8`、`steps=50000`。`n_action_steps` 是两次模型调用之间实际
+执行的机器人动作数，与 DDPM 的 `num_inference_steps` 去噪步数不是同一个概念。
 
 ## 0. 首次构建容器
 
@@ -102,6 +114,19 @@ CONTAINER_NAME=lerobot-walker-c1 DOMAIN_ID=146 bash run.sh check
 cd ../..
 ```
 
+在 x86_64 机器上，`bash run.sh build` 默认通过华为云 SWR 代理拉取
+`huggingface/lerobot-gpu:latest`。如果构建在 `load metadata` 阶段报
+`failed to resolve source metadata`、`EOF` 或连接超时，表示代理仓库或当前网络不可用，
+不是 Dockerfile 或训练配置错误。可切换到 Hugging Face 官方 Docker Hub 镜像重新构建：
+
+```bash
+cd ubt_IL/docker
+BASE_IMAGE=huggingface/lerobot-gpu:latest bash run.sh build
+```
+
+官方 GPU 基础镜像体积较大，首次拉取需要耐心等待。构建成功后，再继续执行上面的
+`CONTAINER_NAME=lerobot-walker-c1 ... start/check` 命令，不需要再次 build。
+
 必须显式设置 `CONTAINER_NAME=lerobot-walker-c1`，因为 `ubt_IL/docker/env.sh`
 的默认容器名是 `lerobot-tienkung`。`DOMAIN_ID=146` 表示连接 C1 仿真；
 后续连接真机时使用 `DOMAIN_ID=0`。首次启动会在容器入口中安装 LeRobot、
@@ -129,7 +154,14 @@ ROS_DOMAIN_ID=146 /usr/bin/python3 \
   /ubt_sim/teleoperation/control/walker_c1/reset.py'
 ```
 
-然后采集数据。下面示例采集200条；需要其他数量时修改 `--episodes`。`--skip-initial-reset` 表示不重复执行开头的 reset；每条轨迹仍包含抓放结束后的右臂归位：
+然后采集数据。下面示例均以 30 Hz 采集 200 条；需要其他数量时修改
+`--episodes`。`--skip-initial-reset` 表示不重复执行开头的 reset；每条轨迹仍包含抓放
+结束后的右臂归位。
+
+### 2.1 苹果位置随机化
+
+加上 `--randomize` 后，每条轨迹开始前都会在默认中心点周围的 5 cm × 5 cm 区域内
+随机采样苹果的 XY 位置：
 
 ```bash
 docker exec -it walker-c1-ubt-sim \
@@ -137,6 +169,20 @@ docker exec -it walker-c1-ubt-sim \
   --episodes 200 --randomize --skip-initial-reset \
   --record-root /ubt_sim/dataset/walker_c1_ros
 ```
+
+### 2.2 苹果位置不随机化
+
+不加 `--randomize` 时，每条轨迹的苹果都会放在默认中心点
+`(x=8.17, y=5.86)`：
+
+```bash
+docker exec -it walker-c1-ubt-sim \
+  bash /ubt_sim/scripts/run_c1_pick_place_once.sh \
+  --episodes 200 --skip-initial-reset \
+  --record-root /ubt_sim/dataset/walker_c1_ros
+```
+
+随机化和不随机化的数据如果要分开管理，应分别给 `--record-root` 传入不同目录。
 
 脚本默认保存成功轨迹到：
 

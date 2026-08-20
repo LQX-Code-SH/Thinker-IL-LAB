@@ -131,6 +131,22 @@ class LiveRetargetTest(unittest.TestCase):
         with patch.dict(os.environ, {"ROS_DOMAIN_ID": "146"}, clear=False):
             self.assertEqual(validate_args(right), ("right",))
 
+    def test_recording_is_only_available_for_right_hand_arm_simulation(self):
+        hand_only = parse_args([
+            "--control", "hand", "--mode", "sim", "--enable-command",
+            "--record",
+        ])
+        with patch.dict(os.environ, {"ROS_DOMAIN_ID": "146"}, clear=False):
+            with self.assertRaisesRegex(ValueError, "requires --control hand-arm"):
+                validate_args(hand_only)
+
+        hand_arm = parse_args([
+            "--control", "hand-arm", "--mode", "sim", "--side", "right",
+            "--enable-command", "--record",
+        ])
+        with patch.dict(os.environ, {"ROS_DOMAIN_ID": "146"}, clear=False):
+            self.assertEqual(validate_args(hand_arm), ("right",))
+
     def test_hand_arm_anchor_requires_an_initially_open_hand(self):
         mapper = C1HandRetargeter(smoothing_enabled=False, velocity_limits_enabled=False)
         open_results = retarget_live_hands(

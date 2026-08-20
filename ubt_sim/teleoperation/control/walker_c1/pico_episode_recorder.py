@@ -8,7 +8,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Callable, Mapping, Optional, Sequence
 
 import h5py
 import numpy as np
@@ -56,6 +56,15 @@ class PicoEpisodeRecorder:
         record_root: str,
         camera_topic: str,
         record_hz: float,
+        *,
+        body_positions: Optional[dict[str, float]] = None,
+        hand_joint_names: Optional[Mapping[str, Sequence[str]]] = None,
+        hand_state_topics: Optional[Mapping[str, str]] = None,
+        disarm_callback: Optional[Callable[[str], None]] = None,
+        reset_callback: Optional[Callable[[], None]] = None,
+        task: str = "walker_c1_pico_right_hand_pick_place",
+        recording_source: str = "pico_teleop",
+        ready_label: Optional[str] = None,
     ) -> None:
         import cv2
 
@@ -66,6 +75,32 @@ class PicoEpisodeRecorder:
         self.camera_topic = camera_topic
         self.record_hz = float(record_hz)
         self.cv2 = cv2
+        self.body_positions = (
+            body_positions
+            if body_positions is not None
+            else node.joint_positions
+        )
+        default_hand_names = {
+            "left": tuple(LEFT_HAND_JOINT_NAMES),
+            "right": tuple(RIGHT_HAND_JOINT_NAMES),
+        }
+        self.hand_joint_names = {
+            side: tuple((hand_joint_names or default_hand_names)[side])
+            for side in ("left", "right")
+        }
+        default_hand_topics = {
+            "left": "/mc/left_hand/joint_states",
+            "right": "/mc/right_hand/joint_states",
+        }
+        self.hand_state_topics = {
+            side: str((hand_state_topics or default_hand_topics)[side])
+            for side in ("left", "right")
+        }
+        self.disarm_callback = disarm_callback or node.disarm
+        self.reset_callback = reset_callback
+        self.task = str(task)
+        self.recording_source = str(recording_source)
+        self.ready_label = ready_label
         self.active = False
         self.finishing = False
         self.buffers = {key: [] for key in BUFFER_KEYS}
@@ -75,15 +110,16 @@ class PicoEpisodeRecorder:
         self.commanded_hands: dict[str, dict[str, float]] = {"left": {}, "right": {}}
         self.skipped_frames = 0
         self.last_record_stamp: Optional[float] = None
+        self.last_camera_monotonic = 0.0
         self._lock = threading.Lock()
         self._worker: Optional[threading.Thread] = None
 
         node.create_subscription(
-            JointState, "/mc/left_hand/joint_states",
+            JointState, self.hand_state_topics["left"],
             lambda msg: self.left_hand_positions.update(zip(msg.name, msg.position)), 10,
         )
         node.create_subscription(
-            JointState, "/mc/right_hand/joint_states",
+            JointState, self.hand_state_topics["right"],
             lambda msg: self.right_hand_positions.update(zip(msg.name, msg.position)), 10,
         )
         node.create_subscription(Image, camera_topic, self._image_callback, qos_profile_sensor_data)
@@ -97,8 +133,19 @@ class PicoEpisodeRecorder:
     def note_body_command(self, positions: dict[str, float]) -> None:
         self.commanded_body.update({name: float(value) for name, value in positions.items()})
 
-    def note_hand_command(self, side: str, positions: list[float]) -> None:
-        names = LEFT_HAND_JOINT_NAMES if side == "left" else RIGHT_HAND_JOINT_NAMES
+    def note_hand_command(
+        self, side: str, positions: Sequence[float] | Mapping[str, float]
+    ) -> None:
+        names = self.hand_joint_names[side]
+        if isinstance(positions, Mapping):
+            self.commanded_hands[side].update(
+                {
+                    name: float(positions[name])
+                    for name in names
+                    if name in positions
+                }
+            )
+            return
         self.commanded_hands[side].update(zip(names, map(float, positions)))
 
     def start_episode(self) -> None:
@@ -113,18 +160,45 @@ class PicoEpisodeRecorder:
                 {name: float(TASK_RESET_BODY_POSE[name]) for name in LEFT_ARM_JOINT_NAMES}
             )
             for name in RIGHT_ARM_JOINT_NAMES:
-                if name in self.node.joint_positions:
-                    self.commanded_body[name] = float(self.node.joint_positions[name])
+                if name in self.body_positions:
+                    self.commanded_body[name] = float(self.body_positions[name])
             self.commanded_hands["left"].update(
-                {name: 0.0 for name in LEFT_HAND_JOINT_NAMES}
+                {name: 0.0 for name in self.hand_joint_names["left"]}
             )
             self.commanded_hands["right"].update(
-                {name: float(self.right_hand_positions.get(name, 0.0)) for name in RIGHT_HAND_JOINT_NAMES}
+                {
+                    name: float(self.right_hand_positions.get(name, 0.0))
+                    for name in self.hand_joint_names["right"]
+                }
             )
             self.active = True
         self.node.get_logger().info("episode recording started")
 
+    def inputs_ready(self, camera_timeout_s: float = 2.0) -> tuple[bool, str]:
+        """Confirm that a newly armed episode can actually produce complete frames."""
+        body_names = LEFT_ARM_JOINT_NAMES + RIGHT_ARM_JOINT_NAMES
+        missing_body = [name for name in body_names if name not in self.body_positions]
+        if missing_body:
+            return False, "waiting for complete arm state"
+        for side, positions in (
+            ("left", self.left_hand_positions),
+            ("right", self.right_hand_positions),
+        ):
+            missing = [
+                name for name in self.hand_joint_names[side]
+                if name not in positions
+            ]
+            if missing:
+                return False, f"waiting for full 11DoF {side} hand state"
+        if (
+            self.last_camera_monotonic <= 0.0
+            or time.monotonic() - self.last_camera_monotonic > float(camera_timeout_s)
+        ):
+            return False, f"waiting for camera frames on {self.camera_topic}"
+        return True, ""
+
     def _image_callback(self, msg: Image) -> None:
+        self.last_camera_monotonic = time.monotonic()
         if not self.active or self.finishing:
             return
         stamp = float(msg.header.stamp.sec) + float(msg.header.stamp.nanosec) * 1e-9
@@ -134,15 +208,23 @@ class PicoEpisodeRecorder:
             return
 
         body_names = LEFT_ARM_JOINT_NAMES + RIGHT_ARM_JOINT_NAMES
-        state_ready = all(name in self.node.joint_positions for name in body_names)
-        state_ready = state_ready and all(name in self.left_hand_positions for name in LEFT_HAND_JOINT_NAMES)
-        state_ready = state_ready and all(name in self.right_hand_positions for name in RIGHT_HAND_JOINT_NAMES)
+        state_ready = all(name in self.body_positions for name in body_names)
+        state_ready = state_ready and all(
+            name in self.left_hand_positions
+            for name in self.hand_joint_names["left"]
+        )
+        state_ready = state_ready and all(
+            name in self.right_hand_positions
+            for name in self.hand_joint_names["right"]
+        )
         action_ready = all(name in self.commanded_body for name in body_names)
         action_ready = action_ready and all(
-            name in self.commanded_hands["left"] for name in LEFT_HAND_JOINT_NAMES
+            name in self.commanded_hands["left"]
+            for name in self.hand_joint_names["left"]
         )
         action_ready = action_ready and all(
-            name in self.commanded_hands["right"] for name in RIGHT_HAND_JOINT_NAMES
+            name in self.commanded_hands["right"]
+            for name in self.hand_joint_names["right"]
         )
         if not state_ready or not action_ready:
             self.skipped_frames += 1
@@ -175,14 +257,26 @@ class PicoEpisodeRecorder:
             return
 
         snapshot = {
-            "arm_right": [self.node.joint_positions[name] for name in RIGHT_ARM_JOINT_NAMES],
-            "hand_right": [self.right_hand_positions[name] for name in RIGHT_HAND_JOINT_NAMES],
-            "arm_left": [self.node.joint_positions[name] for name in LEFT_ARM_JOINT_NAMES],
-            "hand_left": [self.left_hand_positions[name] for name in LEFT_HAND_JOINT_NAMES],
+            "arm_right": [self.body_positions[name] for name in RIGHT_ARM_JOINT_NAMES],
+            "hand_right": [
+                self.right_hand_positions[name]
+                for name in self.hand_joint_names["right"]
+            ],
+            "arm_left": [self.body_positions[name] for name in LEFT_ARM_JOINT_NAMES],
+            "hand_left": [
+                self.left_hand_positions[name]
+                for name in self.hand_joint_names["left"]
+            ],
             "action_arm_right": [self.commanded_body[name] for name in RIGHT_ARM_JOINT_NAMES],
             "action_arm_left": [self.commanded_body[name] for name in LEFT_ARM_JOINT_NAMES],
-            "action_hand_right": [self.commanded_hands["right"][name] for name in RIGHT_HAND_JOINT_NAMES],
-            "action_hand_left": [self.commanded_hands["left"][name] for name in LEFT_HAND_JOINT_NAMES],
+            "action_hand_right": [
+                self.commanded_hands["right"][name]
+                for name in self.hand_joint_names["right"]
+            ],
+            "action_hand_left": [
+                self.commanded_hands["left"][name]
+                for name in self.hand_joint_names["left"]
+            ],
             "img": encoded.reshape(-1).copy(),
             "timestamp": stamp,
         }
@@ -216,9 +310,11 @@ class PicoEpisodeRecorder:
         episode = self._take_episode_snapshot()
         if episode is None:
             return False
-        self.node.episode_reset_blocked = True
-        self.node.episode_reset_complete = False
-        self.node.disarm(f"{trigger}; saving episode")
+        if hasattr(self.node, "episode_reset_blocked"):
+            self.node.episode_reset_blocked = True
+        if hasattr(self.node, "episode_reset_complete"):
+            self.node.episode_reset_complete = False
+        self.disarm_callback(f"{trigger}; saving episode")
         self._worker = threading.Thread(
             target=self._save_and_reset, args=(episode, trigger), daemon=True,
             name="pico_episode_save_reset",
@@ -246,14 +342,28 @@ class PicoEpisodeRecorder:
         elapsed = float(timestamps[-1] - timestamps[0]) if frame_count > 1 else 0.0
         measured_hz = float((frame_count - 1) / elapsed) if elapsed > 0.0 else 0.0
         with h5py.File(filename, "w") as output:
-            output.attrs["task"] = "walker_c1_pico_right_hand_pick_place"
-            output.attrs["recording_source"] = "pico_teleop"
+            output.attrs["task"] = getattr(
+                self, "task", "walker_c1_pico_right_hand_pick_place"
+            )
+            output.attrs["recording_source"] = getattr(
+                self, "recording_source", "pico_teleop"
+            )
             output.attrs["success"] = True
             output.attrs["camera_topic"] = self.camera_topic
             output.attrs["record_hz"] = measured_hz
             output.attrs["requested_record_hz"] = self.record_hz
             output.attrs["timestamp_clock"] = "ros_image_header"
             output.attrs["completion_trigger"] = completion_trigger
+            hand_joint_names = getattr(
+                self,
+                "hand_joint_names",
+                {
+                    "left": tuple(LEFT_HAND_JOINT_NAMES),
+                    "right": tuple(RIGHT_HAND_JOINT_NAMES),
+                },
+            )
+            output.attrs["left_hand_joint_names"] = hand_joint_names["left"]
+            output.attrs["right_hand_joint_names"] = hand_joint_names["right"]
             output.create_dataset("puppet/arm_right_position_align/data", data=np.asarray(episode["arm_right"], dtype=np.float32))
             output.create_dataset("puppet/end_effector_right_position_align/data", data=np.asarray(episode["hand_right"], dtype=np.float32))
             output.create_dataset("puppet/arm_left_position_align/data", data=np.asarray(episode["arm_left"], dtype=np.float32))
@@ -282,33 +392,41 @@ class PicoEpisodeRecorder:
     def _save_and_reset(self, episode: dict[str, list], completion_trigger: str) -> None:
         try:
             self._save_episode(episode, completion_trigger)
-            reset_msg = Bool()
-            reset_msg.data = True
-            # This publisher/subscription pair uses reliable ROS QoS.  Sending
-            # the same edge-triggered command repeatedly makes Isaac reset the
-            # environment several times and delays the following task pose.
-            self.reset_pub.publish(reset_msg)
-            time.sleep(0.2)
-            reset_script = Path(__file__).with_name("reset.py")
-            result = subprocess.run(
-                [sys.executable, str(reset_script), "--mode", "task"],
-                check=False,
-                text=True,
-                capture_output=True,
-            )
-            if result.returncode != 0:
-                raise RuntimeError(
-                    f"task reset failed ({result.returncode}): {result.stderr.strip()}"
+            if self.reset_callback is not None:
+                self.reset_callback()
+            else:
+                reset_msg = Bool()
+                reset_msg.data = True
+                # This publisher/subscription pair uses reliable ROS QoS.  Sending
+                # the same edge-triggered command repeatedly makes Isaac reset the
+                # environment several times and delays the following task pose.
+                self.reset_pub.publish(reset_msg)
+                time.sleep(0.2)
+                reset_script = Path(__file__).with_name("reset.py")
+                result = subprocess.run(
+                    [sys.executable, str(reset_script), "--mode", "task"],
+                    check=False,
+                    text=True,
+                    capture_output=True,
                 )
-            deadman_label = getattr(self.node, "deadman_label", "right B")
+                if result.returncode != 0:
+                    raise RuntimeError(
+                        f"task reset failed ({result.returncode}): {result.stderr.strip()}"
+                    )
+            if self.ready_label:
+                ready_instruction = f"press {self.ready_label} to start the next episode"
+            else:
+                deadman_label = getattr(self.node, "deadman_label", "right B")
+                ready_instruction = f"release {deadman_label} for the next episode"
             self.node.get_logger().info(
-                f"episode reset complete; release {deadman_label} for the next episode"
+                f"episode reset complete; {ready_instruction}"
             )
         except Exception as exc:
             self.node.get_logger().error(f"episode save/reset failed: {exc}")
         finally:
             self.finishing = False
-            self.node.episode_reset_complete = True
+            if hasattr(self.node, "episode_reset_complete"):
+                self.node.episode_reset_complete = True
             ready = Bool()
             ready.data = True
             self.ready_pub.publish(ready)

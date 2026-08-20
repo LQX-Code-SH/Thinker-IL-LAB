@@ -14,6 +14,8 @@ robot (ROS_DOMAIN_ID=0):
   ZMQ status -> /mc/sdk/robot_state (mc_state_msgs/RobotState, body joints)
              -> /mc/{left,right}_hand/joint_states (sensor_msgs/JointState,
                 SDK 6-joint order)
+             -> /sim/{left,right}_hand/joint_states_full (sensor_msgs/JointState,
+                simulation-only 11-joint order)
   ZMQ images -> shared C++ image bridge (same as S2/Tienkung).
 
 Run (inside the container, Py3.10 ROS side):
@@ -79,6 +81,24 @@ WALKER_C1_LEFT_HAND_SDK_ORDER = [
 WALKER_C1_RIGHT_HAND_SDK_ORDER = [
     "right_thumb_swing", "right_thumb_mcp", "right_index_mcp",
     "right_middle_mcp", "right_ring_mcp", "right_little_mcp",
+]
+
+# Simulation-only full dexterous-hand feedback.  Keep the SDK-compatible 6D
+# topics above unchanged; hand-skeleton demonstrations need all 11 independent
+# joints and must not silently train from the lossy 6D averages.
+WALKER_C1_LEFT_HAND_FULL_ORDER = [
+    "L_thumb_cmp_joint", "L_thumb_mpp_joint", "L_thumb_ip_joint",
+    "L_index_mpp_joint", "L_index_ip_joint",
+    "L_middle_mpp_joint", "L_middle_ip_joint",
+    "L_ring_mpp_joint", "L_ring_ip_joint",
+    "L_little_mpp_joint", "L_little_ip_joint",
+]
+WALKER_C1_RIGHT_HAND_FULL_ORDER = [
+    "R_thumb_cmp_joint", "R_thumb_mpp_joint", "R_thumb_ip_joint",
+    "R_index_mpp_joint", "R_index_ip_joint",
+    "R_middle_mpp_joint", "R_middle_ip_joint",
+    "R_ring_mpp_joint", "R_ring_ip_joint",
+    "R_little_mpp_joint", "R_little_ip_joint",
 ]
 
 # Accept incoming body joint names with or without the "_joint" suffix, and
@@ -241,6 +261,20 @@ class WalkerC1RosBridge(Node):
                 data.get("right_hand_sdk_pos", []),
             )
         )
+        if "left_hand_full_state" in self.pubs:
+            self.pubs["left_hand_full_state"].publish(
+                self._make_hand_state(
+                    WALKER_C1_LEFT_HAND_FULL_ORDER,
+                    [pos_map.get(name, 0.0) for name in WALKER_C1_LEFT_HAND_FULL_ORDER],
+                )
+            )
+        if "right_hand_full_state" in self.pubs:
+            self.pubs["right_hand_full_state"].publish(
+                self._make_hand_state(
+                    WALKER_C1_RIGHT_HAND_FULL_ORDER,
+                    [pos_map.get(name, 0.0) for name in WALKER_C1_RIGHT_HAND_FULL_ORDER],
+                )
+            )
 
         if "object_state" in self.pubs and "object_pos_w" in data:
             import json as _json

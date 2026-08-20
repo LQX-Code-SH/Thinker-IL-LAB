@@ -43,8 +43,8 @@
     "policy": {
         "type": "diffusion",
         "n_obs_steps": 2,
-        "horizon": 64,
-        "n_action_steps": 32,
+        "horizon": 16,
+        "n_action_steps": 8,
         "input_features": {
             "observation.images.camera_head": {
                 "type": "VISUAL",
