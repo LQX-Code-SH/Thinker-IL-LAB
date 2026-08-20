@@ -11,14 +11,14 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                            ubt_IL 模仿学习平台                              │
+│                            ubt_IL 模仿学习平台                             │
 │                数据转换 ──► 模型训练 ──► 离线评估 ─► 推理部署                 │
 └───────────▲───────────────┬──────────────────────▲──────────────┬────────┘
             │               │④仿真部署              │              │⑤真机部署
             │①数据采集       ▼ （ROS桥接）           │②真机采集      │（ROS桥接）
    ┌────────┴────────────────┐        ┌─────────────┴──────────────▼──────┐
-   │      ubt_sim 仿真平台    │        │    真机（天工 Pro / Walker S2）     │
-   │     （Isaac Sim 容器）   │        │     ROS_DOMAIN_ID=0 直连网段       │
+   │      ubt_sim 仿真平台    │        │    真机（天工行者 / Walker S2 EDU 探索者）     │
+   │     （Isaac Sim 容器）   │        │     ROS_DOMAIN_ID=0 直连网段        │
    └─────────────────────────┘        └───────────────────────────────────┘
 ```
 
@@ -26,7 +26,7 @@
 - **② 数据采集（真机）**：使用 [Thinker Studio](https://thinkercosmos.ubtrobot.com/#/studio) 遥操数采平台采集，可导出 HDF5 或 LeRobot 数据集。
 - **③ 转换 / 训练 / 评估**：在 `ubt_IL` 容器内完成，HDF5 统一转换为 LeRobot v3 数据集后训练 ACT / Pi0.5 策略，再做离线 MSE 评估。
 - **④ 仿真部署**：模型经 ROS2-ZMQ 桥接回注 Isaac Sim，与真机部署话题一致，用于真机部署前验证。
-- **⑤ 真机部署**：`rollout.sh` 推理部署，或 Walker S2 推理服务器常驻预热部署。
+- **⑤ 真机部署**：`rollout.sh` 推理部署，或 Walker S2 EDU 探索者 推理服务器常驻预热部署。
 
 ## ubt_sim 仿真平台架构
 
@@ -36,7 +36,7 @@
 Isaac Sim (Py3.11)  ──ZMQ──►  ROS2-ZMQ Bridge (Py3.10)  ──ROS2──►  遥操作/采集脚本
 ```
 
-- **仿真** `/isaac-sim/python.sh`：加载 Gym 任务（天工 Pro 客厅 / Walker S2 仓库），图像直发 ZMQ 端口。
+- **仿真** `/isaac-sim/python.sh`：加载 Gym 任务（天工行者 客厅 / Walker S2 EDU 探索者 仓库），图像直发 ZMQ 端口。
 - **桥接** `/usr/bin/python3`：ZMQ↔ROS2 双向转发，`start_sim.sh` 自动拉起。
 - **采集** `/usr/bin/python3`：发布指令、录制 15Hz HDF5。
 
@@ -69,18 +69,19 @@ Bridge2 (系统 Python 3.10 + ROS2)
 | 5557 | 天工仿真桥接 | 相机原图像（C++ 桥接处理） |
 | 5558 | 仿真 / ImageServer | JPEG 相机直连（仿真发布；真机由 `image_server.py` 提供） |
 | 5559 / 5560 | ubt_IL ↔ Bridge2 | 动作指令 / 机器人状态 |
-| 5655 | Walker S2 仿真桥接 | 控制指令（bridge PUB） |
-| 5656 | Walker S2 仿真桥接 | 机器人状态（bridge SUB） |
-| 5657 | Walker S2 仿真 | 四路相机 RGB（采集直连） |
-| 5658 | Walker S2 仿真 | JPEG 图像 |
-| 5561 / 5562 / 5563 | Walker S2 真机 Bridge2 | 指令 / 状态通道 |
-| 5570 | Walker S2 推理服务器 | ZMQ REP 指令端口 |
-| 5571 | Walker S2 推理服务器 | ZMQ PUB 状态端口 |
+| 5655 | Walker S2 EDU 探索者 仿真桥接 | 控制指令（bridge PUB） |
+| 5656 | Walker S2 EDU 探索者 仿真桥接 | 机器人状态（bridge SUB） |
+| 5657 | Walker S2 EDU 探索者 仿真 | 四路相机 RGB（采集直连） |
+| 5658 | Walker S2 EDU 探索者 仿真 | JPEG 图像 |
+| 5561 / 5562 | Walker S2 EDU 探索者 真机 Bridge2 | 动作指令 / 机器人状态 |
+| 5563 | Walker S2 EDU 探索者 真机 CameraRelay（独立进程） | 图像通道（ROS2 DDS `shm_msgs` 相机话题 -> ZMQ） |
+| 5570 | Walker S2 EDU 探索者 推理服务器 | ZMQ REP 指令端口 |
+| 5571 | Walker S2 EDU 探索者 推理服务器 | ZMQ PUB 状态端口 |
 
 ## 项目结构
 
 ```
-UBTECH-IL-LAB/
+Thinker-IL-LAB/
 ├── ubt_sim/                    # 仿真平台
 │   ├── assets/                 # 3D 模型（USD/URDF/贴图，Git LFS）
 │   ├── config/                 # YAML 任务/场景配置
@@ -104,5 +105,5 @@ UBTECH-IL-LAB/
     │   ├── deploy/             # 部署脚本（reset / rollout / replay / 推理服务器）
     │   └── eval/               # 离线评估
     ├── tienkung/               # 天工 lerobot 插件
-    └── walker/                 # Walker S2 插件 + ROS2 SDK/messages + Bridge2
+    └── walker/                 # Walker S2 EDU 探索者 插件 + ROS2 SDK/messages + Bridge2
 ```

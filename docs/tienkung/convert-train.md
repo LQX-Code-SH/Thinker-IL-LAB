@@ -1,23 +1,34 @@
-# 天工 Pro：模仿学习平台（`ubt_IL`）
+# 天工行者：模仿学习平台
 
-> 对应代码：`ubt_IL/scripts/{convert,train,eval}`（容器内执行）
+> 对应代码：`ubt_IL/scripts/{convert,train,eval,deploy}`（容器内执行）
 > 前置：已按 [快速开始](../getting-started.md) 克隆代码并初始化子模块；HDF5 数据已就绪（[仿真采集](sim-setup.md)或真机采集）
+
+本页维护天工行者 转换/训练/评估/部署的**通用流程与配置参数说明**；各环节的具体命令随数据来源嵌在对应工作流章节中，按需跳转。
 
 ## 1. 构建环境（ubt_IL 容器）
 
-```bash
-cd ubt_IL/docker
-bash run.sh build      # 构建容器镜像（首次；自动按平台选择 Dockerfile：x86 -> humble，arm64 -> humble-arm64）
-bash run.sh start      # 启动容器 lerobot-tienkung
-bash run.sh bash       # 进入容器，后续命令均在容器内执行
-```
+容器构建流程见 [模仿学习平台 · 容器构建与使用](../il/docker.md)（`build` / `start` / `bash`，均在容器内执行后续命令）。
 
-- 宿主机项目挂载于容器 `/ubt_IL`。
-- 通信链路：LeRobot（Python 3.12）-ZMQ `5559`/`5560`-> Bridge2（系统 Python 3.10）-ROS2 DDS-> 机器人/仿真器；相机推流走 ZMQ `5558`。
 
 ## 2. 数据转换（HDF5 -> LeRobot）
 
 脚本：`/ubt_IL/scripts/convert/tienkung_pro/convert.sh`，将 HDF5 原始数据转换为 LeRobot v3 数据集（产物位于 `/ubt_IL/dataset/<REPO_ID>/`）。
+
+**转换指令**（各变量的取值见下文配置表与环境变量表）：
+
+```bash
+CONFIG=<转换配置JSON> \
+SRC_ROOT=<HDF5源目录> \
+TGT_PATH=<LeRobot数据集输出根目录> \
+REPO_ID=<输出数据集名> \
+TASK_NAME=<任务名> \
+bash /ubt_IL/scripts/convert/tienkung_pro/convert.sh
+```
+
+**示例**（跳转查看）：
+
+- 仿真数据：[仿真全流程 · 数据转换](sim-workflow.md#3-数据转换hdf5---lerobot)
+- 真机数据：[真机全流程 · 数据转换](real-workflow.md#3-数据转换hdf5---lerobot)
 
 转换配置在 `/ubt_IL/scripts/convert/tienkung_pro/configs/` 下，包含字段筛选和映射关系配置，可根据训练需求选择/修改：
 
@@ -28,37 +39,22 @@ bash run.sh bash       # 进入容器，后续命令均在容器内执行
 | `tienkung_pro_26d_1RGB_real.json` | 26D 双臂，仅 RGB | 真机（真机 HDF5 无深度流） |
 | `tienkung_pro_13d_1RGB.json` | 13D | 真机 |
 
-```bash
-# 仿真数据转换示例
-CONFIG=/ubt_IL/scripts/convert/tienkung_pro/configs/Tien_Kung_13_1RGB_sim.json \
-SRC_ROOT=/ubt_IL/dataset/tienkung_pro \
-TGT_PATH=/ubt_IL/dataset \
-REPO_ID=tienkung_sim_pick_place \
-TASK_NAME=tienkung_sim_pick_place \
-bash /ubt_IL/scripts/convert/tienkung_pro/convert.sh
-
-# 真机数据转换示例（注意使用 real 配置，仅 RGB）
-SRC_ROOT=/ubt_IL/dataset/hdf5 \
-TGT_PATH=/ubt_IL/dataset \
-CONFIG=/ubt_IL/scripts/convert/tienkung_pro/configs/tienkung_pro_26d_1RGB_real.json \
-REPO_ID=real_pick_place \
-FPS=15 \
-ROBOT_TYPE=tienkung \
-TASK_NAME=real_pick_place \
-bash /ubt_IL/scripts/convert/tienkung_pro/convert.sh
-```
-
-**常用环境变量**（完整列表 `bash convert.sh -h` 查看，通用说明见 [数据转换详解](../common/data-conversion.md)）：
+**常用环境变量**（标「默认」的可省略；完整列表 `bash convert.sh -h` 查看，通用说明见 [数据转换详解](../common/data-conversion.md)）：
 
 | 变量 | 说明 |
 |------|------|
-| `SRC_ROOT` | HDF5 存放根目录（每个 episode 一个含 `trajectory.hdf5` 的子目录） |
+| `SRC_ROOT` | HDF5 存放根目录（每个 episode 一个含 `trajectory.hdf5` 的子目录；默认 `/ubt_IL/dataset/tienkung_pro`） |
 | `TGT_PATH` | LeRobot 数据集输出根目录（默认 `/ubt_IL/dataset`） |
 | `CONFIG` | 转换配置 JSON（见上表） |
 | `REPO_ID` | 输出数据集名称（训练时保持一致） |
-| `FPS` | 目标帧率（默认 15） |
 | `TASK_NAME` | 任务名称（写入每帧 `task` 字段，训练时作为语言条件） |
+| `FPS` | 目标帧率（默认 `15`） |
+| `ROBOT_TYPE` | 机器人类型（默认 `tienkung`） |
+| `VCODEC` | 视频编码器（默认 `h264`） |
+| `HDF5_REL_PATH` | HDF5 相对 episode 目录的路径（默认 `trajectory.hdf5`） |
 | `TRIM_STATIONARY` | `1` 开启静止帧裁剪（见下） |
+| `STATIONARY_DIAGNOSE` | `1` 只统计静止分布不写盘（校准阈值用） |
+| `RESAMPLE_FPS` | 目标帧率，设置后启用重采样（默认不重采样） |
 
 !!! tip "静止帧裁剪"
     数据集静止帧会使模型推理陷入局部静止，可开启 `TRIM_STATIONARY=1` 裁剪（静止游程超过 cap 时截断，默认 cap 8 帧）。在转换命令前加 `TRIM_STATIONARY=1 \` 即可。
@@ -71,34 +67,33 @@ bash /ubt_IL/scripts/convert/tienkung_pro/convert.sh
 
 ```bash
 HF_HUB_OFFLINE=1 lerobot-dataset-viz \
-  --repo-id tienkung_sim_pick_place \
+  --repo-id <REPO_ID> \
   --episode-index 0 \
-  --root /ubt_IL/dataset/tienkung_sim_pick_place
+  --root /ubt_IL/dataset/<REPO_ID>
 ```
 
-![tienkung 仿真数据集可视化界面](../assets/tienkung仿真数据集可视化.png)
-
 > **注意**：`--root` 须指向包含 `meta/` 目录的数据集路径（即 `repo_id` 目录本身），而非父目录。`HF_HUB_OFFLINE=1` 用于禁止访问 HuggingFace Hub。
+
+**示例**（跳转查看）：
+可视化界面示例见 [仿真全流程 · 数据可视化](sim-workflow.md#32-数据可视化) / [真机全流程 · 数据可视化](real-workflow.md#32-数据可视化)。
 
 ## 4. 模型训练
 
 训练脚本：`/ubt_IL/scripts/train/tienkung_pro/train.sh`；训练配置在 `/ubt_IL/scripts/train/tienkung_pro/configs/` 下。
 
+**训练指令**（可选覆盖参数见下文表格，未设置时沿用配置文件内值）：
+
 ```bash
-# 使用默认配置训练
-bash /ubt_IL/scripts/train/tienkung_pro/train.sh
-
-# 显式指定训练配置文件路径，或覆盖配置文件常用参数
-CONFIG_PATH=/ubt_IL/scripts/train/tienkung_pro/configs/train_config_tienkung_pro_sim_pick_place.json \
-OUTPUT_DIR=/ubt_IL/model/tienkung_sim_pick_place_act \
-STEPS=80000 SAVE_FREQ=20000 BATCH_SIZE=8 \
-bash /ubt_IL/scripts/train/tienkung_pro/train.sh
-
-# 断点续训（CONFIG_PATH 指向 checkpoint 内 train_config.json）
-CONFIG_PATH=/ubt_IL/model/tienkung_sim_pick_place_act/checkpoints/last/pretrained_model/train_config.json \
-RESUME=true \
+CONFIG_PATH=<训练配置JSON> \
+OUTPUT_DIR=<模型输出目录> \
+STEPS=<训练步数> SAVE_FREQ=<保存间隔> BATCH_SIZE=<批大小> \
 bash /ubt_IL/scripts/train/tienkung_pro/train.sh
 ```
+
+**示例**（跳转查看）：
+
+- 仿真训练：[仿真全流程 · 模型训练](sim-workflow.md#4-模型训练)
+- 真机训练：[真机全流程 · 模型训练](real-workflow.md#4-模型训练)
 
 **不使用 train.sh**（直接调用 `lerobot-train`，需在 `/ubt_IL/lerobot` 目录下执行）：
 
@@ -126,19 +121,23 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 脚本：`/ubt_IL/scripts/eval/eval_policy.py`，在 LeRobot 数据集上离线推理，逐帧对比**预测动作 vs 真值动作**的 MSE，并可生成逐 episode 对比图。部署前先量化策略质量。
 
+**评估指令**：
+
 ```bash
 /lerobot/.venv/bin/python /ubt_IL/scripts/eval/eval_policy.py \
-  --policy-path /ubt_IL/model/tienkung_sim_pick_place_act/checkpoints/last/pretrained_model \
-  --dataset-path /ubt_IL/dataset/tienkung_sim_pick_place \
-  --episodes 5 \
-  --inference-freq 1 \
-  --plot \
-  --plot-dir /ubt_IL/scripts/eval/output/eval_tienkung_sim \
-  --output /ubt_IL/scripts/eval/output/eval_tienkung_sim/results.json \
+  --policy-path <ACT checkpoint 的 pretrained_model 目录> \
+  --dataset-path <LeRobot 数据集目录（含 meta/info.json）> \
+  --episodes <评估 episode 数> \
+  --inference-freq <每 N 步推理一次> \
+  --plot --plot-dir <对比图输出目录> \
+  --output <结果 JSON 路径> \
   --device cuda
 ```
 
-![天工模型离线评估曲线](../assets/tienkung模型离线评估曲线.png)
+**示例**（跳转查看）：
+
+- 仿真模型：[仿真全流程 · 策略评估](sim-workflow.md#5-策略评估离线-mse)
+- 真机模型：[真机全流程 · 策略评估](real-workflow.md#5-策略评估离线-mse)
 
 | 参数 | 说明 |
 |------|------|
@@ -150,7 +149,38 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 | `--output` | 结果 JSON（summary + 逐 episode MSE） |
 | `--device` | `cuda`（默认，不可用自动回退 `cpu`） |
 
-评估通过后，进入 [仿真工作流 §6](sim-workflow.md#6-模型部署仿真) 或 [真机工作流 §6](real-workflow.md#6-模型部署真机) 部署。
+评估通过后，进入 [§6 模型部署](#6-模型部署)。
+
+## 6. 模型部署
+
+脚本：`/ubt_IL/scripts/deploy/tienkung_pro/rollout.sh`，加载训练的 ACT checkpoint，按控制频率推理并经 ZMQ 将动作发给仿真器或真机。配套工具：`reset.py`（初始化/复位动作）、`replay.py`（回放数据集动作验证）、`image_client.py`（相机通路验证）。
+
+**部署指令**（可选环境变量见下文表格，未设置时沿用脚本默认值）：
+
+```bash
+POLICY_PATH=<ACT checkpoint 的 pretrained_model 目录> \
+JOINT_CONFIG=<关节 DOF 配置> \
+ZMQ_HOST=<仿真器/真机地址> \
+TASK=<任务描述> \
+bash /ubt_IL/scripts/deploy/tienkung_pro/rollout.sh
+```
+
+**示例**（跳转查看）：
+
+- 仿真部署（回注仿真器验证，建议先做）：[仿真全流程 · 模型部署](sim-workflow.md#6-模型部署仿真)
+- 真机部署（方案 A 远程容器 / 方案 B Jetson 板端 / 自定义 DOF）：[真机全流程 · 模型部署](real-workflow.md#6-模型部署真机)
+
+**常用环境变量**：
+
+| 变量 | 说明 |
+|------|------|
+| `POLICY_PATH` | 训练的 ACT checkpoint（`checkpoints/<step>/pretrained_model` 目录） |
+| `JOINT_CONFIG` | 关节 DOF 配置：`tienkung_26`=全 26、`tienkung_13`=右臂 7+右手 6；支持自定义配置，**须与训练时 DOF 一致** |
+| `STRATEGY` | 执行策略（`base`=自主执行） |
+| `ZMQ_HOST` | 目标地址：仿真 `127.0.0.1`（默认），真机须显式覆盖（如 `192.168.41.2`） |
+| `FPS` | 控制频率（与训练 fps 对齐，默认 `15`） |
+| `DURATION` | 运行时长（秒，默认 `60`） |
+| `TASK` | 任务描述 |
 
 ## 常见问题
 

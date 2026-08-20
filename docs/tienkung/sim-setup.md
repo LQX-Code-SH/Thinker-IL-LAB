@@ -1,41 +1,8 @@
-# 天工 Pro：仿真平台（`ubt_sim`）
+# 天工行者：仿真平台
 
-天工 Pro 仿真基于 NVIDIA Isaac Sim（Isaac Lab 2.2.0）构建，通过 ROS2-ZMQ 桥接将仿真状态与图像以**与真机一致的 ROS2 话题**对外发布，实现 sim-to-real 一致的遥操作与数据采集。整套环境运行在 Docker 容器内。
+天工行者 仿真基于 NVIDIA Isaac Sim（Isaac Lab 2.2.0）构建，通过 ROS2-ZMQ 桥接将仿真状态与图像以**与真机一致的 ROS2 话题**对外发布，实现 sim-to-real 一致的遥操作与数据采集。整套环境运行在 Docker 容器内。
 
-![TienKung Pro 仿真界面预览](../assets/tienkung-pro仿真界面预览.png)
-
-架构（三进程，**Python 不可混用**）：
-
-```
-Isaac Sim (Py3.11)  ──ZMQ──►  ROS2-ZMQ Bridge (Py3.10)  ──ROS2──►  遥操作/采集脚本
-```
-
-- **仿真** `/isaac-sim/python.sh`：加载 `UBTSim-TienkungPro-Parlor-v0`，JPEG 直发 ZMQ 5558。
-- **桥接** `/usr/bin/python3`：ZMQ↔ROS2 双向转发，`start_sim.sh` 自动拉起。
-- **采集** `/usr/bin/python3`：发布指令、录制 15Hz HDF5。
-
-## 仿真模块
-
-| 模块 | 路径 | 说明 |
-| --- | --- | --- |
-| Docker 编排 | `ubt_sim/docker/run.sh` | 镜像构建、容器生命周期、桥接启停 |
-| 环境变量 | `ubt_sim/docker/env.sh` | 容器名、镜像、`ROS_DOMAIN_ID` |
-| 仿真启动器 | `ubt_sim/scripts/start_sim.sh` | 识别机器人、拉起桥接、启动 `sim_runner.py` |
-| 任务定义 | `ubt_sim/source/ubt_sim/task/tienkung_pro_parlor/` | 客厅抓苹果场景与奖励 |
-| 运行时配置 | `ubt_sim/config/tienkung_pro/parlor.yaml` | 场景/相机/设备参数 |
-| ROS2-ZMQ 桥接 | `ubt_sim/teleoperation/bridges/tienkung_pro/` | 桥接脚本 + `bridge_config.yaml` |
-| 遥操作与采集 | `ubt_sim/teleoperation/control/tienkung_pro/` | `reset.py` / `pick_place_save_data.py` / `save_data.sh` |
-| 相机客户端 | `ubt_sim/teleoperation/image/image_client.py` | 直连 JPEG 流（5558）调试 |
-| 数据输出 | `ubt_sim/dataset/tienkung_pro/<时间戳>/trajectory.hdf5` | 采集产物 |
-
-### ZMQ 端口（见 `bridge_config.yaml`）
-
-| 端口 | 用途 |
-| --- | --- |
-| 5555 | 控制指令（bridge PUB） |
-| 5556 | 机器人状态（bridge SUB） |
-| 5557 | 相机原图像（C++ 桥接处理） |
-| 5558 | JPEG 直连（仿真发布，无需桥接） |
+![天工行者（无疆）仿真界面预览](../assets/tienkung-pro仿真界面预览.png)
 
 ## 快速开始
 
@@ -43,19 +10,7 @@ Isaac Sim (Py3.11)  ──ZMQ──►  ROS2-ZMQ Bridge (Py3.10)  ──ROS2─�
 
 ### 1. 构建并启动容器（宿主机）
 
-```bash
-cd ubt_sim/docker
-bash run.sh build      # 构建 ROS2 + Isaac Sim 镜像
-bash run.sh start      # 创建/启动容器 ubt-sim
-bash run.sh init       # 容器安装相关依赖,只需首次构建容器时执行一次
-bash run.sh check      # 校验环境（GPU / ROS2 / 消息包 / numpy<2 等）
-```
-
-如需区分真机/仿真的 ROS2 域，用 `ROS_DOMAIN_ID` 启动容器（默认 0）：
-
-```bash
-ROS_DOMAIN_ID=0 bash run.sh start
-```
+容器构建流程见 [仿真平台 · 容器构建与使用](../sim/docker.md)（`build` / `start` / `init` / `check` / `bash`）。
 
 ### 2. 启动仿真（容器内）
 
@@ -110,12 +65,12 @@ python3 /ubt_sim/teleoperation/image/image_client.py
 
 读取 `dataset/tienkung_pro/<时间戳>/trajectory.hdf5`，预览相机+关节曲线（Rerun），或把录制动作直发回放（仿真/真机同话题）。
 
-![TienKung Pro 数据预览](../assets/tienkung数据预览.png)
+![天工行者（无疆）数据预览](../assets/tienkung数据预览.png)
 
 ```bash
 # 预览 HDF5 文件
 /usr/bin/python3 /ubt_sim/teleoperation/tools/playback_tienkung_pro.py \
-    --episode dataset/tienkung_pro/1786638182 --mode preview --web-port 9070
+    --episode dataset/tienkung_pro/1786638182 --mode preview --web-port 9090
 
 # 动作回放（仿真/真机）
 /usr/bin/python3 /ubt_sim/teleoperation/tools/playback_tienkung_pro.py \
@@ -124,26 +79,36 @@ python3 /ubt_sim/teleoperation/image/image_client.py
 
 完整参数与安全须知见 [数据可视化与回放](../common/playback.md)。
 
-## 常用 run.sh 命令
+## 仿真模块
 
-```text
-build         构建镜像
-start         创建/启动容器
-stop          停止容器（先停桥接）
-restart       重启容器
-bash          进入容器 shell（自动 source ROS2）
-rm            删除容器
-init          容器内安装依赖、构建 ROS2 消息与 C++ 图像桥接
-check         校验环境
-bridge-start  单独启动 ROS2-ZMQ 桥接
-bridge-stop   单独停止桥接
-```
+| 模块 | 路径 | 说明 |
+| --- | --- | --- |
+| Docker 编排 | `ubt_sim/docker/run.sh` | 镜像构建、容器生命周期、桥接启停 |
+| 环境变量 | `ubt_sim/docker/env.sh` | 容器名、镜像、`ROS_DOMAIN_ID` |
+| 仿真启动器 | `ubt_sim/scripts/start_sim.sh` | 识别机器人、拉起桥接、启动 `sim_runner.py` |
+| 任务定义 | `ubt_sim/source/ubt_sim/task/tienkung_pro_parlor/` | 客厅抓苹果场景与奖励 |
+| 运行时配置 | `ubt_sim/config/tienkung_pro/parlor.yaml` | 场景/相机/设备参数 |
+| ROS2-ZMQ 桥接 | `ubt_sim/teleoperation/bridges/tienkung_pro/` | 桥接脚本 + `bridge_config.yaml` |
+| 遥操作与采集 | `ubt_sim/teleoperation/control/tienkung_pro/` | `reset.py` / `pick_place_save_data.py` / `save_data.sh` |
+| 相机客户端 | `ubt_sim/teleoperation/image/image_client.py` | 直连 JPEG 流（5558）调试 |
+| 数据输出 | `ubt_sim/dataset/tienkung_pro/<时间戳>/trajectory.hdf5` | 采集产物 |
+
+## ZMQ 端口
+
+| 端口 | 用途 |
+| --- | --- |
+| 5555 | 控制指令（bridge PUB） |
+| 5556 | 机器人状态（bridge SUB） |
+| 5557 | 相机原图像（C++ 桥接处理） |
+| 5558 | JPEG 直连（仿真发布，无需桥接） |
+
+跨机型端口总览见 [系统架构 · ZMQ 端口一览](../architecture.md#zmq-端口一览)。
 
 ## 故障排查
 
-- **`bash run.sh check` 报错**：按提示重跑 `bash run.sh init`；确认 `numpy<2`、`bodyctrl_msgs` 等消息包已就绪。
+- **`bash run.sh check` 报错**：按提示重跑 `bash run.sh init`；确认 `numpy<2`、`bodyctrl_msgs`、**Walker SDK ROS2 消息包**均已就绪。
 - **采集脚本报 rclpy / 消息类型导入失败**：确认用的是 `/usr/bin/python3` 而非 Isaac Sim Python；确认已 `bash run.sh init` 构建消息包。
 - **`save_data.sh` 连续失败熔断**：多为桥接未就绪。先确认仿真窗口在运行、桥接进程存在（`pgrep -f tienkung_pro_ros2_zmq_bridge`），或单独 `bash run.sh bridge-start`。
 - **X11 不可用 / 仿真窗口不显示**：宿主机执行 `xhost +`，确认 `DISPLAY` 已透传；无显示器时仅可用 `UBT_SIM_LOAD_ONLY=1` 预览。
 
-采集完成后进入下一步：[模仿学习平台（`ubt_IL`）](convert-train.md)。
+采集完成后进入下一步：[模仿学习平台](convert-train.md)。

@@ -1,4 +1,4 @@
-# Walker S2：真机部署（Rollout）
+# Walker S2 EDU 探索者：真机部署（Rollout）
 
 > 部署脚本：`ubt_IL/scripts/deploy/walker_s2/rollout.sh`，仿真部署与真机部署共用（差异见各工作流页）。本页给出完整参数、安全预检与在线评估说明。
 
@@ -13,10 +13,10 @@
 
 ```bash
 # 标准部署（真机 10D，机器人 Vision 板容器内）
-bash /ubt_IL/scripts/deploy/walker_s2/robot_ready.sh      # 前置：初始化动作
+bash /ubt_IL/scripts/deploy/walker_s2/robot_ready.sh      # 前置：初始化动作（回零用 --home）
 
 ROBOT_MODEL=walker_s2_10d \
-POLICY_PATH=/ubt_IL/model/walker_pick_part_real_10d_2RGB_act/checkpoints/last/pretrained_model \
+POLICY_PATH=/ubt_IL/model/walker_pick_part_real_10d_2RGB_act/checkpoints/080000/pretrained_model \
 INFERENCE_TYPE=act_async INFERENCE_HZ=1 \
 FPS=13 DURATION=60 \
 bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
@@ -24,6 +24,15 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 # 验证相机通路，可指定相机话题/机器人配置
 /usr/bin/python3 scripts/deploy/walker_s2/preview_camera.py --robot walker_s2_10d
 ```
+
+## 初始化/回零（robot_ready.sh）
+
+| 命令 | 作用 |
+|------|------|
+| `robot_ready.sh` | 预备姿态（`--init`，分 3 步安全到位，默认 13s） |
+| `robot_ready.sh --home` | 回零（分 3 步，默认 15s），推理结束后归位用 |
+| `robot_ready.sh --legacy-init` / `--legacy-home` | 旧 4 段流程回退 |
+| 其余参数 | 原样透传给 `robot_control.py`（如 `--init-duration 20`） |
 
 ## 安全预检
 
@@ -69,7 +78,7 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 
 ## 离线策略评估
 
-部署前建议先跑离线 MSE 评估（`ubt_IL/scripts/eval/eval_policy.py`，与天工共用），见 [模仿学习平台（`ubt_IL`） §6](convert-train.md#6-策略评估离线-mse)。
+部署前建议先跑离线 MSE 评估（`ubt_IL/scripts/eval/eval_policy.py`，与天工共用），见 [模仿学习平台 §6](convert-train.md#6-策略评估离线-mse)。
 
 ## 推理服务器（常驻预热）
 
@@ -80,7 +89,7 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 | 现象 | 处理 |
 |------|------|
 | 部署时报维度不匹配 | 安全预检拒绝：确认 `ROBOT_MODEL` 与策略维度对应（10D->`walker_s2_10d`、19D->`walker_s2_19d`、31D->`walker_s2_31d`） |
-| 部署时机器人不动 | 真机确认 Bridge2 已启动（5561/5562/5563）、`dev_mode.sh` 已切开发者模式；仿真确认 `ZMQ_HOST=127.0.0.1` 且仿真任务已启动 |
+| 部署时机器人不动 | 真机确认 Bridge2 已启动（5561/5562）、相机中继已启动（5563）、已进入开发者模式；仿真确认 `ZMQ_HOST=127.0.0.1` 且仿真任务已启动 |
 | 推理服务器 `start` 报错 | `start/stop` 需 `INFERENCE_TYPE=act_async`；`sync` 引擎无 pause/resume 语义 |
 | 重复拉起推理服务器失败 | 单例 pid 文件 `/tmp/walker_inference_server.pid` 存在；`shutdown` 正常退出或手动清理后再拉 |
 | 仿真相机与真机相机尺寸不同 | 仿真 RGB 为 [3,240,320]（10D）或 [3,480,640]（33D），真机为 [256,320] 等；模型输入需与训练数据一致，勿混用 |

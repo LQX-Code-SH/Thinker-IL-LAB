@@ -73,6 +73,7 @@ python hf_manager.py push --all                                   # 一键全传
 | `--prune` | 配合 `--sync` 同时删除远程多余文件（危险，慎用） | 关 |
 | `--delete <path...>` | 删除远程文件/子目录 | - |
 | `--description` / `--description-file` | 卡片简介文本 / 从文件读取 | - |
+| `--no-readme` | 不自动携带本地 `README.md` 作为卡片简介 | 关 |
 | `--revision <ref>` | 上传到指定分支 | `main` |
 
 ## 下载（pull）
@@ -141,3 +142,6 @@ python hf_manager.py list --bookmarks                                     # 查�
 
 **Q: 本地模型目录没有 README.md?**
 `pull` 会连同远程 `README.md` 一起下载；也可用 `card init <name>` 根据本地文件自动生成。
+
+**Q: `card set --type model` 报 `unrecognized arguments`?**
+嵌套子命令已注册全局参数；请确认 `hf_manager.py` 为仓库内最新版本。

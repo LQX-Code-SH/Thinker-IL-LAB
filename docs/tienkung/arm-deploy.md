@@ -1,9 +1,12 @@
-# 天工 Pro：ARM 板端部署（Jetson AGX Orin）
+# 天工行者：ARM 板端部署（Jetson AGX Orin）
 
-> 在 Jetson AGX Orin 上**不依赖 Docker**，用 conda 环境 `env_vla`（Python 3.12）运行 TienKung LeRobot 的推理 / 训练部署。`ubt_IL/scripts/deploy/tienkung_pro/arm_64/` 为自包含部署包：环境构建脚本、host 版部署脚本、本地编译的 PyTorch wheel。
+> 本页是 `ubt_IL/scripts/deploy/tienkung_pro/arm_64/` 自包含部署包的**深入参考**：运行架构、环境构建、板端训练与排错。
+> 运行环境：Jetson AGX Orin 8GB 
+> 本项目支持arm容器和Conda环境部署，但板内内存空间不足，建议构建Conda环境轻量部署。
+> 逐步操作流程见[真机全流程 · 方案 B：板内部署](real-workflow.md#6b-jetson-agx-orin-板内部署)。
 
-- 目标设备：Jetson AGX Orin（JetPack 6 / L4T R36.4.0 / Ubuntu 22.04 / glibc 2.35 / CUDA 12.6）
-- `PROJECT_ROOT` = `/home/nvidia/vla/UBTECH-IL-LAB/ubt_IL`
+- 目标设备：Jetson AGX Orin（即天工 Orin1 主控板 `192.168.41.2`；JetPack 6 / L4T R36.4.0 / Ubuntu 22.04 / glibc 2.35 / CUDA 12.6）
+- `PROJECT_ROOT` = `/home/nvidia/vla/Thinker-IL-LAB/ubt_IL`
 - 设计原则：host 版脚本用 `PROJECT_ROOT` + CLI 参数覆盖原脚本里硬编码的容器路径（`/ubt_IL/...`、`/lerobot/.venv/bin/...`），**不 sudo、不建软链、不改原脚本**。
 
 ## 1. 运行架构（双 Python 栈）
@@ -45,11 +48,11 @@ env_vla (conda, Python 3.12):  LeRobot + tienkung 插件 + torch
 | `robot_ready.sh` | 机器人复位到预设位置（推理前预备动作） | 系统 python3.10 + ROS2 |
 | `torch-*-cp312-cp312-linux_aarch64.whl` | 本地编译的 PyTorch / torchvision wheel（Jetson 专属） | - |
 
-## 3. 使用流程
+## 3. 环境构建（首次）
 
-### 3.1 前置条件
+前置条件：
 
-- 项目代码位于 `/home/nvidia/vla/UBTECH-IL-LAB/`。
+- 项目代码已拷贝到 `/home/nvidia/vla/Thinker-IL-LAB/`（拷贝方式见[真机全流程 · 方案 B](real-workflow.md#6b-jetson-agx-orin-板内部署)第 0 步）。
 - 已安装 conda（miniconda / miniforge）。
 - 宿主机已有 ROS2 Humble（`/opt/ros/humble`，含 rclpy、bodyctrl_msgs、cv_bridge）。
 - 系统 python3.10 已装 `pyorbbecsdk2` / `cv2` / `zmq` / `numpy`（位于 `~/.local`）。缺失时补装：
@@ -58,10 +61,10 @@ env_vla (conda, Python 3.12):  LeRobot + tienkung 插件 + torch
   ```
 - **真机部署**：把 `ubt_IL/docker/fastdds_no_shm.xml` 中的 `192.168.41.99` 改为**本机与机器人网线直连那张网卡的 IP**（`127.0.0.1` 保留），否则 ROS2 DDS 无法与真机通信。
 
-### 3.2 构建环境（首次）
+构建：
 
 ```bash
-cd /home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64
+cd /home/nvidia/vla/Thinker-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64
 bash setup_env.sh          # 创建 conda env_vla (python=3.12)，装 wheel + LeRobot + 插件并自检
 ```
 
@@ -73,26 +76,21 @@ bash setup_env.sh          # 创建 conda env_vla (python=3.12)，装 wheel + Le
 
 构建完成后 `conda activate env_vla`，`which python` 应指向 env_vla（python 3.12）。
 
-### 3.3 标准部署顺序（每次推理）
+## 4. 部署推理
 
-> 顺序固定：**先起相机服务 -> 再起推理**。相机服务跑在系统 python3.10，需在独立终端或后台常驻。
+标准顺序（完整操作见[真机全流程 · 方案 B](real-workflow.md#6b-jetson-agx-orin-板内部署)）：**先起相机服务 -> 再起推理**。相机服务跑在系统 python3.10，需在独立终端或后台常驻。
 
 ```bash
-# ① 相机服务（系统 python3.10，独立终端 / 后台常驻）
-bash image_server_host.sh
-
-# ②（可选）机器人复位到预设位置（系统 python3.10 + ROS2）
-bash robot_ready.sh
-
-# ③ 策略推理（env_vla 3.12，新终端）
-conda activate env_vla
+bash image_server_host.sh    # ① 相机服务（系统 python3.10，独立终端 / 后台常驻）
+bash robot_ready.sh          # ②（可选）机器人复位到预设位置（系统 python3.10 + ROS2）
+conda activate env_vla       # ③ 策略推理（env_vla 3.12，新终端）
 bash rollout_host.sh
 ```
 
 `rollout_host.sh` 常用覆盖：
 
 ```bash
-POLICY_PATH=$PROJECT_ROOT/model/tienkung_pick_up_act/checkpoints/last/pretrained_model \
+POLICY_PATH=$PROJECT_ROOT/model/tienkung_pick_up_act/checkpoints/100000/pretrained_model \
 DURATION=60 bash rollout_host.sh
 
 # 部署 13-DOF 模型（右臂7+右手6，JOINT_CONFIG 须与训练 DOF 一致）
@@ -114,7 +112,7 @@ DISPLAY_CAM=false bash rollout_host.sh        # SSH 无 X 时关相机显示
 | `FPS` | `30` | 控制环频率（与训练 fps 对齐） |
 | `DISPLAY_CAM` | `true` | 相机显示（SSH 无 X 设 `false`） |
 
-### 3.4 验证相机通路
+### 验证相机通路
 
 在启动 rollout 前，用 `image_client`（env_vla 侧）连 5558 收帧确认通路，无需图形界面：
 
@@ -126,7 +124,7 @@ bash image_client_host.sh --address 192.168.41.2   # 连真机上的 image_serve
 
 输出 `=> 相机通路 OK ✓` 即正常。
 
-### 3.5 模型训练（可选）
+## 5. 板端训练（可选）
 
 ```bash
 conda activate env_vla
@@ -142,17 +140,20 @@ STEPS=100000 BATCH_SIZE=8 bash train_host.sh
 | `OUTPUT_DIR` | `$PROJECT_ROOT/model/Pick_up_tiangong_all_act` | 输出目录 |
 | `STEPS` | `500000` | 训练步数 |
 | `BATCH_SIZE` | `8` | 批大小 |
+| `SEED` | `10000` | 随机种子 |
+| `DEVICE` | `cuda` | 训练设备 |
+| `HF_HUB_OFFLINE` | `1` | 离线训练（不访问 HuggingFace Hub） |
 
 > **注意**：配置文件里的 `repo_id=Pick_up_tiangong_all` 与实际数据集目录名 `Pick_up_the_apple_all` 不一致；脚本默认用 `DATASET_REPO_ID=Pick_up_the_apple_all` 覆盖以匹配实际目录。若自行改动需保持二者一致。
 
-### 3.6 数据集回放（可选）
+## 6. 数据集回放（可选）
 
 ```bash
 /usr/bin/python3 $PROJECT_ROOT/scripts/deploy/replay.py \
     --dataset $PROJECT_ROOT/dataset/Pick_up_the_apple_all --episode 0 --rate 30
 ```
 
-## 4. 注意事项与排错
+## 7. 注意事项与排错
 
 - **Python 3.12**：LeRobot 0.5.2 + tienkung 插件原生运行，免源码补丁；勿降级 3.10。
 - **本地 wheel**：torch/torchvision 用本目录的 cp312 wheel（Jetson 专属，链接本机 glibc 2.35）。勿用 PyPI 的 aarch64 wheel（CPU-only、无 CUDA），也勿用需 GLIBC_2.38 的预编译 wheel（本机 2.35 会崩）。

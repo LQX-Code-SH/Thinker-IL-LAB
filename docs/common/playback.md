@@ -7,12 +7,12 @@
 | **预览**（`--mode preview`） | Rerun 查看采集的相机画面 + 关节/手/夹爪曲线，时间轴 scrub/逐帧步进/循环为内置功能 | `rerun-sdk`（控制 Python） |
 | **控制**（`--mode control`） | 把录制动作按原始频率直发到仿真或真机执行 | ROS2（rclpy + 机器人消息包） |
 
-脚本位于 `ubt_sim/teleoperation/tools/`：
+入口脚本位于 `ubt_sim/teleoperation/tools/`：
 
-- `playback_walker_s2.py` - Walker S2（17 身体关节 + 7+7 V4 手 + 2 夹爪 + 4 相机）
-- `playback_tienkung_pro.py` - 天工 Pro（7+7 臂 + 6+6 手 + 1 相机含深度）
+- `playback_walker_s2.py` - Walker S2 EDU 探索者（17 身体关节 + 7+7 V4 手 + 2 夹爪 + 4 相机）
+- `playback_tienkung_pro.py` - 天工行者（7+7 臂 + 6+6 手 + 1 相机含深度）
 
-架构：共用核心 `common.py`（HDF5 加载、节奏、CLI、Rerun 预览）+ 机器人适配层 `robots/`（schema + ROS2 发布器 + 首帧对齐）。
+架构：共用核心 `playback/common.py`（HDF5 加载、节奏、CLI、Rerun 预览）+ 机器人适配层 `playback/robots/`（schema + ROS2 发布器 + 首帧对齐），两个薄入口脚本在 `tools/` 层。
 
 ## 环境准备（容器内）
 
@@ -38,7 +38,7 @@ cd /ubt_sim
 
 # ① 浏览器预览（推荐，容器内可用）
 python3 teleoperation/tools/playback_walker_s2.py \
-    --episode dataset/walker_s2/1786681892 --mode preview --web-port 9070
+    --episode dataset/walker_s2/1786681892 --mode preview --web-port 9090
 
 # ② 保存 .rrd（无 viewer），拷贝到宿主机后用 rerun viewer 打开
 python3 teleoperation/tools/playback_walker_s2.py \
@@ -49,16 +49,21 @@ python3 teleoperation/tools/playback_walker_s2.py \
     --episode dataset/walker_s2/1786681892 --mode preview
 ```
 
-- 天工 Pro 同理，脚本换成 `playback_tienkung_pro.py`。
-- 启动 web viewer 后脚本会打印**完整 URL**（形如 `http://localhost:9070/?url=rerun%2Bhttp%3A%2F%2F127.0.0.1%3A9876%2Fproxy`），照它打开即可。⚠️ 末尾 `?url=` 参数是数据源地址，**不能省**。远程浏览器需同时转发 web 端口与 9876 两个端口（`ssh -L 9070:localhost:9070 -L 9876:localhost:9876`）。
+- 天工行者 同理，脚本换成 `playback_tienkung_pro.py`。
+- 启动 web viewer 后脚本会打印**完整 URL**（形如 `http://localhost:9090/?url=rerun%2Bhttp%3A%2F%2F127.0.0.1%3A9876%2Fproxy`），照它打开即可。⚠️ 末尾 `?url=` 参数是数据源地址，**不能省**。远程浏览器需同时转发 9090 与 9876 两个端口（`ssh -L 9090:localhost:9090 -L 9876:localhost:9876`）。
 - `--episode` 缺省 = `dataset/<robot>/` 下最新（时间戳目录名最大）episode；`--max-frames N` 只记录前 N 帧。
 - Rerun 面板：`cameras/color/<相机名>`（图像）、`cameras/depth/...`（天工深度）、`action/<组>/<通道名>`（指令曲线）、`observation|puppet/...`（观测曲线），均随 `frame_index` / `timestamp` 两条时间轴同步。
 
-![Walker S2 数据预览](../assets/walker数据预览.png)
+![Walker S2 EDU 探索者 数据预览](../assets/walker数据预览.png)
 
 ## 控制模式
 
-回放**直发录制帧原始值**（最忠实）。仿真（bridge 转发）与真机话题完全一致，同一脚本通吃，仅 `ROS_DOMAIN_ID` 不同。
+回放**直发录制帧原始值**（最忠实）。发布的 ROS2 话题：
+
+- **Walker S2 EDU 探索者**：17 关节 `RobotCommand(MODE_POSITION)` @ `/mc/sdk/robot_command` + 双手 `JointCommand(mode=5)` + 双夹爪 `GripCmd`
+- **天工行者**：`CmdSetMotorPosition`（14 电机）@ `/arm/cmd_pos` + 双手 `JointState`
+
+仿真（bridge 转发）与真机话题完全一致，同一脚本通吃，仅 `ROS_DOMAIN_ID` 不同。
 
 ```bash
 # 第一步永远先 dry-run（不初始化 ROS2、不发布，只打印每帧摘要）

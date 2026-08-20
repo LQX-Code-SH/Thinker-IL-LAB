@@ -1,58 +1,16 @@
-# Walker S2：仿真平台（`ubt_sim`）
+# Walker S2 EDU 探索者：仿真平台
 
-Walker S2 仿真基于 NVIDIA Isaac Sim（Isaac Lab 2.2.0）构建，通过 ROS2-ZMQ 桥接将仿真状态与图像以**与真机一致的 ROS2 话题**对外发布，实现 sim-to-real 一致的遥操作与数据采集。整套环境运行在 Docker 容器内。
+Walker S2 EDU 探索者 仿真基于 NVIDIA Isaac Sim（Isaac Lab 2.2.0）构建，通过 ROS2-ZMQ 桥接将仿真状态与图像以**与真机一致的 ROS2 话题**对外发布，实现 sim-to-real 一致的遥操作与数据采集。整套环境运行在 Docker 容器内。
 
-![Walker S2 仿真界面预览](../assets/walker-s2仿真界面预览.png)
+![Walker S2 EDU 探索者 仿真界面预览](../assets/walker-s2仿真界面预览.png)
 
-架构（三进程，**Python 不可混用**）：
-
-```
-Isaac Sim (Py3.11)  ──ZMQ──►  ROS2-ZMQ Bridge (Py3.10)  ──ROS2──►  遥操作/采集脚本
-```
-
-- **仿真** `/isaac-sim/python.sh`：加载 `UBTSim-WalkerS2-PartSorting-v0`，四路相机 RGB 直发 ZMQ 5657。
-- **桥接** `/usr/bin/python3`：ZMQ↔ROS2 双向转发，`start_sim.sh` 自动拉起。
-- **采集** `/usr/bin/python3`：发布指令、录制 15Hz HDF5。
-
-### ZMQ 端口（见 `walker_s2_bridge_config.yaml`）
-
-| 端口 | 用途 |
-| --- | --- |
-| 5655 | 控制指令（bridge PUB） |
-| 5656 | 机器人状态（bridge SUB） |
-| 5657 | 相机图像（仿真直接发布，四路相机 RGB，采集时直连此端口） |
-| 5658 | JPEG 图像（仿真发布） |
-
-## 仿真模块
-
-| 模块 | 路径 | 说明 |
-| --- | --- | --- |
-| Docker 编排 | `ubt_sim/docker/run.sh` | 镜像构建、容器生命周期、桥接启停 |
-| 环境变量 | `ubt_sim/docker/env.sh` | 容器名、镜像、`ROS_DOMAIN_ID` |
-| 仿真启动器 | `ubt_sim/scripts/start_sim.sh` | 按 `UBT_SIM_TASK` 识别机器人、拉起桥接 |
-| 任务定义 | `ubt_sim/source/ubt_sim/task/walker_*/` | Walker S2 场景定义 |
-| 仿真配置 | `ubt_sim/config/walker_s2/` | `part_sorting.yaml` / `pick-part.yaml` / `parlor.yaml` |
-| ROS2-ZMQ 桥接 | `ubt_sim/teleoperation/bridges/walker_s2/` | 桥接脚本 + `walker_s2_bridge_config.yaml` |
-| 遥操作与采集 | `ubt_sim/teleoperation/control/walker_s2/` | `walker_s2_controller.py` / `pick_part.py` / `carry_box.py` / `keyboard_ee_control.py` / `save_data.sh` |
-| 数据输出 | `ubt_sim/dataset/walker_s2/<时间戳>/trajectory.hdf5` | 采集产物 |
 
 ## 快速开始
 
 ### 1. 构建环境（宿主机）
 
-```bash
-cd ubt_sim/docker
-bash run.sh build      # 构建 ROS2 + Isaac Sim 镜像
-bash run.sh start      # 创建/启动容器 ubt-sim
-bash run.sh init       # 容器安装相关依赖,只需首次构建容器时执行一次
-bash run.sh check      # 校验环境（GPU / ROS2 / 消息包 / numpy<2 等）
-```
+容器构建流程各机型一致，见 [仿真平台 · 容器构建与使用](../sim/docker.md)（`build` / `start` / `init` / `check` / `bash`）。
 
-如需区分真机/仿真的 ROS2 域，用 `ROS_DOMAIN_ID` 启动容器（默认 0）：
-
-```bash
-ROS_DOMAIN_ID=0 bash run.sh start
-```
 
 ### 2. 启动仿真（容器内）
 
@@ -61,13 +19,17 @@ bash run.sh bash                       # 进入容器（自动 source ROS2 + Wal
 UBT_SIM_TASK=UBTSim-WalkerS2-PickPart-v0 bash /ubt_sim/scripts/start_sim.sh   # 启动仿真 + 自动拉起桥接
 ```
 
-通过 `UBT_SIM_TASK` 选择任务场景（见 [机型概览](index.md#仿真任务场景)）。
+通过 `UBT_SIM_TASK` 选择任务场景。
+
+| 任务 ID | 场景 | 说明 |
+|---------|------|------|
+| `UBTSim-WalkerS2-PartSorting-v0` | 零件分拣 | 4 个零件 + 收纳箱（默认任务） |
+| `UBTSim-WalkerS2-PickPart-v0` | 零件分拣 | 单零件抓取：桌面只保留单个零件，配合 `pick_part.py` 采集 |
 
 运行效果（抓放任务）：
 
 <video src="../../assets/walker.mp4" controls muted width="100%"></video>
 
-- 默认加载 `UBTSim-WalkerS2-PartSorting-v0`（仓库零件分拣）：桌面上有 4 个零件（`part_a_ori` / `part_a_red` / `part_b_blue` / `part_b_ori`）和一个收纳箱。
 - **按 `R` 键**可复位机器人/场景；也可通过采集脚本 `--reset-scene` 发布 `/sim/cmd_reset`。
 - 关闭仿真窗口时，`start_sim.sh` 的退出陷阱会自动停止桥接进程。
 
@@ -75,7 +37,7 @@ UBT_SIM_TASK=UBTSim-WalkerS2-PickPart-v0 bash /ubt_sim/scripts/start_sim.sh   # 
 
 | 变量 | 作用 | 默认 |
 | --- | --- | --- |
-| `UBT_SIM_TASK` | 任务名（同时决定机器人类型） | `UBTSim-TienkungPro-Parlor-v0`，Walker S2 见任务场景列表 |
+| `UBT_SIM_TASK` | 任务名（同时决定机器人类型） | `UBTSim-TienkungPro-Parlor-v0`，Walker S2 EDU 探索者 见任务场景列表 |
 | `--headless` | 无窗口运行 | 无显示器/服务器场景最常用 |
 | `--perf_stats` | 打印性能统计 | 排查帧率 |
 | `--device cpu\|cuda\|cuda:N` | 运行设备 | 非 load_only 换卡时用 |
@@ -144,7 +106,7 @@ bash /ubt_sim/teleoperation/control/walker_s2/save_data.sh
 
 #### 相机测试（camera 子命令）
 
-Walker S2 发布四路相机（头部双目 stereo_left/right + 腕部 wrist_left/right）ZMQ（5657）和 ROS2 话题：
+Walker S2 EDU 探索者 发布四路相机（头部双目 stereo_left/right + 腕部 wrist_left/right）ZMQ（5657）和 ROS2 话题：
 
 ```bash
 # 实时预览（cv2.imshow，需 X11；SSH 进入容器需 -X 转发，按 Q/ESC 退出）
@@ -161,17 +123,19 @@ Walker S2 发布四路相机（头部双目 stereo_left/right + 腕部 wrist_lef
 | `--preview` | 关 | cv2.imshow 实时预览（按 Q/ESC 退出，需 X11） |
 | `--save` | 关 | 保存帧为 PNG（`camera_frame_<时间戳>.png`） |
 | `--count <N>` | `0`（无限） | 保存/预览帧数上限，达到即退出 |
+| `--interval <秒>` | `1.0` | 打印/保存循环的间隔 |
+| `--no-print` | 关 | 不打印帧信息（所有模式生效） |
 
 ### 5. 数据集预览与回放（容器内）
 
 读取 `dataset/walker_s2/<时间戳>/trajectory.hdf5`，预览相机+关节曲线（Rerun），或把录制动作直发回放（仿真/真机同话题）。
 
-![Walker S2 数据预览](../assets/walker数据预览.png)
+![Walker S2 EDU 探索者 数据预览](../assets/walker数据预览.png)
 
 ```bash
 # 预览 HDF5 数据集
 /usr/bin/python3 /ubt_sim/teleoperation/tools/playback_walker_s2.py \
-    --episode dataset/walker_s2/1786681892 --mode preview --web-port 9070
+    --episode dataset/walker_s2/1786681892 --mode preview --web-port 9090
 
 # 动作回放（仿真/真机）
 /usr/bin/python3 /ubt_sim/teleoperation/tools/playback_walker_s2.py \
@@ -180,30 +144,30 @@ Walker S2 发布四路相机（头部双目 stereo_left/right + 腕部 wrist_lef
 
 完整参数与安全须知见 [数据可视化与回放](../common/playback.md)。
 
-## Walker S2 特殊说明
+## 仿真模块
+
+| 模块 | 路径 | 说明 |
+| --- | --- | --- |
+| Docker 编排 | `ubt_sim/docker/run.sh` | 镜像构建、容器生命周期、桥接启停 |
+| 环境变量 | `ubt_sim/docker/env.sh` | 容器名、镜像、`ROS_DOMAIN_ID` |
+| 仿真启动器 | `ubt_sim/scripts/start_sim.sh` | 按 `UBT_SIM_TASK` 识别机器人、拉起桥接 |
+| 任务定义 | `ubt_sim/source/ubt_sim/task/walker_*/` | Walker S2 EDU 探索者 场景定义 |
+| 仿真配置 | `ubt_sim/config/walker_s2/` | `part_sorting.yaml` / `pick-part.yaml` / `parlor.yaml` |
+| ROS2-ZMQ 桥接 | `ubt_sim/teleoperation/bridges/walker_s2/` | 桥接脚本 + `walker_s2_bridge_config.yaml` |
+| 遥操作与采集 | `ubt_sim/teleoperation/control/walker_s2/` | `walker_s2_controller.py` / `pick_part.py` / `carry_box.py` / `keyboard_ee_control.py` / `save_data.sh` |
+| 数据输出 | `ubt_sim/dataset/walker_s2/<时间戳>/trajectory.hdf5` | 采集产物 |
+
+
+## Walker S2 EDU 探索者 特殊说明
 
 ### GPU 渲染 + CPU PhysX
 
-Walker S2 默认采用 **GPU 渲染 + CPU PhysX** 架构：`start_sim.sh` / `sim_runner.py` 将渲染/AppLauncher 设备设为 `cuda:0`，但 Isaac Lab physics/env 设备设为 `cpu`。这是为了规避 Isaac Sim 5.0 + Isaac Lab 2.2 在 Walker S2 articulation 初始化时 `get_dof_velocities()` 触发的 PhysX GPU tensor device mismatch。不要默认改回 GPU physics；如需实验可显式设置 `UBT_SIM_WALKER_S2_PHYSICS_DEVICE=cuda:0`。
+Walker S2 EDU 探索者 默认采用 **GPU 渲染 + CPU PhysX** 架构：`start_sim.sh` / `sim_runner.py` 将渲染/AppLauncher 设备设为 `cuda:0`，但 Isaac Lab physics/env 设备设为 `cpu`。这是为了规避 Isaac Sim 5.0 + Isaac Lab 2.2 在 Walker S2 EDU 探索者 articulation 初始化时 `get_dof_velocities()` 触发的 PhysX GPU tensor device mismatch。不要默认改回 GPU physics；如需实验可显式设置 `UBT_SIM_WALKER_S2_PHYSICS_DEVICE=cuda:0`。
 
 ### Walker SDK ROS2 消息包
 
 桥接与采集脚本依赖 Walker SDK ROS2 消息（`rosa_msgs` / `shm_msgs` / `mc_task_msgs` / `mc_state_msgs` / `ecat_task_msgs`），由 `bash run.sh init` 构建到 `/opt/ubt_sim/walker_sdk_ros2_msgs/install`，`run.sh bash` 进入容器时自动 source。DDS 中间件使用 `rmw_cyclonedds_cpp`。
 
-## 常用 run.sh 命令
-
-```text
-build         构建镜像
-start         创建/启动容器
-stop          停止容器（先停桥接）
-restart       重启容器
-bash          进入容器 shell（自动 source ROS2 + Walker SDK）
-rm            删除容器
-init          容器内安装依赖、构建 ROS2 消息与 C++ 图像桥接
-check         校验环境
-bridge-start  单独启动 ROS2-ZMQ 桥接
-bridge-stop   单独停止桥接
-```
 
 ## 故障排查
 
@@ -214,4 +178,4 @@ bridge-stop   单独停止桥接
 - **X11 不可用 / 仿真窗口不显示**：宿主机执行 `xhost +`，确认 `DISPLAY` 已透传；无显示器时仅可用 `UBT_SIM_LOAD_ONLY=1` 预览。
 - **键盘遥操作无法捕获键鼠**：headless 容器内无法使用 pynput，请在宿主机（有图形界面）执行 `keyboard_ee_control.py`。
 
-采集完成后进入下一步：[模仿学习平台（`ubt_IL`）](convert-train.md)。
+采集完成后进入下一步：[模仿学习平台](convert-train.md)。

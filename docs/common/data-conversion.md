@@ -16,8 +16,10 @@
 | `convert_to_lerobot.py` | 通用 HDF5 -> LeRobot 转换器（被各机型 `*.sh` 调用） |
 | `isaaclab2lerobot.py` / `isaaclab2lerobotv3.py` | IsaacLab 仿真数据转换（v2/v3） |
 | `lerobot2isaaclab.py` | LeRobot -> 单 HDF5 反向转换 |
+| `fix_stats_format.py` | 修复数据集 stats 格式 |
+| `merge_datasets.sh` | 多批数据集合并（如多批次真机数据合并训练） |
 | `hf_manager.py` | Hugging Face 数据集与模型管理（见 [HF 管理](hf-manage.md)） |
-| `all_robot_h5_info*.md` | 跨机型 HDF5 布局参考文档 |
+| `all_robot_h5_info*.md` | 跨机型 HDF5 布局参考文档（见 [HDF5 数据布局](hdf5-layouts.md)） |
 
 ## 环境变量
 
@@ -71,4 +73,4 @@ bash /ubt_IL/scripts/convert/<机型>/convert.sh
 | 训练时归一化炸裂（QUANTILES NaN/Inf） | 数据含恒定维度（锁死关节/夹爪），std=0 致归一化除零；改用低维配置转换剔除死维度 |
 | 数据集帧率与预期不符 | `FPS=auto` 取源频率，或 `RESAMPLE_FPS` 重采样 |
 
-各机型的具体转换命令与配置选择，见对应机型页：[天工 Pro](../tienkung/convert-train.md) / [Walker S2](../walker-s2/convert-train.md)。
+各机型的具体转换命令与配置选择，见对应机型页：[天工行者](../tienkung/convert-train.md) / [Walker S2 EDU 探索者](../walker-s2/convert-train.md)。

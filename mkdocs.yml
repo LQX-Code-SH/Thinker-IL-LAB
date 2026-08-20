@@ -1,9 +1,9 @@
-site_name: UBTECH-IL-LAB
-site_description: 优必选机器人模仿学习工具链 - 基于 Isaac Sim 与 LeRobot 的完整模仿学习解决方案
-site_author: UBTECH Robotics
-site_url: https://lqx-code-sh.github.io/UBTECH-IL-LAB/
-repo_url: https://github.com/LQX-Code-SH/UBTECH-IL-LAB
-repo_name: LQX-Code-SH/UBTECH-IL-LAB
+site_name: Thinker-IL-LAB
+site_description: Thinker 机器人模仿学习工具链 - 基于 Isaac Sim 与 LeRobot 的完整模仿学习解决方案
+site_author: Thinker Robotics
+site_url: https://lqx-code-sh.github.io/Thinker-IL-LAB/
+repo_url: https://github.com/LQX-Code-SH/Thinker-IL-LAB
+repo_name: LQX-Code-SH/Thinker-IL-LAB
 
 docs_dir: docs
 
@@ -13,8 +13,8 @@ extra_css:
 theme:
   name: material
   language: zh
-  logo: assets/优必选logo.png
-  favicon: assets/优必选logo.png
+  logo: assets/logo.png
+  favicon: assets/logo.png
   features:
     - navigation.tabs
     - navigation.sections
@@ -44,23 +44,36 @@ theme:
 nav:
   - 首页: index.md
   - 快速开始: getting-started.md
-  - 天工 Pro:
-    - 机型概览: tienkung/index.md
-    - 仿真平台（ubt_sim）: tienkung/sim-setup.md
-    - 模仿学习平台（ubt_IL）: tienkung/convert-train.md
-    - 仿真工作流: tienkung/sim-workflow.md
-    - 真机工作流: tienkung/real-workflow.md
-    - ARM 板端部署: tienkung/arm-deploy.md
-  - Walker S2:
-    - 机型概览: walker-s2/index.md
-    - 仿真平台（ubt_sim）: walker-s2/sim-setup.md
-    - 模仿学习平台（ubt_IL）: walker-s2/convert-train.md
-    - 仿真工作流: walker-s2/sim-workflow.md
-    - 真机工作流: walker-s2/real-workflow.md
-    - 真机部署: walker-s2/deploy.md
-    - 推理服务器: walker-s2/inference-server.md
+  - 仿真平台:
+      - 平台概览: sim/index.md
+      - 容器构建与使用: sim/docker.md
+      - 天工行者: tienkung/sim-setup.md
+      - Walker S2 EDU 探索者: walker-s2/sim-setup.md
+  - 模仿学习平台:
+      - 平台概览: il/index.md
+      - 容器构建与使用: il/docker.md
+      - 天工行者: tienkung/convert-train.md
+      - Walker S2 EDU 探索者: walker-s2/convert-train.md
+  - 天工行者:
+      - 机型概览: tienkung/index.md
+      - 仿真全流程: tienkung/sim-workflow.md
+      - 真机全流程: tienkung/real-workflow.md
+      - 参考文档:
+          - ARM 板端部署: tienkung/arm-deploy.md
+  - Walker S2 EDU 探索者:
+      - 机型概览: walker-s2/index.md
+      - 仿真全流程: walker-s2/sim-workflow.md
+      - 真机全流程: walker-s2/real-workflow.md
+      - 参考文档:
+          - 真机部署: walker-s2/deploy.md
+          - 推理服务器: walker-s2/inference-server.md
+          - 腕部相机: walker-s2/wrist-camera.md
+          - 真机控制 SDK: walker-s2/robot-control.md
+          - SDK 二次开发（CC-API）: walker-s2/cc-api.md
   - 通用参考:
+    - 容器环境: common/docker.md
     - 数据转换详解: common/data-conversion.md
+    - HDF5 数据布局: common/hdf5-layouts.md
     - 数据可视化与回放: common/playback.md
     - HF 数据/模型管理: common/hf-manage.md
   - 架构总览: architecture.md

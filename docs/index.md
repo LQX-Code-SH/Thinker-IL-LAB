@@ -1,10 +1,10 @@
-# UBTECH-IL-LAB
+# Thinker-IL-LAB
 
-优必选 EDU 版机器人模仿学习工具链，为 **天工 Pro（TienKung Pro）** 与 **Walker S2** 机器人提供从仿真数据采集到真机部署的完整模仿学习解决方案。
+Thinker 机器人模仿学习工具链，为 **天工行者（无疆）** 与 **Walker S2 EDU 探索者** 等多款人形机器人提供从仿真数据采集到真机部署的完整模仿学习解决方案。
 
 基于 [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) 与 [HuggingFace LeRobot](https://github.com/huggingface/lerobot) 框架构建。
 
-[:fontawesome-brands-github: **GitHub 仓库** · LQX-Code-SH/UBTECH-IL-LAB](https://github.com/LQX-Code-SH/UBTECH-IL-LAB){ .md-button .md-button--primary }
+[:fontawesome-brands-github: **GitHub 仓库** · LQX-Code-SH/Thinker-IL-LAB](https://github.com/LQX-Code-SH/Thinker-IL-LAB){ .md-button .md-button--primary }
 [快速开始 :material-arrow-right:](getting-started.md){ .md-button }
 
 ## 核心能力
@@ -16,44 +16,44 @@
 | :material-database: 数据采集与转换 | HDF5 / LeRobot 格式数据采集，格式转换与清洗 | :material-check-circle: 已完成 |
 | :material-brain: 模型训练 | 基于 LeRobot 的模仿学习策略训练（ACT / Pi0.5） | :material-check-circle: 已完成 |
 | :material-robot: 真机部署 | 模型推理与真机控制部署（含推理服务器常驻预热） | :material-check-circle: 已完成 |
-| :material-robot: 支持机型 | TienKung Pro / Walker S2 | :material-check-circle: 已发布 |
-| :material-robot-outline: 其他机型 | Walker C1 / TienKung 3.0 | :material-progress-clock: 待发布 |
+| :material-robot: 支持机型 | 天工行者（无疆）/ Walker S2 EDU 探索者 | :material-check-circle: 已发布 |
+| :material-robot-outline: 其他机型 | Walker C1 EDU 共创者 / 天工行者DEX | :material-progress-clock: 待发布 |
 
 ## 效果展示
 
 ### 仿真平台预览
 
-| TienKung Pro | Walker S2 |
+| 天工行者（无疆） | Walker S2 EDU 探索者 |
 |-------------|-----------|
-| ![TienKung Pro 仿真界面预览](assets/tienkung-pro仿真界面预览.png) | ![Walker S2 仿真界面预览](assets/walker-s2仿真界面预览.png) |
+| ![天工行者（无疆）仿真界面预览](assets/tienkung-pro仿真界面预览.png) | ![Walker S2 EDU 探索者 仿真界面预览](assets/walker-s2仿真界面预览.png) |
 
 ### 部署效果
 
 <div class="grid video-grid" markdown>
 <div markdown>
 
-**天工 Pro 仿真**
+**天工行者 仿真**
 
 <video src="assets/tienkung仿真部署效果.mp4" controls muted width="100%"></video>
 
 </div>
 <div markdown>
 
-**天工 Pro 真机**
+**天工行者 真机**
 
 <video src="assets/tienkung真机部署效果.mp4" controls muted width="100%"></video>
 
 </div>
 <div markdown>
 
-**Walker S2 仿真**
+**Walker S2 EDU 探索者 仿真**
 
 <video src="assets/walker仿真部署效果.mp4" controls muted width="100%"></video>
 
 </div>
 <div markdown>
 
-**Walker S2 真机**
+**Walker S2 EDU 探索者 真机**
 
 <video src="assets/walker真机部署效果.mp4" controls muted width="100%"></video>
 
@@ -66,14 +66,14 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                            ubt_IL 模仿学习平台                              │
+│                            ubt_IL 模仿学习平台                             │
 │                数据转换 ──► 模型训练 ──► 离线评估 ─► 推理部署                 │
 └───────────▲───────────────┬──────────────────────▲──────────────┬────────┘
             │               │④仿真部署              │              │⑤真机部署
             │①数据采集       ▼ （ROS桥接）           │②真机采集      │（ROS桥接）
    ┌────────┴────────────────┐        ┌─────────────┴──────────────▼──────┐
-   │      ubt_sim 仿真平台    │        │    真机（天工 Pro / Walker S2）     │
-   │     （Isaac Sim 容器）   │        │     ROS_DOMAIN_ID=0 直连网段       │
+   │      ubt_sim 仿真平台    │        │真机（天工行者 / Walker S2 EDU 探索者）│
+   │     （Isaac Sim 容器）   │        │     ROS_DOMAIN_ID=0 直连网段        │
    └─────────────────────────┘        └───────────────────────────────────┘
 ```
 
@@ -81,9 +81,11 @@
 
 ## 从这里开始
 
-- [快速开始](getting-started.md) - 克隆代码、环境要求、全流程一览
-- [:material-robot: 天工 Pro](tienkung/index.md) - 仿真 / 转换 / 训练 / 仿真与真机部署 / ARM 板端部署
-- [:material-robot-outline: Walker S2](walker-s2/index.md) - 仿真 / 转换 / 训练 / 部署 / 推理服务器
+- [快速开始](getting-started.md) - 克隆代码、环境要求、全流程一览（支持按平台 / 按机型两种入口）
+- [:material-robot-outline: 仿真平台](sim/index.md) - Isaac Sim 仿真、遥操作与数据采集（天工行者 / Walker S2 EDU 探索者）
+- [:material-brain: 模仿学习平台](il/index.md) - 数据转换、模型训练（ACT / Pi0.5）、离线评估
+- [:material-robot: 天工行者](tienkung/index.md) - 仿真 / 转换 / 训练 / 仿真与真机部署 / ARM 板端部署
+- [:material-robot-outline: Walker S2 EDU 探索者](walker-s2/index.md) - 仿真 / 转换 / 训练 / 部署 / 推理服务器
 - [通用参考](common/data-conversion.md) - 数据转换详解、数据回放、HuggingFace 数据/模型管理
 
 ## 致谢
@@ -92,8 +94,8 @@
 
 - [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) - 高保真机器人仿真环境
 - [HuggingFace LeRobot](https://github.com/huggingface/lerobot) - 模仿学习框架（ACT 策略、数据格式与训练/推理工具链）
-- [Thinker Studio](https://thinkercosmos.ubtrobot.com/#/studio) - 优必选遥操数采平台
-- [Thinker cosmos开源社区](https://thinkercosmos.ubtrobot.com/#/open-source-center?ref=header-nav) - 优必选开源中心
+- [Thinker Studio](https://thinkercosmos.ubtrobot.com/#/studio) - Thinker 遥操数采平台
+- [Thinker cosmos开源社区](https://thinkercosmos.ubtrobot.com/#/open-source-center?ref=header-nav) - Thinker 开源社区
 
 ## License
 

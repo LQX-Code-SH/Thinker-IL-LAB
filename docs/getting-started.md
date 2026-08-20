@@ -1,6 +1,6 @@
 # 快速开始
 
-本项目分为 **仿真平台（`ubt_sim`）** 与 **模仿学习平台（`ubt_IL`）** 两个子项目，均以容器方式运行。本页介绍代码获取、环境要求与全流程总览；具体操作步骤请进入对应机器人文档线。
+本项目分为 **仿真平台** 与 **模仿学习平台** 两个子项目，均以容器方式运行。本页介绍代码获取、环境要求与全流程总览；具体操作步骤请进入对应机器人文档线。
 
 ## 代码获取
 
@@ -13,8 +13,8 @@ git config --global https.proxy http://127.0.0.1:7897
 export GIT_LFS_PROXY="http://127.0.0.1:7897"   # LFS 走代理
 
 # 1. 克隆仓库（先跳过 LFS 和子模块，加速克隆）
-GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/LQX-Code-SH/UBTECH-IL-LAB.git
-cd UBTECH-IL-LAB
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/LQX-Code-SH/Thinker-IL-LAB.git
+cd Thinker-IL-LAB
 
 # 2. 拉取 LFS 大文件
 git lfs pull
@@ -45,12 +45,27 @@ git submodule update --init
 真机采集（遥操作）─────┘         
 ```
 
-## 按机型进入
+&nbsp;
 
-| 机型 | 入口 | 端到端工作流 |
-|------|------|--------------|
-| 天工 Pro | [TienKung概览](tienkung/index.md) | [TienKung仿真工作流](tienkung/sim-workflow.md) / [TienKung真机工作流](tienkung/real-workflow.md) |
-| Walker S2 | [walker-s2概览](walker-s2/index.md) | [walker-s2仿真工作流](walker-s2/sim-workflow.md) / [walker-s2真机工作流](walker-s2/real-workflow.md) |
+>   我们提供两种方式帮您快速了解该项目，您可以选择先了解我们的平台功能（`ubt_sim` 仿真采集 / `ubt_IL` 模仿学习），也可以直接进入对应机型的端到端全流程（天工行者 / Walker S2 EDU 探索者）在快速复现过程中了解我们的项目。
+
+## 按平台选择
+
+从平台维度进入，先了解平台通用架构、命令与使用流程：
+
+| 平台 | 平台概览 | 
+|---------|----------|
+| 仿真平台 | [仿真平台使用说明](sim/index.md) | 
+| 模仿学习平台 | [模仿学习平台使用说明](il/index.md) | 
+
+## 按机型选择
+
+从机型维度进入，按机型走完整文档线：
+
+| 机型 | 机型概览 | 端到端全流程 |
+|------|---------|--------------|
+| 天工行者 | [天工行者 概览](tienkung/index.md) | [天工仿真全流程](tienkung/sim-workflow.md) / [天工真机全流程](tienkung/real-workflow.md) |
+| Walker S2 EDU 探索者 | [Walker S2 EDU 探索者 概览](walker-s2/index.md) | [Walker S2 EDU 探索者 仿真全流程](walker-s2/sim-workflow.md) / [Walker S2 EDU 探索者 真机全流程](walker-s2/real-workflow.md) |
 
 ## 可选：下载测试数据与模型
 
@@ -70,7 +85,7 @@ python hf_manager.py pull qingxiangliu/tienkung_pick_up_act          # 真机 AC
 
 ### 数据集列表
 
-**天工 Pro**
+**天工行者**
 
 | 仓库 | 体积 | 格式 | 说明 |
 |------|------|------|------|
@@ -81,7 +96,7 @@ python hf_manager.py pull qingxiangliu/tienkung_pick_up_act          # 真机 AC
 | [`tienkung_pick_up_the_red_bottle_all`](https://huggingface.co/datasets/qingxiangliu/tienkung_pick_up_the_red_bottle_all) | 685.2 MB | LeRobot | 真机抓取红色瓶子 |
 | [`tienkung_real_merged`](https://huggingface.co/datasets/qingxiangliu/tienkung_real_merged) | 379.3 MB | LeRobot | 真机抓取瓶子（国创） |
 
-**Walker S2**
+**Walker S2 EDU 探索者**
 
 | 仓库 | 体积 | 格式 | 说明 |
 |------|------|------|------|
@@ -99,7 +114,7 @@ python hf_manager.py pull qingxiangliu/tienkung_pick_up_act          # 真机 AC
 |------|------|------|
 | [`tienkung_sim_pick_place_right13_act`](https://huggingface.co/qingxiangliu/tienkung_sim_pick_place_right13_act) | 591 MB | 天工仿真 ACT 抓取测试策略 |
 | [`tienkung_pick_up_act`](https://huggingface.co/qingxiangliu/tienkung_pick_up_act) | 591 MB | 天工真机 ACT 测试策略 |
-| [`Walker_S2_sim_10_2RGB_act`](https://huggingface.co/qingxiangliu/Walker_S2_sim_10_2RGB_act) | 1.9 GB | Walker S2 仿真 ACT 测试策略 |
-| [`walker_pick_part_real_10d_2RGB_act`](https://huggingface.co/qingxiangliu/walker_pick_part_real_10d_2RGB_act) | 1.7 GB | Walker S2 真机 ACT 抓取测试策略 |
+| [`Walker_S2_sim_10_2RGB_act`](https://huggingface.co/qingxiangliu/Walker_S2_sim_10_2RGB_act) | 1.9 GB | Walker S2 EDU 探索者 仿真 ACT 测试策略 |
+| [`walker_pick_part_real_10d_2RGB_act`](https://huggingface.co/qingxiangliu/walker_pick_part_real_10d_2RGB_act) | 1.7 GB | Walker S2 EDU 探索者 真机 ACT 抓取测试策略 |
 
 > 下载的数据集保存于 `ubt_IL/dataset/`，模型保存于 `ubt_IL/model/`。完整用法见 [HF 数据/模型管理](common/hf-manage.md)。
