@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ubt_sim"
 version = "0.1.0"
-description = "UBT Sim: UBTECH robot simulation platform based on Isaac Lab"
+description = "UBT Sim: Thinker robot simulation platform based on Isaac Lab"
 readme = "README.md"
 license = {text = "Apache-2.0"}
-keywords = ["simulation", "isaaclab", "ubtech", "tiangong"]
+keywords = ["simulation", "isaaclab", "thinker", "tiangong"]
 classifiers = [
     "Natural Language :: English",
     "Programming Language :: Python :: 3.11",
@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/LQX-Code-SH/UBTECH-IL-LAB"
+Homepage = "https://github.com/LQX-Code-SH/Thinker-IL-LAB"
 
 [tool.setuptools]
 packages = {find = {where = ["."]}}

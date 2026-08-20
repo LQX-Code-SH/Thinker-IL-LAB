@@ -1,4 +1,4 @@
-# 【CC\-API】Walker S2优必选SDK二次开发文档【对内】
+# 【CC\-API】Walker S2优必选SDK二次开发文档
 
 **【二次开发责任与品牌形象保护条款】**
 
@@ -35,7 +35,7 @@
 |12|2026/4/9|v2\.1|相机信息msg描述|李子恒|
 |13|2026/4/29|v2\.2|新增：运动学逆解使用方法描述修改\+【模块7\-场景demo案例】|SDK项目组|
 
-![image\.png](图片和附件/image%204.png)
+![image\.png](assets/image%204.png)
 
 # 关于优必选 Walker S2
 
@@ -66,7 +66,7 @@ Walker S2机器人整机共42个自由度，由42个一体化关节电机驱动�
 
 ## 关节参数
 
-![img\_v3\_02rm\_c59bf199\-a666\-4c4f\-a537\-3281a6c62a9g\.png](图片和附件/img_v3_02rm_c59bf199-a666-4c4f-a537-3281a6c62a9g.png)
+![img\_v3\_02rm\_c59bf199\-a666\-4c4f\-a537\-3281a6c62a9g\.png](assets/img_v3_02rm_c59bf199-a666-4c4f-a537-3281a6c62a9g.png)
 
 **补充说明：文档中关于关节、电机描述中的 left==可等价理解为==L，都是左的意思；right==R同理；**
 
@@ -108,15 +108,15 @@ Walker S2机器人整机共42个自由度，由42个一体化关节电机驱动�
 
 |关节部位（三代灵巧手）|运动范围（°）|图例说明|
 |---|---|---|
-|小拇指<br>无名指<br>中指<br>食指|**【三代手】**<br>指腹旋转角度88\.92°（1\.52 rad），指尖被动旋转93\.06°（1\.62 rad）<br>**【四代手】**<br>指腹旋转角度 98°（1\.71rad），指尖被动旋转100\.94°（1\.76rad）<br>|![image\.png](图片和附件/image%205.png)<br>|
-|大拇指弯曲角度|**【三代手】**<br>拇指指腹角度58°（1\.01 rad），指尖被动旋转60°（1\.05 rad）<br>**【四代手】**<br>拇指指腹角度106°（1\.85 rad），指尖角度旋转62\.5°（1\.09 rad）<br>|![image\.png](图片和附件/image%201.png)<br>|
-|大拇指旋转角度|**【三代手】**<br>大拇指侧摆角度65\.34°（1\.14 rad）<br>**【四代手】**<br>大拇指侧摆角度121°（2\.11rad）|![image\.png](图片和附件/image%2011.png)<br>|
+|小拇指<br>无名指<br>中指<br>食指|**【三代手】**<br>指腹旋转角度88\.92°（1\.52 rad），指尖被动旋转93\.06°（1\.62 rad）<br>**【四代手】**<br>指腹旋转角度 98°（1\.71rad），指尖被动旋转100\.94°（1\.76rad）<br>|![image\.png](assets/image%205.png)<br>|
+|大拇指弯曲角度|**【三代手】**<br>拇指指腹角度58°（1\.01 rad），指尖被动旋转60°（1\.05 rad）<br>**【四代手】**<br>拇指指腹角度106°（1\.85 rad），指尖角度旋转62\.5°（1\.09 rad）<br>|![image\.png](assets/image%201.png)<br>|
+|大拇指旋转角度|**【三代手】**<br>大拇指侧摆角度65\.34°（1\.14 rad）<br>**【四代手】**<br>大拇指侧摆角度121°（2\.11rad）|![image\.png](assets/image%2011.png)<br>|
 
 ## 坐标系，关节旋转轴与关节零点
 
 当各个关节均为零度时，各坐标系如下图。红色为x轴，绿色为y轴，蓝色为z轴。
 
-![image\.png](图片和附件/image%2016.png)
+![image\.png](assets/image%2016.png)
 
 ## 模型与标定参数
 
@@ -222,13 +222,13 @@ Walker S2机器人整机共42个自由度，由42个一体化关节电机驱动�
 
 - 打开机器人背部盖板，按下机器人背部电源开关。（图\-1）
 
-![image\.png](图片和附件/image%2018.png)
+![image\.png](assets/image%2018.png)
 
 \(图\-1\)
 
 - 长按机器人背部的启动键，看到机器人头部显示屏亮起后表示机器人已开始启动，启动时间约1分钟。（图\-2）
 
-![image\.png](图片和附件/image%208.png)
+![image\.png](assets/image%208.png)
 
 \(图\-2\)
 
@@ -236,7 +236,7 @@ Walker S2机器人整机共42个自由度，由42个一体化关节电机驱动�
 
 - 按下机器人背部伺服控制按键，听到风扇声音响起，机器人开机完成。（图\-3）
 
-![image\.png](图片和附件/image%206.png)
+![image\.png](assets/image%206.png)
 
 \(图\-3\)
 
@@ -248,17 +248,17 @@ Walker S2机器人整机共42个自由度，由42个一体化关节电机驱动�
 
 3. 通过SSH，在PC1或PC2登录ROS 2容器并运行Demo程序或者自定义程序\(ssh ubt@192\.168\.11\.2/3 \-p 2222 密码Ubtubt@9880\)
 
-![image\.png](图片和附件/image.png)
+![image\.png](assets/image.png)
 
 ## 遥控操作
 
 1. 手柄键位定义
 
-![image\.png](图片和附件/image%2012.png)
+![image\.png](assets/image%2012.png)
 
 2. 遥控器按键功能
 
-![image\.png](图片和附件/image%2020.png)
+![image\.png](assets/image%2020.png)
 
 ## 回零/启动控制器
 
@@ -317,7 +317,7 @@ ros2 service call /sys/task/developer_mode std_srvs/srv/SetBool "{data: true}"
 
 - 当返回success=True即进入退出/成功，message显示developer enable
 
-![9fdaac9d\-8207\-42c0\-b427\-6980404f07ae\.jpeg](图片和附件/9fdaac9d-8207-42c0-b427-6980404f07ae.jpeg)
+![9fdaac9d\-8207\-42c0\-b427\-6980404f07ae\.jpeg](assets/9fdaac9d-8207-42c0-b427-6980404f07ae.jpeg)
 
 - 同时也可以通过topic查看机器人当前状态
 
@@ -436,7 +436,7 @@ ros2 topic list
 
 您可以看到以下主题，可以通过ros2 topic echo打印对应的数据
 
-![image\.png](图片和附件/image%2017.png)
+![image\.png](assets/image%2017.png)
 
 - demo程序示例
 
@@ -470,7 +470,7 @@ ros2 topic list
 
     2. 就可以获取IMU\(Orin\)状态信息
 
-![img\_v3\_02qc\_14c4a74e\-31c2\-4205\-9668\-053ca6a8d6ag\.jpg](图片和附件/img_v3_02qc_14c4a74e-31c2-4205-9668-053ca6a8d6ag.jpg)
+![img\_v3\_02qc\_14c4a74e\-31c2\-4205\-9668\-053ca6a8d6ag\.jpg](assets/img_v3_02qc_14c4a74e-31c2-4205-9668-053ca6a8d6ag.jpg)
 
 - 其它详细示例见\-模块5
 
@@ -1360,7 +1360,7 @@ ros2 topic info `/sensor/camera/stereo_left(or right)/image/raw`确定 msg格式
 
 - healthstatus：具体的健康状态如下列表
 
-![企业微信截图\_1770618087732\.png](图片和附件/企业微信截图_1770618087732.png)
+![企业微信截图\_1770618087732\.png](assets/企业微信截图_1770618087732.png)
 
 - 代码示例
 
@@ -3211,7 +3211,7 @@ int main(int argc, char **argv) {
 
 结果输出：
 
-![image\.png](图片和附件/image%2021.png)
+![image\.png](assets/image%2021.png)
 
 ## ASR
 
@@ -3389,11 +3389,11 @@ int main()
 
 C\+\+:
 
-[ubt\_api\_tiny\.20260203\.zip](图片和附件/ubt_api_tiny.20260203.zip)
+[ubt\_api\_tiny\.20260203\.zip](assets/ubt_api_tiny.20260203.zip)
 
 Python:
 
-[ubt\_api\_tiny\_python\_20260407\.tar\.xz](图片和附件/ubt_api_tiny_python_20260407.tar.xz)
+[ubt\_api\_tiny\_python\_20260407\.tar\.xz](assets/ubt_api_tiny_python_20260407.tar.xz)
 
 首先使用以下命令将上述 zip 文件传到开发者容器中：
 
@@ -3407,7 +3407,7 @@ scp -P 2222 所在路径/ubt_api_tiny.202XXXXX.zip ubt@192.168.11.3:/debug/
 
 解压后，目录结构如下：
 
-![image\.png](图片和附件/image%2014.png)
+![image\.png](assets/image%2014.png)
 
 其中：
 
@@ -3482,7 +3482,7 @@ g++ -o demo ./examples/01_ubt_api_demo.cpp -I ./include/ -I /opt/ubt_3rdparty/nl
 
 运行效果：
 
-![image\.png](图片和附件/image%207.png)
+![image\.png](assets/image%207.png)
 
 可以看到，程序已获取到故障列表的数据，后续示例也以上面的命令为标准，修改对应文件名即可。
 
@@ -3541,7 +3541,7 @@ int main()
 
 demo文件：**examples/02\_connect\_cb\_demo\.cpp**
 
-![image\.png](图片和附件/image%203.png)
+![image\.png](assets/image%203.png)
 
 #### 异步发送请求
 
@@ -3624,7 +3624,7 @@ int main()
 
 demo文件：**examples/03\_async\_request\_demo\.cpp**
 
-![image\.png](图片和附件/image%2010.png)
+![image\.png](assets/image%2010.png)
 
 #### 异步发送通知
 
@@ -3676,7 +3676,7 @@ demo文件：**examples/04\_notify\_demo\.cpp**
 
 当故障状态变化时，即可接收到对应消息：
 
-![image\.png](图片和附件/image%2013.png)
+![image\.png](assets/image%2013.png)
 
 #### 添加服务监听
 
@@ -3735,7 +3735,7 @@ int main()
 
 demo文件：**examples/05\_addservice\_demo\.cpp**
 
-![image\.png](图片和附件/image%2022.png)
+![image\.png](assets/image%2022.png)
 
 #### 注意事项
 
@@ -3885,7 +3885,7 @@ if (work) {
 
 demo文件：**examples/06\_skill\_work\_demo\.cpp**
 
-![image\.png](图片和附件/image%209.png)
+![image\.png](assets/image%209.png)
 
 #### 停止任务
 
@@ -3912,7 +3912,7 @@ if (work) {
 
 demo文件：**examples/07\_work\_stop\_demo\.cpp**
 
-![image\.png](图片和附件/image%202.png)
+![image\.png](assets/image%202.png)
 
 #### 获取技能列表
 
@@ -3940,7 +3940,7 @@ if (rsp.error.code == 0) {  //!< 如果没有异常，则打印返回内容
 
 demo文件：**examples/08\_get\_skill\_list\_demo\.cpp**
 
-![image](图片和附件/image)
+![image](assets/image)
 
 
 
@@ -4069,7 +4069,7 @@ if (rsp.error.code == 0) {  //!< 如果没有异常，则打印返回内容
 
 demo文件：**examples/09\_get\_skill\_profile\_demo\.cpp**
 
-![image\.png](图片和附件/image%2015.png)
+![image\.png](assets/image%2015.png)
 
 #### 技能罗列
 
@@ -4112,11 +4112,11 @@ demo文件：**examples/09\_get\_skill\_profile\_demo\.cpp**
 
 **地图参数模板：**
 
-![image\.png](图片和附件/image%2019.png)
+![image\.png](assets/image%2019.png)
 
 **轨道导航建图：**
 
-![img\_v3\_02102\_032ccede\-b83a\-4d52\-be8b\-5e4e16c1452g\.jpg](图片和附件/img_v3_02102_032ccede-b83a-4d52-be8b-5e4e16c1452g.jpg)
+![img\_v3\_02102\_032ccede\-b83a\-4d52\-be8b\-5e4e16c1452g\.jpg](assets/img_v3_02102_032ccede-b83a-4d52-be8b-5e4e16c1452g.jpg)
 
 注意：轨道需要在起点和终点2m范围内。
 
@@ -4593,482 +4593,6 @@ yaw = \[\-0\.6, 0\.6\]
 停止：通过原子技能A000004将腿部模式切为STAND后停止行走和踏步
 
 规则：超过2s无指令，速度置零
-
-# 场景demo案例
-
-**备注：Demo案例，现阶段独立于SDK环境之外，具体以下面文档为准\~**
-
-## 全身遥操 
-
-> [Motion SDK \(S2\) 自测指南](https://ew9vfg36e3.feishu.cn/wiki/DrDZwxDyKiXIuykSk9Oc1kKknMc?from=from_copylink)
-> 
-> 
-
-## 大模型替换
-
-### 本地TTS替换 
-
-抽象化每个模型的输入/输出，隔离具体模型的调用，由具体业务进行解析使用
-
-#### **本地模型重要配置和服务**
-
-|服务名称|服务地址|
-|---|---|
-|ASR 服务开关|service: /sys/asr/enable， std\_srvs::srv::SetBool|
-|ASR 识别结果 是否传入 NLP|service: /sys/llm\_in/enable， std\_srvs::srv::SetBool|
-|NLP 结果是否传入 TTS 服务|service: /sys/llm\_out/enable， std\_srvs::srv::SetBool|
-|TTS 是否播报|service: /sys/tts/enable， std\_srvs::srv::SetBool|
-|开启内置麦克风录音功能|service: /sys/run\_record/enable，std\_srvs::srv::SetBool|
-|降噪音频流监听|topic: /sys/speech/mic\_denoise,， std\_msgs::msg::Int16MultiArray|
-|唤醒词事件和唤醒解耦开关，唤醒词事件不直接唤醒机器，由业务根据场景判断是否需要唤醒|service: /sys/akdecouple/enable，std\_srvs::srv::SetBool|
-|唤醒词事件监听|topic: /sys/speech/kws， std\_msgs::msg::String|
-
-PS：使用以上 1\-4 service关闭本地模型，使能 5 开启录音功能，监听 6 音频流，上传云端模型， 使用 7 解耦唤醒和唤醒词事件，监听 8 唤醒词事件做业务功能
-
-#### **二开设计参考框架**
-
-#### **部分参考代码**
-
-**开关及topic监听**
-
-```C++
-// 1. ASR 服务开关
-asr_enable_client_ = common_utils::createClient<std_srvs::srv::SetBool>(
-        node, "/sys/asr/enable");
-        
-// 2. ASR 识别结果 是否传入 NLP
-llm_in_enabled_client_ = common_utils::createClient<std_srvs::srv::SetBool>(
-        node, "/sys/llm_in/enable");
-        
-// 3. NLP 结果是否传入 TTS 服务 (service: /sys/llm_out/enable， std_srvs::srv::SetBool)
-llm_out_enabled_client_ = common_utils::createClient<std_srvs::srv::SetBool>(
-        node, "/sys/llm_out/enable");
-        
-// 4. TTS 是否播报 （service: /sys/tts/enable， std_srvs::srv::SetBool）
-tts_enabled_client_ = common_utils::createClient<std_srvs::srv::SetBool>(
-        node, "/sys/tts/enable");
-        
-// 5.开启内置麦克风录音功能（service: /sys/run_record/enable，std_srvs::srv::SetBool）
-run_record_enabled_client_ = common_utils::createClient<std_srvs::srv::SetBool>(
-        node, "/sys/run_record/enable");
-        
-// 6. 降噪音频流监听
-mic_denoise_reader_ = common_utils::createMessageReader<std_msgs::msg::Int16MultiArray>(
-        node, "/sys/speech/mic_denoise", 10, std::bind(&WalkerS2AsrManager::mic_denoise_callback, this, std::placeholders::_1));
-        
-// 7. 唤醒词事件和唤醒解耦开关
-akdecouple_client_ = common_utils::createClient<std_srvs::srv::SetBool>(
-        node, "/sys/akdecouple/enable");
-
-// 8. 唤醒词事件监听
-kws_event_reader_ = 
-        common_utils::createMessageReader<std_msgs::msg::String>(
-        node, "/sys/speech/kws", 10, std::bind(&WalkerS2AsrManager::kwsEventCallback, this, std::placeholders::_1));
-
-// 9. 本地asr结果监听
-asr_walkerS2_reader_ = common_utils::createMessageReader<sys_task_msgs::msg::Asr>(
-        node, "sys/speech/asr", 10, std::bind(&WalkerS2AsrManager::asrResultCallback, this, std::placeholders::_1));
-        
-
-// 设置开关
-// ros2 命令行 ros2 service call /sys/asr/enable std_srvs/srv/SetBool "{data: true}" ，其它类似
-static std::vector<bool> done(6, false);
-auto execute_ops = [&]() {
-    if (!done[1]) done[0] = enableS2Env(llm_in_enabled_client_, false, "llm_in_enabled"); // 关闭nlp输入
-    if (!done[2]) done[1] = enableS2Env(llm_out_enabled_client_, false, "llm_out_enabled"); // 关闭nlp输出
-    if (!done[3]) done[2] = enableS2Env(tts_enabled_client_, false, "tts_enabled"); // 关闭tts播报
-    if (!done[4]) done[3] = enableS2Env(akdecouple_client_, true, "akdecouple"); // 使能唤醒和唤醒词事件
-    if (!done[5]) done[4] = enableS2Env(run_record_enabled_client_, true, "run_record_enabled"); // 开启内置麦克风录音
-    if (!done[0]) done[5] = enableS2Env(asr_enable_client_, true, "asr_enable");  // 使能asr本地识别, 如无需本地asr结果可关闭
-    
-    // 检查是否全部完成
-    for (bool d : done) {
-        if (!d) {
-            ULOGW("Not all pre env are configured");
-            return false;
-        }
-    }
-    ULOGI("All pre env are configured");
-    return true;
-};
-
-// ros2 topic echo /sys/speech/mic_denoise
-// ros2 topic echo /sys/speech/kws
-// 降噪音频流数据回调函数
-void WalkerS2AsrManager::mic_denoise_callback(std_msgs::msg::Int16MultiArray::ConstSharedPtr data)
-{
-    ULOGD("收到降噪数据： %d", data->data.size());
-    // 业务根据需求自行处理降噪音频流数据
-    ...
-    // 发送到云端asr
-    sendMessageToServer(data->data.data(), data->data.size() * sizeof(data->data[0]), 1)；
-}
-
-// 唤醒词事件回调函数
-void WalkerS2AsrManager::kwsEventCallback(std_msgs::msg::String::ConstSharedPtr msg)
-{
-    // 业务根据需求自行处理唤醒词事件
-    ...
-}
-
-
-```
-
-**调用系统扬声器**
-
-使用 第三方库（alsa、portaudio等） 调用系统扬声器流式播放
-
-示例：使用 portaudio 库调用系统默认扬声器，其他使用方法请自行参考官方文档
-
-```C++
-// 初始化 默认输出设备
-bool startOutputStream(int channel, double rate, PaSampleFormat format, 
-        unsigned long frames_per_buffer, RawAudioDataCallback callback, void *user_data) 
-{
-    if (is_playing_) {
-        ULOGE("AudioRecorder is already playing, not need to start again.");
-        return true;
-    }
-
-    checkInitialized();
-
-    PaDeviceIndex outputDevice = Pa_GetDefaultOutputDevice();
-    const PaDeviceInfo* outputInfo = Pa_GetDeviceInfo(outputDevice);
-    if(outputInfo) {
-        ULOGI("默认输出设备名称: %s", outputInfo->name);
-        ULOGI("默认输出设备最大声道数: %d", outputInfo->maxInputChannels);
-        ULOGI("默认输出设备默认低延迟输入: %f", outputInfo->defaultLowInputLatency);
-        ULOGI("默认输出设备默认低延迟输出: %f", outputInfo->defaultLowOutputLatency);
-        ULOGI("默认输出设备默认高延迟输入: %f", outputInfo->defaultHighInputLatency);
-        ULOGI("默认输出设备默认高延迟输出: %f", outputInfo->defaultHighOutputLatency);
-        ULOGI("默认输出设备默认采样率: %f", outputInfo->defaultSampleRate);
-    }
-
-    PaError err;
-    err = Pa_OpenDefaultStream(
-        &output_stream_,
-        0,          // 无输入（麦克风）
-        channel,    // 单/双声道输出（喇叭）
-        format,  // 32位浮点采样
-        rate,      // 采样率 44.1kHz
-        frames_per_buffer,        // 每缓冲区 帧
-        callback,
-        user_data        // 用户数据
-    );
-    if (err != paNoError) {
-        ULOGE("无法打开喇叭: %s", Pa_GetErrorText(err));
-        Pa_Terminate();
-        is_playing_ = false;
-        return 1;
-    }
-
-    err = Pa_StartStream(output_stream_);
-    if (err != paNoError) {
-        ULOGE("无法启动喇叭: %s", Pa_GetErrorText(err));
-        Pa_CloseStream(output_stream_);
-        Pa_Terminate();
-        is_playing_ = false;
-        return 1;
-    }
-
-    is_playing_ = true;
-    return true;
-}
-
-// 写入音频流进行播放
-PaError writeStream(void *buffer, unsigned long numFrames)
-{
-    return Pa_WriteStream(output_stream_, buffer, numFrames);
-}
-```
-
-### 本地大模型替换 
-
-1. **环境准备**
-
-首先，安装 Python 的 OpenAI 依赖库：
-
-```Bash
-pip install openai
-```
-
-2. **Python 代码示例**
-
-在这个示例中，我将配置项放在了一个字典中，你也可以轻松地将其改为从`.env`文件或环境变量中读取。
-
-```Python
-from openai import OpenAI
-import sys
-
-# ================= 配置区域 =================# 你可以将这些配置放在环境变量或配置文件中
-CONFIG = {
-    "api_key": "你的 API_KEY 在这里",
-    "base_url": "你的云端大模型网址，例如 https://api.openai.com/v1",
-    "model": "你的模型名，例如 chat-gpt、qwen 等"
-}
-# ===========================================def call_llm_inference(user_query):
-    """
-    调用大模型进行推理
-    :param user_query: 用户文本输入
-    :return: 大模型的文本回复
-    """# 初始化客户端
-    client = OpenAI(
-        api_key=CONFIG["api_key"],
-        base_url=CONFIG["base_url"]
-    )
-
-    try:
-        # 发起聊天请求
-        response = client.chat.completions.create(
-            model=CONFIG["model"],
-            messages=[
-                {"role": "system", "content": "你是一个乐于助人的 AI 助手。"},
-                {"role": "user", "content": user_query}
-            ],
-            temperature=0.7, # 控制随机性，0.7 比较平衡
-            stream=False    # 设置为 True 可以实现打字机效果
-        )
-
-        # 提取回复内容
-        answer = response.choices[0].message.content
-        return answer
-
-    except Exception as e:
-        return f"请求出错了，错误信息: {str(e)}"# --- 测试运行 ---if __name__ == "__main__":
-    # 模拟 ASR 识别后的文本输入
-    asr_text = "帮我查一下明天的天气，顺便写一首关于春天的短诗。"print(f"--- 用户输入 (ASR 的结果): ---\n{asr_text}\n")
-    
-    result = call_llm_inference(asr_text)
-    
-    print(f"--- 大模型回复: ---\n{result}")
-```
-
-3. **流式输出 \(Streaming\) 示例**
-
-开启 stream=True。这样模型会一边计算一边返回文字，实现流式输出：
-
-```Python
-# 修改请求部分
-stream = client.chat.completions.create(
-    model=CONFIG["model"],
-    messages=[{"role": "user", "content": user_query}],
-    stream=True
-)
-
-for chunk in stream:
-    if chunk.choices[0].delta.content is not None:
-        print(chunk.choices[0].delta.content, end="", flush=True)
-```
-
-这样用户就能看到文字逐个蹦出来的效果，体验更像真实的对话。
-
-## VLA 搬运周转箱
-
-> 备注：理论SOP文档
-> 
-> 
-
-### 教程目标
-
-本教程旨在以用例形式，使用户了解VLA模型在优必选Walker\-S2机器人上的使用方法。
-
-用户可通过提供的资料与数据，自行复现本次提供的demo场景：搬运周转箱。为对齐训练数据，周转箱尺寸应为60cm\*40cm\*22cm，且需摆放在1m高的平台处。
-
-同时。用户也可借鉴此流程，训练并部署自己的VLA模型，去处理自定义任务。不同的任务，如VLA拆码垛、上下料、抓特定物件等，都可套用此流程，部署对应的模型来适配不同的任务
-
-### 算法训练
-
-本教程后续代码均使用Isaac\-Groot 1\.5为示例，需改动两个文件才可适配本机所采的数据，做训练与推理
-
-[gr00t\_finetune\.py](图片和附件/gr00t_finetune.py)
-
-[data\_config\.py](图片和附件/data_config.py)
-
-用`gr00t_finetune.py`进行训练时，`--data_config`设成`utars1`，`--embodiment-tag`设成`new_embodiment`
-
-**示例数据：**`data/utars_clamp_and_place_large_box_full_data_bio_lerobot_0319`
-
-**示例权重文件：**`weight/checkpoint-40000`
-
-### 环境配置
-
-推荐网线连接连接机器人后，进行如下操作
-
-1. **文件拷贝**
-
-    1. 将docker\-images内的vla\_control\_node\_sdk\.tar拷贝到walker@192\.168\.11\.2任意位置
-
-        1. 后续教程默认为此路径：sftp://walker@192\.168\.11\.2/home/walker/vla\_control\_node\_sdk\.tar
-
-    2. 将codes/motion/s2\_vla\_scripts拷贝到walker@192\.168\.11\.2任意位置
-
-        1. 后续教程默认为此路径：sftp://walker@192\.168\.11\.2/home/walker/vla\_motion/s2\_vla\_scripts
-
-    3. 将codes/motion/rosa\_vla\_additional拷贝到walker@192\.168\.11\.2任意位置
-
-        1. 后续教程默认为此路径：sftp://walker@192\.168\.11\.2/home/walker/vla\_motion/rosa\_vla\_additional
-
-    4. 将docker\-images内的vla\_inference\_node\_sdk\.tar拷贝到walker@192\.168\.11\.3任意位置
-
-        1. 后续教程默认为此路径：sftp://walker@192\.168\.11\.3/home/walker/vla\_inference\_node\_sdk\.tar
-
-    5. 将codes/vision/rosa\_vla\_additional拷贝到walker@192\.168\.11\.3任意位置
-
-        1. 后续教程默认为此路径：sftp://walker@192\.168\.11\.3/home/walker/vla\_vision/rosa\_vla\_additional
-
-    6. 将codes/vision/docker\_files拷贝到walker@192\.168\.11\.3任意位置
-
-        1. 后续教程默认为此路径：sftp://walker@192\.168\.11\.3/home/walker/vla\_vision/docker\_files
-
-    7. 将训练权重（或你自己的训练权重）weight/checkpoint\-40000拷贝到walker@192\.168\.11\.3任意位置
-
-        1. 后续教程默认为此路径：sftp://walker@192\.168\.11\.3/home/walker/vla\_vision/rosa\_vla\_additional/checkpoint\-40000
-
-2. **Docker加载**
-
-在192\.168\.11\.2上：
-
-**Terminal 1：**
-
-```Bash
-cd ~
-docker cp ~/vla_motion/s2_vla_scripts walker-motion.manipulation_robot_app-1:/home/ubt/
-docker exec -it walker-motion.manipulation_robot_app-1 bash
-source /opt/walker/setup.bash
-source /home/ubt/s2_vla_scripts/auto_load_vla_scripts_new.sh # 然后一路确认即可
-```
-
-**Terminal 2：**
-
-```Bash
-cd ~
-docker load -i vla_control_node_sdk.tar
-
-docker run -it --name vla_control_node_sdk \
-  --network host \
-  -v /home/walker/vla_motion/rosa_vla_additional:/home/ubt/additional \
-  vla_control_node_sdk:latest \
-  /bin/bash
-```
-
-在192\.168\.11\.3上：
-
-**Terminal 1：**
-
-```Bash
-cd ~
-docker load -i vla_inference_node_sdk.tar
-docker run --gpus all -it --runtime=nvidia --network=host \
-  --name=vla_inference_node_sdk \
-  -v /home/walker/vla_vision/docker_files/gr00t_model:/opt/Isaac-GR00T \
-  -v /home/walker/vla_vision/rosa_vla_additional:/home/ubt/additional \
-  vla_inference_node_sdk:latest \
-  /bin/bash
-```
-
-### 模型部署与推理
-
-在完成前序步骤后，192\.168\.11\.2（下面简称motion板）和192\.168\.11\.3（下面简称vision板）应该分别有一个docker环境：vla\_control\_node\_sdk和vla\_inference\_node\_sdk
-
-#### **Motion板**
-
-ssh walker@192\.168\.11\.2
-
-密码：aa
-
-**Terminal 1：**
-
-```Bash
-ssh walker@192.168.11.2
-# 进入运控容器
-docker exec -it walker-motion.manipulation_robot_app-1 bash
-# source环境
-source /opt/walker/setup.bash
-
-# 启动运控
-rosa run t800_mc_server start_mc_client
-
-# 把手臂抬到初始位置，这一步视VLA模型而定，可以没有
-rosa action send_goal /mc/manipulation/action mc_task_msgs/action/ArmTask '{"task_name":"s2_bio_vla/s2_vla_pick_large_teleop_ready", "yaml_args":""}'
-```
-
-
-
-**Terminal 2：**
-
-切控制器sdk\_controller
-
-**注意：需要先将机器人通过遥控器移动到合适位置**
-
-```Bash
-# 进入运控容器
-ssh walker@192.168.11.2
-docker exec -it walker-motion.manipulation_robot_app-1 bash
-
-# source环境
-source /opt/walker/setup.bash
-
-# 需要确定是否开启了运控
-rosa run t800_mc_server start_mc_client
-
-# 启动sdk控制器
-rosa run rosa_controllers switch_controller config_mc_walker_s2_v1_sps
-```
-
-**Terminal 3：**
-
-vla控制节点node开启用，主要用来接收VLA推理输出的chunk。
-
-```Bash
-# 进入运控容器
-ssh walker@192.168.11.2
-docker start vla_control_node_sdk
-docker exec -it vla_control_node_sdk bash
-source /home/ubt/additional/scripts/setup.sh
-cd /home/ubt/additional/vla-motionx86/src/vla_executor/vla_executor/
-
-**# vla控制节点node**
-**python3 executor_node_sdk.py**
-```
-
-#### **Vision 板**
-
-ssh walker@192\.168\.11\.3
-
-密码：aa
-
-**Terminal 4：**
-
-进入vla推理容器
-
-```Bash
-# 进入vla推理容器
-ssh walker@192.168.11.3
-docker start vla_inference_node_sdk
-docker exec -it vla_inference_node_sdk bash
-cd /home/ubt/additional/vla-onboard/src/gr00t_control/
-source /home/ubt/additional/scripts/setup.sh
-
-**python3 gr00t_inference.py**
-```
-
-![图片\.png](图片和附件/图片.png)
-
-出现此log即为启动完成
-
-**Terminal 5：**
-
-ros2 action send\_goal 发送
-
-```Bash
-# 进入vla容器
-ssh walker@192.168.11.3
-docker start vla_inference_node_sdk
-docker exec -it vla_inference_node_sdk bash
-source /home/ubt/additional/scripts/setup.sh
-
-ros2 action send_goal /gr00t/trigger_inference mc_task_msgs/action/InferenceTask '{"task_id": 2, "max_inference_duration": 240.0, "end_threshold": 0.060}'
-```
 
 # FAQ
 

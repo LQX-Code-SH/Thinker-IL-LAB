@@ -6,7 +6,7 @@
 >
 > - 适用目录：`ubt_IL/scripts/deploy/tienkung_pro/arm_64/`
 > - 目标设备：Jetson AGX Orin（JetPack 6 / L4T R36.4.0 / Ubuntu 22.04 / glibc 2.35 / CUDA 12.6）
-> - `PROJECT_ROOT` = `/home/nvidia/vla/UBTECH-IL-LAB/ubt_IL`（脚本内由本目录的 `../../../..` 解析得到）
+> - `PROJECT_ROOT` = `/home/nvidia/vla/Thinker-IL-LAB/ubt_IL`（脚本内由本目录的 `../../../..` 解析得到）
 > - 设计原则：host 版脚本用 `PROJECT_ROOT` + CLI 参数覆盖原脚本里硬编码的容器路径
 >   （`/ubt_IL/...`、`/lerobot/.venv/bin/...`），**不 sudo、不建软链、不改原脚本**。
 
@@ -64,7 +64,7 @@ env_vla (conda, Python 3.12):  LeRobot + tienkung 插件 + torch
 
 ### 3.1 前置条件
 
-- 项目代码位于 `/home/nvidia/vla/UBTECH-IL-LAB/`。
+- 项目代码位于 `/home/nvidia/vla/Thinker-IL-LAB/`。
 - 已安装 conda（miniconda / miniforge）。
 - 宿主机已有 ROS2 Humble（`/opt/ros/humble`，含 rclpy、bodyctrl_msgs、cv_bridge）。
 - 系统 python3.10 已装 `pyorbbecsdk2` / `cv2` / `zmq` / `numpy`（位于 `~/.local`）。缺失时补装相机相关依赖：
@@ -76,7 +76,7 @@ env_vla (conda, Python 3.12):  LeRobot + tienkung 插件 + torch
 ### 3.2 构建环境（首次）
 
 ```bash
-cd /home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64
+cd /home/nvidia/vla/Thinker-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64
 bash setup_env.sh          # 创建 conda env_vla (python=3.12)，装 wheel + LeRobot + 插件并自检
 ```
 
@@ -110,12 +110,12 @@ bash rollout_host.sh
 `rollout_host.sh` 常用覆盖：
 
 ```bash
-POLICY_PATH=/home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/model/Pick_up_tiangong_all_act/checkpoints/last/pretrained_model \
+POLICY_PATH=/home/nvidia/vla/Thinker-IL-LAB/ubt_IL/model/Pick_up_tiangong_all_act/checkpoints/last/pretrained_model \
 DURATION=60 bash rollout_host.sh
 
 # 部署 13-DOF 模型（右臂7+右手6，JOINT_CONFIG 须与训练 DOF 一致）
 JOINT_CONFIG=tienkung_13 \
-POLICY_PATH=/home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/model/sim_pick_place_right13_act/checkpoints/last/pretrained_model \
+POLICY_PATH=/home/nvidia/vla/Thinker-IL-LAB/ubt_IL/model/sim_pick_place_right13_act/checkpoints/last/pretrained_model \
 DURATION=60 bash rollout_host.sh
 
 DISPLAY_CAM=false bash rollout_host.sh        # SSH 无 X 时关相机显示

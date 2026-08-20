@@ -4,7 +4,7 @@
 
 ## 仓库性质
 
-这是一个 ROS2 colcon 工作区，以 `robot_control` Python 包为中心，提供优必选 Walker S2 人形机器人低层 SDK 接口的**消息定义**、**C++ 示例节点**和 **Python 控制包**。可作为 git submodule 集成到更大的 ROS2 工作区中。
+这是一个 ROS2 colcon 工作区，以 `robot_control` Python 包为中心，提供Walker S2 人形机器人低层 SDK 接口的**消息定义**、**C++ 示例节点**和 **Python 控制包**。可作为 git submodule 集成到更大的 ROS2 工作区中。
 
 主要交付物是 `robot_control` Python 包——外部项目通过 `from robot_control import RobotController` 使用。消息包和 C++ demo 是辅助编译依赖。
 

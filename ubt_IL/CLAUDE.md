@@ -1,4 +1,4 @@
-# ubt_IL — UBTECH 模仿学习训练部署平台
+# ubt_IL — Thinker 模仿学习训练部署平台
 
 基于 LeRobot 的天工与 Walker S2 机器人模仿学习训练与部署平台。
 

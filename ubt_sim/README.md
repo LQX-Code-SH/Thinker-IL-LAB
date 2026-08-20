@@ -1,6 +1,6 @@
-# UBTEDU-Sim-Lab
+# Thinker-Sim-Lab
 
-UBTECH EDU 机器人仿真平台，基于 NVIDIA Isaac Sim 5.0 + Isaac Lab 2.2 支持多款机器人 ROS2 仿真控制，用于真机部署前的验证测试、模仿学习仿真数据采集等功能。
+Thinker 机器人仿真平台，基于 NVIDIA Isaac Sim 5.0 + Isaac Lab 2.2 支持多款机器人 ROS2 仿真控制，用于真机部署前的验证测试、模仿学习仿真数据采集等功能。
 
 ![Tienkung Pro 仿真界面预览](docs/assets/tienkung-pro仿真界面预览.png)
 

@@ -1,8 +1,8 @@
-# UBTECH-IL-LAB
+# Thinker-IL-LAB
 
-优必选EDU版机器人模仿学习工具链
+Thinker 机器人模仿学习工具链
 
-📖 在线文档站点：<https://lqx-code-sh.github.io/UBTECH-IL-LAB/>
+📖 在线文档站点：<https://lqx-code-sh.github.io/Thinker-IL-LAB/>
 
 ## 项目简介
 
@@ -15,8 +15,8 @@
 | 📦 数据采集与转换 | HDF5 / LeRobot 格式数据采集，格式转换与清洗   | ✅ 已完成 |
 | 🧠 模型训练       | 基于 LeRobot 的模仿学习策略训练               | ✅ 已完成 |
 | 🤖 真机部署       | 模型推理与真机控制部署                        | ✅ 已完成 |
-| 🤖 支持机型      | TienKung Pro / Walker S2(已支持)        | ✅ 已发布 |
-| 🤖 其他机型       | Walker C1 / TienKung 3.0        | 🚧 待发布 |
+| 🤖 支持机型      | TienKung Pro / Walker S2 EDU(已支持)        | ✅ 已发布 |
+| 🤖 其他机型       | Walker C1 / TienKung DEX        | 🚧 待发布 |
 
 ## 效果展示
 
@@ -65,7 +65,7 @@ git config --global https.proxy http://127.0.0.1:7897
 export GIT_LFS_PROXY="http://127.0.0.1:7897"   # LFS 走代理
 
 # 1. 克隆仓库（先跳过 LFS 和子模块）
-GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/LQX-Code-SH/UBTECH-IL-LAB.git
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/LQX-Code-SH/Thinker-IL-LAB.git
 
 # 2. 拉取 LFS 大文件
 git lfs pull
@@ -110,8 +110,8 @@ git submodule update --init
 
 - [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) - 高保真机器人仿真环境
 - [HuggingFace LeRobot](https://github.com/huggingface/lerobot) - 模仿学习框架（ACT 策略、数据格式与训练/推理工具链）
-- [Thinker Studio](https://thinkercosmos.ubtrobot.com/#/studio) - 优必选遥操数采平台
-- [优必选开源中心](https://thinkercosmos.ubtrobot.com/#/open-source-center?ref=header-nav) - 优必选开源项目集合
+- [Thinker Studio](https://thinkercosmos.ubtrobot.com/#/studio) - Thinker 遥操数采平台
+- [Thinker 开源中心](https://thinkercosmos.ubtrobot.com/#/open-source-center?ref=header-nav) - Thinker 开源项目集合
 
 感谢以上社区与所有贡献者的卓越工作。如本项目对您有帮助，欢迎 Star ⭐ 支持。
 

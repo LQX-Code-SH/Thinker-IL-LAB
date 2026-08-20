@@ -1,6 +1,6 @@
 # ubt_sim
 
-UBTECH 机器人仿真平台，基于 Isaac Lab。
+Thinker 机器人仿真平台，基于 Isaac Lab。
 
 ## 快速开始
 

@@ -1,4 +1,4 @@
-# Walker S2（优必选 Walker S2）模仿学习快速开始
+# Walker S2 模仿学习快速开始
 
 > 对应代码：`ubt_IL/scripts/{convert,train,deploy}/walker_s2/` 与 `ubt_sim/`（仿真采集工程）
 > 全流程：**数据准备 -> 模型训练 -> 策略评估 -> 模型部署**
@@ -21,8 +21,8 @@ git config --global https.proxy http://127.0.0.1:7897
 export GIT_LFS_PROXY="http://127.0.0.1:7897"   # LFS 走代理
 
 # 克隆仓库（先跳过 LFS 与子模块，加速克隆）
-GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/LQX-Code-SH/UBTECH-IL-LAB.git
-cd UBTECH-IL-LAB
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/LQX-Code-SH/Thinker-IL-LAB.git
+cd Thinker-IL-LAB
 git lfs pull                 # 拉取 LFS 大文件（USD 模型/贴图等仿真资源）
 git submodule update --init  # 初始化 lerobot 子模块
 ```

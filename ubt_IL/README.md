@@ -1,4 +1,4 @@
-# UBTECH-IL-LAB
+# Thinker-IL-LAB
 
 天工 Pro 与 Walker S2 机器人模仿学习平台，基于 [LeRobot](https://github.com/huggingface/lerobot)，覆盖数据转换、模型训练、真机/仿真部署全流程。
 
