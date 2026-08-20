@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/cc-api/">
       
       
-        <link rel="prev" href="../robot-control/">
+        <link rel="prev" href="../wrist-camera/">
       
       
         <link rel="next" href="../../common/docker/">
@@ -29,7 +29,7 @@
     
     
       
-        <title>SDK 二次开发（CC-API） - Thinker-IL-LAB</title>
+        <title>SDK 二次开发文档 - Thinker-IL-LAB</title>
       
     
     
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              SDK 二次开发（CC-API）
+              SDK 二次开发文档
             
           </span>
         </div>
@@ -1200,8 +1200,6 @@
       
         
       
-        
-      
     
     
     
@@ -1338,34 +1336,6 @@
                 
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../robot-control/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    真机控制 SDK
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
     
   
   
@@ -1378,6 +1348,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK 二次开发文档
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1385,7 +1373,7 @@
   <span class="md-ellipsis">
     
   
-    SDK 二次开发（CC-API）
+    SDK 二次开发文档
   
 
     
@@ -1394,6 +1382,1452 @@
   
 
       </a>
+      
+        
+
+  
+
+<nav class="md-nav md-nav--secondary" aria-label="本页内容">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      本页内容
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#版本管理" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        版本管理
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#关于优必选-walker-s2-edu-探索者" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        关于优必选 Walker S2 EDU 探索者
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="关于优必选 Walker S2 EDU 探索者">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#总体规格参数" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        总体规格参数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#关节参数" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        关节参数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#坐标系关节旋转轴与关节零点" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        坐标系，关节旋转轴与关节零点
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#模型与标定参数" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        模型与标定参数
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="模型与标定参数">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#模型参数" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        模型参数
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="模型参数">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#刚度阻尼参数" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        刚度阻尼参数
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#传感器标定参数" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        传感器标定参数
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="传感器标定参数">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#传感器外参" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        传感器外参
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#传感器内参" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        传感器内参
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#快速操作指南" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        快速操作指南
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="快速操作指南">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#风险提示" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        风险提示
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#开机上电" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        开机上电
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#连接机器人" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        连接机器人
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#遥控操作" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        遥控操作
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#回零启动控制器" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        回零/启动控制器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#进入开发者模式" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        进入开发者模式
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#应用开发" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        应用开发
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="应用开发">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#软件架构说明" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        软件架构说明
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="软件架构说明">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#核心硬件分工表" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        核心硬件分工表
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#开发环境选择指南" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        开发环境选择指南
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rosa-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ROSA 2.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ros-2-sdk-概述" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ROS 2 SDK 概述
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ros-2-sdk-获取" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ROS 2 SDK 获取
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ROS 2 SDK 获取">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ros-2-sdk构建" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ROS 2 SDK构建
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#运行并测试" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        运行并测试
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#环境依赖" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        环境依赖
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="环境依赖">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#系统环境配置" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        系统环境配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#全局值说明" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        全局值说明
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#接口说明-底层服务ros-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        接口说明-底层服务【ROS 2】
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="接口说明-底层服务【ROS 2】">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#运控控制" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        运控控制
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="运控控制">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#运控状态状态获取接口" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        运控状态状态获取接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#运动控制接口" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        运动控制接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#关闭控制指令的时间戳校验用于运行录包指令" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        关闭控制指令的时间戳校验，用于运行录包指令
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#imu-orin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IMU orin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IMU orin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#状态获取接口" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        状态获取接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rgbd相机" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RGBD相机
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RGBD相机">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#体后奥比中光gemini-2l相机" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        体后奥比中光Gemini 2L相机
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#腰前奥比中光gemini-2l相机" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        腰前奥比中光Gemini 2L相机
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#双目相机" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        双目相机
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="双目相机">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#双目相机_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        双目相机
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#电池" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        电池
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="电池">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#电池状态" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        电池状态
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#电源板状态" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        电源板状态
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#音频接口" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        音频接口
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="音频接口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#音频播放" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        音频播放
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#562麦克风数据获取" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.6.2、麦克风数据获取
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#灵巧手-三代手" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        灵巧手-三代手
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="灵巧手-三代手">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#状态获取接口_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        状态获取接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#控制接口" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        控制接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#灵巧手-四代手" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        灵巧手-四代手
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="灵巧手-四代手">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#状态获取接口_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        状态获取接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#控制接口_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        控制接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#夹爪-大寰pgc-140-50" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        夹爪-大寰PGC-140-50
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="夹爪-大寰PGC-140-50">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#状态获取接口_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        状态获取接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#控制接口_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        控制接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#状态估计接口" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        状态估计接口
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="状态估计接口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#足式里程计" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        足式里程计
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#本体状态估计" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本体状态估计
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#接触状态估计" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        接触状态估计
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#注意事项" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        注意事项
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#逆运动学求解" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        逆运动学求解
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="逆运动学求解">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#逆运动学求解算法" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        逆运动学求解算法
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ASR
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ASR">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#asr语音转文字接口" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ASR语音转文字接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#接口说明-应用服务api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        接口说明-应用服务【API】
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="接口说明-应用服务【API】">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#使用说明" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用说明
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="使用说明">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#原理" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        原理
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="原理">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#协议栈" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        协议栈
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#关于-api_id-与-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        关于 api_id 与 token
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#客户端连接互斥性与认证说明" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        客户端连接互斥性与认证说明
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api-库使用指引" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API 库使用指引
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API 库使用指引">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#demo示例" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        demo示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#连接成功与断开事件监听" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        连接成功与断开事件监听
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#异步发送请求" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        异步发送请求
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#异步发送通知" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        异步发送通知
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#添加服务监听" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        添加服务监听
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#注意事项_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        注意事项
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#业务接口" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        业务接口
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="业务接口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#执行技能" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        执行技能
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="执行技能">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#启动技能任务" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        启动技能任务
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#停止任务" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        停止任务
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#获取技能列表" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        获取技能列表
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#获取技能-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        获取技能 profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#技能罗列" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        技能罗列
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="技能罗列">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a000001tts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A000001：TTS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a000002navto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A000002：NavTo
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a000004setlegmode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A000004：SetLegMode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a000012setmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A000012：SetMap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a000013relocation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A000013：Relocation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a000020startmotion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A000020：StartMotion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a000026executepresetlimbaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A000026：ExecutePresetLimbAction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#网络配置" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        网络配置
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="网络配置">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#设置wifi网络" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        设置WiFi网络
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#状态" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        状态
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="状态">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#当前支持的状态列表" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        当前支持的状态列表
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#获取指定状态" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        获取指定状态
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#获取状态列表" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        获取状态列表
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#人机交互" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        人机交互
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="人机交互">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#订阅唤醒事件" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        订阅唤醒事件
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#取消唤醒事件的订阅" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        取消唤醒事件的订阅
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#接收唤醒事件" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        接收唤醒事件
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#地图" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        地图
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="地图">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#获取地图列表" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        获取地图列表
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#删除地图" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        删除地图
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#普通建图" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        普通建图
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#增量建图" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        增量建图
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#取消建图保存建图" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        取消建图/保存建图
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#运动" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        运动
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="运动">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#矢量行走" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        矢量行走
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1759,7 +3193,7 @@
 <p><strong>注意！注意！注意！</strong></p>
 <p><strong>做SDK二开的前提是需要刷对应的定制开发包，配置好对应的开发环境；定制开发包的获取和刷包指引，详见模块【3.3】；</strong></p>
 </blockquote>
-<h1 id="版本管理">版本管理<a class="headerlink" href="#版本管理" title="Permanent link">&para;</a></h1>
+<h2 id="版本管理">版本管理<a class="headerlink" href="#版本管理" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1872,10 +3306,10 @@
 </tbody>
 </table>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%204.png" /></p>
-<h1 id="关于优必选-walker-s2-edu-探索者">关于优必选 Walker S2 EDU 探索者<a class="headerlink" href="#关于优必选-walker-s2-edu-探索者" title="Permanent link">&para;</a></h1>
-<p>Walker S2 EDU 探索者是优必选推出的工业版人形机器人，它集成了多项具身智能技术，具备高负载、自主导航和多场景适配的核心能力。</p>
+<h2 id="关于优必选-walker-s2-edu-探索者">关于优必选 Walker S2 EDU 探索者<a class="headerlink" href="#关于优必选-walker-s2-edu-探索者" title="Permanent link">&para;</a></h2>
+<p>Walker S2 EDU 探索者是优必选推出的教育版人形机器人探索项目，它集成了多项具身智能技术，具备高负载、自主导航和多场景适配的核心能力。</p>
 <p>Walker S2 EDU 探索者机器人整机共42个自由度，由42个一体化关节电机驱动，实现精确运动控制。其结构包括：头部2个自由度，单臂7个自由度（肩、肘、腕），腰部2个自由度，单手6个自由度（三代手），单腿6个自由度（髋、膝、踝）。</p>
-<h2 id="总体规格参数">总体规格参数<a class="headerlink" href="#总体规格参数" title="Permanent link">&para;</a></h2>
+<h3 id="总体规格参数">总体规格参数<a class="headerlink" href="#总体规格参数" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -1950,7 +3384,7 @@
 </tr>
 </tbody>
 </table>
-<h2 id="关节参数">关节参数<a class="headerlink" href="#关节参数" title="Permanent link">&para;</a></h2>
+<h3 id="关节参数">关节参数<a class="headerlink" href="#关节参数" title="Permanent link">&para;</a></h3>
 <p><img alt="img_v3_02rm_c59bf199-a666-4c4f-a537-3281a6c62a9g.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/img_v3_02rm_c59bf199-a666-4c4f-a537-3281a6c62a9g.png" /></p>
 <p><strong>补充说明：文档中关于关节、电机描述中的 left==可等价理解为==L，都是左的意思；right==R同理；</strong></p>
 <table>
@@ -2291,12 +3725,12 @@
 </tr>
 </tbody>
 </table>
-<h2 id="坐标系关节旋转轴与关节零点">坐标系，关节旋转轴与关节零点<a class="headerlink" href="#坐标系关节旋转轴与关节零点" title="Permanent link">&para;</a></h2>
+<h3 id="坐标系关节旋转轴与关节零点">坐标系，关节旋转轴与关节零点<a class="headerlink" href="#坐标系关节旋转轴与关节零点" title="Permanent link">&para;</a></h3>
 <p>当各个关节均为零度时，各坐标系如下图。红色为x轴，绿色为y轴，蓝色为z轴。</p>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%2016.png" /></p>
-<h2 id="模型与标定参数">模型与标定参数<a class="headerlink" href="#模型与标定参数" title="Permanent link">&para;</a></h2>
-<h3 id="模型参数">模型参数<a class="headerlink" href="#模型参数" title="Permanent link">&para;</a></h3>
-<h4 id="刚度阻尼参数">刚度阻尼参数<a class="headerlink" href="#刚度阻尼参数" title="Permanent link">&para;</a></h4>
+<h3 id="模型与标定参数">模型与标定参数<a class="headerlink" href="#模型与标定参数" title="Permanent link">&para;</a></h3>
+<h4 id="模型参数">模型参数<a class="headerlink" href="#模型参数" title="Permanent link">&para;</a></h4>
+<h5 id="刚度阻尼参数">刚度阻尼参数<a class="headerlink" href="#刚度阻尼参数" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -2613,8 +4047,8 @@
 </tr>
 </tbody>
 </table>
-<h3 id="传感器标定参数">传感器标定参数<a class="headerlink" href="#传感器标定参数" title="Permanent link">&para;</a></h3>
-<h4 id="传感器外参">传感器外参<a class="headerlink" href="#传感器外参" title="Permanent link">&para;</a></h4>
+<h4 id="传感器标定参数">传感器标定参数<a class="headerlink" href="#传感器标定参数" title="Permanent link">&para;</a></h4>
+<h5 id="传感器外参">传感器外参<a class="headerlink" href="#传感器外参" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -2814,7 +4248,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="传感器内参">传感器内参<a class="headerlink" href="#传感器内参" title="Permanent link">&para;</a></h4>
+<h5 id="传感器内参">传感器内参<a class="headerlink" href="#传感器内参" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -2891,8 +4325,8 @@
 </tr>
 </tbody>
 </table>
-<h1 id="快速操作指南">快速操作指南<a class="headerlink" href="#快速操作指南" title="Permanent link">&para;</a></h1>
-<h2 id="风险提示">风险提示<a class="headerlink" href="#风险提示" title="Permanent link">&para;</a></h2>
+<h2 id="快速操作指南">快速操作指南<a class="headerlink" href="#快速操作指南" title="Permanent link">&para;</a></h2>
+<h3 id="风险提示">风险提示<a class="headerlink" href="#风险提示" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
 <p>确认机器人悬吊于保护架之上，机器人脚离地面至少20cm，再做调试</p>
@@ -2910,7 +4344,7 @@
 <p>遇到突发情况，可按下机器人身后的急停按钮，并将机器人吊至展架。注意：按下急停按钮后机器人关节处于锁位状态，该状态下机器人运控功能不可用，需要解除急停。</p>
 </li>
 </ul>
-<h2 id="开机上电">开机上电<a class="headerlink" href="#开机上电" title="Permanent link">&para;</a></h2>
+<h3 id="开机上电">开机上电<a class="headerlink" href="#开机上电" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
 <p>上电前确保机器人挂在支架上：机器人双足自然下垂，展架升到最高，以确保腿复位过程脚掌不会碰触地面和其他物体。确保机器人双臂自然下垂，肘内侧和掌心朝前方，头朝下前方，背部急停按钮处于松开状态，电池已经插好。</p>
@@ -2934,7 +4368,7 @@
 </ul>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%206.png" /></p>
 <p>(图-3)</p>
-<h2 id="连接机器人">连接机器人<a class="headerlink" href="#连接机器人" title="Permanent link">&para;</a></h2>
+<h3 id="连接机器人">连接机器人<a class="headerlink" href="#连接机器人" title="Permanent link">&para;</a></h3>
 <ol>
 <li>
 <p>以太网线连接Walker S2 EDU 探索者机器人：使用网线与机器人以太网口连接</p>
@@ -2947,7 +4381,7 @@
 </li>
 </ol>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image.png" /></p>
-<h2 id="遥控操作">遥控操作<a class="headerlink" href="#遥控操作" title="Permanent link">&para;</a></h2>
+<h3 id="遥控操作">遥控操作<a class="headerlink" href="#遥控操作" title="Permanent link">&para;</a></h3>
 <ol>
 <li>手柄键位定义</li>
 </ol>
@@ -2956,7 +4390,7 @@
 <li>遥控器按键功能</li>
 </ol>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%2020.png" /></p>
-<h2 id="回零启动控制器">回零/启动控制器<a class="headerlink" href="#回零启动控制器" title="Permanent link">&para;</a></h2>
+<h3 id="回零启动控制器">回零/启动控制器<a class="headerlink" href="#回零启动控制器" title="Permanent link">&para;</a></h3>
 <ol>
 <li>
 <p>确认机器人悬吊于保护架之上，机器人脚离地面至少20cm，急停按钮松开</p>
@@ -2968,7 +4402,7 @@
 <p>回零成功/控制器启动成功后，此时可以通过命令进入开发者模式，并通过SDK读取各类传感器数值</p>
 </li>
 </ol>
-<h2 id="进入开发者模式">进入开发者模式<a class="headerlink" href="#进入开发者模式" title="Permanent link">&para;</a></h2>
+<h3 id="进入开发者模式">进入开发者模式<a class="headerlink" href="#进入开发者模式" title="Permanent link">&para;</a></h3>
 <ol>
 <li>
 <p>确保机器人控制器已经回零/启动</p>
@@ -3076,8 +4510,8 @@
 </ul>
 <p>一旦进入开发者模式后，内置运控程序将会退出，你将取得电机的完全控制权限，如需要调用内置运控算法，请退出开发者模式。</p>
 <p>对于开发者自建的电机控制程序,需要通过motion (ubt@192.168.11.2 -p 2222) 本地(Local)发出控制指令并且通过sudo -E su进入root用户, 我们不建议通过外部PC(或者任何其他Remote的方式进行电机控制指令的发送),该方法数据传输实时性不能保证.</p>
-<h1 id="应用开发">应用开发<a class="headerlink" href="#应用开发" title="Permanent link">&para;</a></h1>
-<h2 id="软件架构说明">软件架构说明<a class="headerlink" href="#软件架构说明" title="Permanent link">&para;</a></h2>
+<h2 id="应用开发">应用开发<a class="headerlink" href="#应用开发" title="Permanent link">&para;</a></h2>
+<h3 id="软件架构说明">软件架构说明<a class="headerlink" href="#软件架构说明" title="Permanent link">&para;</a></h3>
 <p>整机分为ORIN 上层计算单元、X86 底层运动控制单元两大核心硬件模块，二者通过交换机完成数据互通；整机可通过网络对接外部云平台，形成 “端 - 边 - 云” 完整体系。</p>
 <ul>
 <li>
@@ -3088,7 +4522,7 @@
 </li>
 </ul>
 <p>两块板卡并非传统的上下位机关系，而是作为两个独立的 ROS2 节点，通过共享同一个 <code>ROS_DOMAIN_ID</code> 实现主题和服务的透明互通。</p>
-<h3 id="核心硬件分工表">核心硬件分工表<a class="headerlink" href="#核心硬件分工表" title="Permanent link">&para;</a></h3>
+<h4 id="核心硬件分工表">核心硬件分工表<a class="headerlink" href="#核心硬件分工表" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
 <tr>
@@ -3116,7 +4550,7 @@
 </tr>
 </tbody>
 </table>
-<h3 id="开发环境选择指南">开发环境选择指南<a class="headerlink" href="#开发环境选择指南" title="Permanent link">&para;</a></h3>
+<h4 id="开发环境选择指南">开发环境选择指南<a class="headerlink" href="#开发环境选择指南" title="Permanent link">&para;</a></h4>
 <p>针对二次开发，强烈建议开发者主要在 PC2（11.3 Orin 计算板）上进行程序构建与运行。PC1（11.2 运控板）在出厂状态下已配置完毕，通常无需额外安装或构建 demo 程序。</p>
 <table>
 <thead>
@@ -3166,11 +4600,11 @@
 </tr>
 </tbody>
 </table>
-<h3 id="rosa-20">ROSA 2.0<a class="headerlink" href="#rosa-20" title="Permanent link">&para;</a></h3>
+<h4 id="rosa-20">ROSA 2.0<a class="headerlink" href="#rosa-20" title="Permanent link">&para;</a></h4>
 <p>优必选独立研发的机器人操作系统应用框架 ROSA 2.0，将机器人的各项功能与控制进行了深度整合，为机器人在多种场景下实现灵活应用提供了坚实支撑，保证底层算法的自主可控和安全性。</p>
-<h2 id="ros-2-sdk-概述">ROS 2 SDK 概述<a class="headerlink" href="#ros-2-sdk-概述" title="Permanent link">&para;</a></h2>
+<h3 id="ros-2-sdk-概述">ROS 2 SDK 概述<a class="headerlink" href="#ros-2-sdk-概述" title="Permanent link">&para;</a></h3>
 <p>完整版优必选SDK由优必选机器人公司开发，提供了丰富的接口，涵盖头部、臂部、肘部、手部和腿部的电机控制，以及六维力、IMU（惯性测量单元）和相机的使用，用于编写和部署机器人应用程序，旨在帮助开发人员快速灵活地构建自己的应用程序来精确控制和使用机器人，以满足在不同应用场景下的需求。您可以按照我们提供的接口和例程，配套本开发指南，完成对Walker S2 EDU 探索者的二次开发。</p>
-<h2 id="ros-2-sdk-获取">ROS 2 SDK 获取<a class="headerlink" href="#ros-2-sdk-获取" title="Permanent link">&para;</a></h2>
+<h3 id="ros-2-sdk-获取">ROS 2 SDK 获取<a class="headerlink" href="#ros-2-sdk-获取" title="Permanent link">&para;</a></h3>
 <p>现阶段需要SDK的定制软件包 及 demo程序，请客户通过优必选对接人-如销售或项目，再找公司研发体系人员 jialong.kuang@ubtrobot.com 联系提供，切勿直接发邮件提问题或需求；</p>
 <blockquote>
 <p>现阶段-&gt;升级流程和方式：</p>
@@ -3184,7 +4618,7 @@
 </ol>
 </blockquote>
 <p>未来，SDK会合入到主线版本且支持OTA，届时可以直接线上升级到最新版本来做二开；同时，后续我们也会在官网上附公开的demo程序包供大家下载。</p>
-<h3 id="ros-2-sdk构建">ROS 2 SDK构建<a class="headerlink" href="#ros-2-sdk构建" title="Permanent link">&para;</a></h3>
+<h4 id="ros-2-sdk构建">ROS 2 SDK构建<a class="headerlink" href="#ros-2-sdk构建" title="Permanent link">&para;</a></h4>
 <ul>
 <li>确保正确的网络连接后，进入机器人ROS 2容器</li>
 </ul>
@@ -3214,7 +4648,7 @@
 </ul>
 </li>
 </ul>
-<h3 id="运行并测试">运行并测试<a class="headerlink" href="#运行并测试" title="Permanent link">&para;</a></h3>
+<h4 id="运行并测试">运行并测试<a class="headerlink" href="#运行并测试" title="Permanent link">&para;</a></h4>
 <p>在完成上述代码构建后输入</p>
 <div class="language-YAML highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="l l-Scalar l-Scalar-Plain">source /debug/ubt_ros2_demo/install/setup.bash</span>
 </code></pre></div>
@@ -3274,8 +4708,8 @@
 <ul>
 <li>其它详细示例见-模块5</li>
 </ul>
-<h2 id="环境依赖">环境依赖<a class="headerlink" href="#环境依赖" title="Permanent link">&para;</a></h2>
-<h3 id="系统环境配置"><strong>系统环境配置</strong><a class="headerlink" href="#系统环境配置" title="Permanent link">&para;</a></h3>
+<h3 id="环境依赖">环境依赖<a class="headerlink" href="#环境依赖" title="Permanent link">&para;</a></h3>
+<h4 id="系统环境配置"><strong>系统环境配置</strong><a class="headerlink" href="#系统环境配置" title="Permanent link">&para;</a></h4>
 <p>为了确保最佳的开发体验和兼容性，建议在自建程序在机器人本体的ROS 2容器内运行。当前暂不支持在Mac和Windows系统下开发。</p>
 <p><strong>Walker S</strong><strong>2</strong><strong>框架环境</strong></p>
 <table>
@@ -3302,7 +4736,7 @@
 </tr>
 </tbody>
 </table>
-<h1 id="全局值说明">全局值说明<a class="headerlink" href="#全局值说明" title="Permanent link">&para;</a></h1>
+<h2 id="全局值说明">全局值说明<a class="headerlink" href="#全局值说明" title="Permanent link">&para;</a></h2>
 <ul>
 <li>说明：完整版优必选Walker S2 EDU 探索者头部、臂部、腰部和腿部的电机的命名ID定义如下</li>
 </ul>
@@ -3356,12 +4790,12 @@
 <a id="__codelineno-8-48" name="__codelineno-8-48" href="#__codelineno-8-48"></a><span class="p">{</span><span class="mi">6002</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;right_arm_ft&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;右臂六维力传感器&quot;</span><span class="p">},</span>
 <a id="__codelineno-8-49" name="__codelineno-8-49" href="#__codelineno-8-49"></a><span class="p">{</span><span class="mi">8002</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;right_hand&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;右手（可能未接灵巧手，实际为夹板）&quot;</span><span class="p">}</span>
 </code></pre></div>
-<h1 id="接口说明-底层服务ros-2">接口说明-底层服务【ROS 2】<a class="headerlink" href="#接口说明-底层服务ros-2" title="Permanent link">&para;</a></h1>
+<h2 id="接口说明-底层服务ros-2">接口说明-底层服务【ROS 2】<a class="headerlink" href="#接口说明-底层服务ros-2" title="Permanent link">&para;</a></h2>
 <blockquote>
 <p><strong>*实际调试过程中，以demo示例为准\~</strong></p>
 </blockquote>
-<h2 id="运控控制">运控控制<a class="headerlink" href="#运控控制" title="Permanent link">&para;</a></h2>
-<h3 id="运控状态状态获取接口">运控状态状态获取接口<a class="headerlink" href="#运控状态状态获取接口" title="Permanent link">&para;</a></h3>
+<h3 id="运控控制">运控控制<a class="headerlink" href="#运控控制" title="Permanent link">&para;</a></h3>
+<h4 id="运控状态状态获取接口">运控状态状态获取接口<a class="headerlink" href="#运控状态状态获取接口" title="Permanent link">&para;</a></h4>
 <ul>
 <li>说明：获取运动控制相关的状态信息，其中包含电机的当前位置、IMU和六维力的信息。</li>
 </ul>
@@ -3452,7 +4886,7 @@
 <a id="__codelineno-10-60" name="__codelineno-10-60" href="#__codelineno-10-60"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">EXIT_SUCCESS</span><span class="p">;</span>
 <a id="__codelineno-10-61" name="__codelineno-10-61" href="#__codelineno-10-61"></a><span class="p">}</span>
 </code></pre></div>
-<h3 id="运动控制接口">运动控制接口<a class="headerlink" href="#运动控制接口" title="Permanent link">&para;</a></h3>
+<h4 id="运动控制接口">运动控制接口<a class="headerlink" href="#运动控制接口" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：电机的位置控制接口，需要提供电机的名称、控制模式和目标位置。</p>
@@ -3672,7 +5106,7 @@ JointCmd[] joint_cmd
 </tr>
 </tbody>
 </table>
-<h3 id="关闭控制指令的时间戳校验用于运行录包指令">关闭控制指令的时间戳校验，用于运行录包指令<a class="headerlink" href="#关闭控制指令的时间戳校验用于运行录包指令" title="Permanent link">&para;</a></h3>
+<h4 id="关闭控制指令的时间戳校验用于运行录包指令">关闭控制指令的时间戳校验，用于运行录包指令<a class="headerlink" href="#关闭控制指令的时间戳校验用于运行录包指令" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：电机的位置控制接口，需要提供电机的名称、控制模式和目标位置。</p>
@@ -3735,8 +5169,8 @@ JointCmd[] joint_cmd
 <a id="__codelineno-13-43" name="__codelineno-13-43" href="#__codelineno-13-43"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <a id="__codelineno-13-44" name="__codelineno-13-44" href="#__codelineno-13-44"></a><span class="p">}</span>
 </code></pre></div>
-<h2 id="imu-orin">IMU orin<a class="headerlink" href="#imu-orin" title="Permanent link">&para;</a></h2>
-<h3 id="状态获取接口">状态获取接口<a class="headerlink" href="#状态获取接口" title="Permanent link">&para;</a></h3>
+<h3 id="imu-orin">IMU orin<a class="headerlink" href="#imu-orin" title="Permanent link">&para;</a></h3>
+<h4 id="状态获取接口">状态获取接口<a class="headerlink" href="#状态获取接口" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：获取orin上的IMU传感器数据信息，其中包含加速度、角速度、位姿四元素。</p>
@@ -3815,9 +5249,9 @@ ros2 run ubt_ros2_example imu_subscriber</code></p>
 <a id="__codelineno-14-42" name="__codelineno-14-42" href="#__codelineno-14-42"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <a id="__codelineno-14-43" name="__codelineno-14-43" href="#__codelineno-14-43"></a><span class="p">}</span>
 </code></pre></div>
-<h2 id="rgbd相机">RGBD相机<a class="headerlink" href="#rgbd相机" title="Permanent link">&para;</a></h2>
+<h3 id="rgbd相机">RGBD相机<a class="headerlink" href="#rgbd相机" title="Permanent link">&para;</a></h3>
 <p>Walker-S2在体后以及腰前配置了Gemini 2L相机并提供如下话题及服务:</p>
-<h3 id="体后奥比中光gemini-2l相机">体后奥比中光Gemini 2L相机<a class="headerlink" href="#体后奥比中光gemini-2l相机" title="Permanent link">&para;</a></h3>
+<h4 id="体后奥比中光gemini-2l相机">体后奥比中光Gemini 2L相机<a class="headerlink" href="#体后奥比中光gemini-2l相机" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>默认提供话题如下：</p>
@@ -3941,7 +5375,7 @@ ros2 run ubt_ros2_example headfrontcolor_subscriber #订阅颜色话题</code></
 </ul>
 </li>
 </ul>
-<h3 id="腰前奥比中光gemini-2l相机">腰前奥比中光Gemini 2L相机<a class="headerlink" href="#腰前奥比中光gemini-2l相机" title="Permanent link">&para;</a></h3>
+<h4 id="腰前奥比中光gemini-2l相机">腰前奥比中光Gemini 2L相机<a class="headerlink" href="#腰前奥比中光gemini-2l相机" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：获取腰前Gemini 2L数据</p>
@@ -4016,10 +5450,10 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 <p>/waist_front_rgbd/toggle_depth: std_srvs/srv/SetBool</p>
 </li>
 </ul>
-<h2 id="双目相机">双目相机<a class="headerlink" href="#双目相机" title="Permanent link">&para;</a></h2>
+<h3 id="双目相机">双目相机<a class="headerlink" href="#双目相机" title="Permanent link">&para;</a></h3>
 <p>不同的主版本<code>/sensor/camera/stereo_left(or right)/image/raw</code>以及/sensor/camera/fisheye_right(left)/image/raw 的 msg可能会产生差异,请运行:</p>
 <p>ros2 topic info <code>/sensor/camera/stereo_left(or right)/image/raw</code>确定 msg格式,本文以shm_msgs::msg::Image2m 为例子,具体请按照真实msg格式修改, demo将提供所有格式的msg,请根据实际情况修改</p>
-<h3 id="双目相机_1">双目相机<a class="headerlink" href="#双目相机_1" title="Permanent link">&para;</a></h3>
+<h4 id="双目相机_1">双目相机<a class="headerlink" href="#双目相机_1" title="Permanent link">&para;</a></h4>
 <ol>
 <li>
 <p>鱼眼相机接口</p>
@@ -4187,8 +5621,8 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 </ul>
 </li>
 </ol>
-<h2 id="电池">电池<a class="headerlink" href="#电池" title="Permanent link">&para;</a></h2>
-<h3 id="电池状态">电池状态<a class="headerlink" href="#电池状态" title="Permanent link">&para;</a></h3>
+<h3 id="电池">电池<a class="headerlink" href="#电池" title="Permanent link">&para;</a></h3>
+<h4 id="电池状态">电池状态<a class="headerlink" href="#电池状态" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：获取电池状态信息。其中上报频率为1Hz。</p>
@@ -4288,7 +5722,7 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 <a id="__codelineno-24-53" name="__codelineno-24-53" href="#__codelineno-24-53"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <a id="__codelineno-24-54" name="__codelineno-24-54" href="#__codelineno-24-54"></a><span class="p">}</span>
 </code></pre></div>
-<h3 id="电源板状态">电源板状态<a class="headerlink" href="#电源板状态" title="Permanent link">&para;</a></h3>
+<h4 id="电源板状态">电源板状态<a class="headerlink" href="#电源板状态" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：获取电池状态信息。其中上报频率为4.8Hz。</p>
@@ -4398,8 +5832,8 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 <a id="__codelineno-26-59" name="__codelineno-26-59" href="#__codelineno-26-59"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <a id="__codelineno-26-60" name="__codelineno-26-60" href="#__codelineno-26-60"></a><span class="p">}</span>
 </code></pre></div>
-<h2 id="音频接口">音频接口<a class="headerlink" href="#音频接口" title="Permanent link">&para;</a></h2>
-<h3 id="音频播放">音频播放<a class="headerlink" href="#音频播放" title="Permanent link">&para;</a></h3>
+<h3 id="音频接口">音频接口<a class="headerlink" href="#音频接口" title="Permanent link">&para;</a></h3>
+<h4 id="音频播放">音频播放<a class="headerlink" href="#音频播放" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明: 通过喇叭播放已有的音频文件或通过Tts合成语音</p>
@@ -4608,7 +6042,7 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 <a id="__codelineno-30-26" name="__codelineno-30-26" href="#__codelineno-30-26"></a><span class="l l-Scalar l-Scalar-Plain">int32 LLM_CHAT_FAILED = 5002005</span>
 <a id="__codelineno-30-27" name="__codelineno-30-27" href="#__codelineno-30-27"></a><span class="l l-Scalar l-Scalar-Plain">string LLM_CHAT_FAILED_STR = &quot;LLM chat failed&quot;</span>
 </code></pre></div>
-<h3 id="562麦克风数据获取">5.6.2、麦克风数据获取<a class="headerlink" href="#562麦克风数据获取" title="Permanent link">&para;</a></h3>
+<h4 id="562麦克风数据获取">5.6.2、麦克风数据获取<a class="headerlink" href="#562麦克风数据获取" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：获取Walker S2 EDU 探索者麦克风数据或者降噪后数据，原始数据为8通道，16KHz，降噪后数据为1通道，16KHz</p>
@@ -4756,8 +6190,8 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 <a id="__codelineno-32-114" name="__codelineno-32-114" href="#__codelineno-32-114"></a><span class="p">}</span>
 </code></pre></div>
 <p>如果需要降噪数据，请将示例Demo程序话题更改为/sys/speech/mic_denoise，并将通道数(num_channels_)设置为1</p>
-<h2 id="灵巧手-三代手">灵巧手-三代手<a class="headerlink" href="#灵巧手-三代手" title="Permanent link">&para;</a></h2>
-<h3 id="状态获取接口_1">状态获取接口<a class="headerlink" href="#状态获取接口_1" title="Permanent link">&para;</a></h3>
+<h3 id="灵巧手-三代手">灵巧手-三代手<a class="headerlink" href="#灵巧手-三代手" title="Permanent link">&para;</a></h3>
+<h4 id="状态获取接口_1">状态获取接口<a class="headerlink" href="#状态获取接口_1" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：获取灵巧手关节状态信息</p>
@@ -4856,7 +6290,7 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 <a id="__codelineno-34-65" name="__codelineno-34-65" href="#__codelineno-34-65"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">EXIT_SUCCESS</span><span class="p">;</span>
 <a id="__codelineno-34-66" name="__codelineno-34-66" href="#__codelineno-34-66"></a><span class="p">}</span>
 </code></pre></div>
-<h3 id="控制接口">控制接口<a class="headerlink" href="#控制接口" title="Permanent link">&para;</a></h3>
+<h4 id="控制接口">控制接口<a class="headerlink" href="#控制接口" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：控制三代灵巧手</p>
@@ -4988,8 +6422,8 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 <p>如只控制部分关节，则对于不控制的关节，控制量设置为0，使其置于零位</p>
 </li>
 </ul>
-<h2 id="灵巧手-四代手">灵巧手-四代手<a class="headerlink" href="#灵巧手-四代手" title="Permanent link">&para;</a></h2>
-<h3 id="状态获取接口_2">状态获取接口<a class="headerlink" href="#状态获取接口_2" title="Permanent link">&para;</a></h3>
+<h3 id="灵巧手-四代手">灵巧手-四代手<a class="headerlink" href="#灵巧手-四代手" title="Permanent link">&para;</a></h3>
+<h4 id="状态获取接口_2">状态获取接口<a class="headerlink" href="#状态获取接口_2" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：获取灵巧手关节状态信息</p>
@@ -5088,7 +6522,7 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 <a id="__codelineno-38-65" name="__codelineno-38-65" href="#__codelineno-38-65"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">EXIT_SUCCESS</span><span class="p">;</span>
 <a id="__codelineno-38-66" name="__codelineno-38-66" href="#__codelineno-38-66"></a><span class="p">}</span>
 </code></pre></div>
-<h3 id="控制接口_1">控制接口<a class="headerlink" href="#控制接口_1" title="Permanent link">&para;</a></h3>
+<h4 id="控制接口_1">控制接口<a class="headerlink" href="#控制接口_1" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：控制四代灵巧手</p>
@@ -5222,8 +6656,8 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 <p>如只控制部分关节，则对于不控制的关节，控制量设置为0，使其置于零位</p>
 </li>
 </ul>
-<h2 id="夹爪-大寰pgc-140-50">夹爪-大寰PGC-140-50<a class="headerlink" href="#夹爪-大寰pgc-140-50" title="Permanent link">&para;</a></h2>
-<h3 id="状态获取接口_3">状态获取接口<a class="headerlink" href="#状态获取接口_3" title="Permanent link">&para;</a></h3>
+<h3 id="夹爪-大寰pgc-140-50">夹爪-大寰PGC-140-50<a class="headerlink" href="#夹爪-大寰pgc-140-50" title="Permanent link">&para;</a></h3>
+<h4 id="状态获取接口_3">状态获取接口<a class="headerlink" href="#状态获取接口_3" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：获取大寰夹爪关节状态信息</p>
@@ -5393,7 +6827,7 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 <a id="__codelineno-42-136" name="__codelineno-42-136" href="#__codelineno-42-136"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">EXIT_SUCCESS</span><span class="p">;</span>
 <a id="__codelineno-42-137" name="__codelineno-42-137" href="#__codelineno-42-137"></a><span class="p">}</span>
 </code></pre></div>
-<h3 id="控制接口_2">控制接口<a class="headerlink" href="#控制接口_2" title="Permanent link">&para;</a></h3>
+<h4 id="控制接口_2">控制接口<a class="headerlink" href="#控制接口_2" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：控制大寰PGC-140-50夹爪</p>
@@ -5550,8 +6984,8 @@ ros2 run ubt_ros2_example waistfrontcolor_subscriber</code></p>
 <p>HW_TYPE=walker_s2_v1_gripper</p>
 </li>
 </ul>
-<h2 id="状态估计接口">状态估计接口<a class="headerlink" href="#状态估计接口" title="Permanent link">&para;</a></h2>
-<h3 id="足式里程计">足式里程计<a class="headerlink" href="#足式里程计" title="Permanent link">&para;</a></h3>
+<h3 id="状态估计接口">状态估计接口<a class="headerlink" href="#状态估计接口" title="Permanent link">&para;</a></h3>
+<h4 id="足式里程计">足式里程计<a class="headerlink" href="#足式里程计" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：获取足式里程计的状态信息</p>
@@ -5648,7 +7082,7 @@ twist.twist.angular.z = base_angvel_local.z();
 <a id="__codelineno-46-56" name="__codelineno-46-56" href="#__codelineno-46-56"></a>  return EXIT_SUCCESS;
 <a id="__codelineno-46-57" name="__codelineno-46-57" href="#__codelineno-46-57"></a>}
 </code></pre></div></p>
-<h3 id="本体状态估计">本体状态估计<a class="headerlink" href="#本体状态估计" title="Permanent link">&para;</a></h3>
+<h4 id="本体状态估计">本体状态估计<a class="headerlink" href="#本体状态估计" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：获取本体的状态信息</p>
@@ -5747,7 +7181,7 @@ twist.twist.angular.y = right_support;<br />
 <a id="__codelineno-48-58" name="__codelineno-48-58" href="#__codelineno-48-58"></a>  return EXIT_SUCCESS;
 <a id="__codelineno-48-59" name="__codelineno-48-59" href="#__codelineno-48-59"></a>}
 </code></pre></div></p>
-<h3 id="接触状态估计">接触状态估计<a class="headerlink" href="#接触状态估计" title="Permanent link">&para;</a></h3>
+<h4 id="接触状态估计">接触状态估计<a class="headerlink" href="#接触状态估计" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：获取本体的状态信息</p>
@@ -5817,7 +7251,7 @@ data = contact_flag;     // 任意腿在支撑则为True, 双腿悬空则为Fals
 <a id="__codelineno-50-43" name="__codelineno-50-43" href="#__codelineno-50-43"></a>  return EXIT_SUCCESS;
 <a id="__codelineno-50-44" name="__codelineno-50-44" href="#__codelineno-50-44"></a>}
 </code></pre></div></p>
-<h3 id="注意事项">注意事项<a class="headerlink" href="#注意事项" title="Permanent link">&para;</a></h3>
+<h4 id="注意事项">注意事项<a class="headerlink" href="#注意事项" title="Permanent link">&para;</a></h4>
 <ol>
 <li>
 <p>关于Base的四元数不同于IMU原始值，Base四元数去掉了启动时yaw-offset的偏置</p>
@@ -5832,8 +7266,8 @@ data = contact_flag;     // 任意腿在支撑则为True, 双腿悬空则为Fals
 <p>没有特殊说明，速度均为本体系（局部系）</p>
 </li>
 </ol>
-<h2 id="逆运动学求解">逆运动学求解<a class="headerlink" href="#逆运动学求解" title="Permanent link">&para;</a></h2>
-<h3 id="逆运动学求解算法">逆运动学求解算法<a class="headerlink" href="#逆运动学求解算法" title="Permanent link">&para;</a></h3>
+<h3 id="逆运动学求解">逆运动学求解<a class="headerlink" href="#逆运动学求解" title="Permanent link">&para;</a></h3>
+<h4 id="逆运动学求解算法">逆运动学求解算法<a class="headerlink" href="#逆运动学求解算法" title="Permanent link">&para;</a></h4>
 <p>1.在开发者容器内source对应安装包</p>
 <p>```Plain Text
 source /opt/walker/manipulation/setup.bash
@@ -6083,8 +7517,8 @@ CalcFloatingBasedKinematicas(const Eigen::VectorXd&amp; initial_q,
 </code></pre></div>
 <p>结果输出：</p>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%2021.png" /></p>
-<h2 id="asr">ASR<a class="headerlink" href="#asr" title="Permanent link">&para;</a></h2>
-<h3 id="asr语音转文字接口">ASR语音转文字接口<a class="headerlink" href="#asr语音转文字接口" title="Permanent link">&para;</a></h3>
+<h3 id="asr">ASR<a class="headerlink" href="#asr" title="Permanent link">&para;</a></h3>
+<h4 id="asr语音转文字接口">ASR语音转文字接口<a class="headerlink" href="#asr语音转文字接口" title="Permanent link">&para;</a></h4>
 <ul>
 <li>
 <p>说明：ASR语音转文字（需要唤醒后才会开启Asr识别，唤醒词“Walker，Walker”）</p>
@@ -6202,14 +7636,14 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-61-92" name="__codelineno-61-92" href="#__codelineno-61-92"></a>    return 0;
 <a id="__codelineno-61-93" name="__codelineno-61-93" href="#__codelineno-61-93"></a>}
 </code></pre></div></p>
-<h1 id="接口说明-应用服务api">接口说明-应用服务【API】<a class="headerlink" href="#接口说明-应用服务api" title="Permanent link">&para;</a></h1>
-<h2 id="使用说明">使用说明<a class="headerlink" href="#使用说明" title="Permanent link">&para;</a></h2>
-<h3 id="原理">原理<a class="headerlink" href="#原理" title="Permanent link">&para;</a></h3>
-<h4 id="协议栈">协议栈<a class="headerlink" href="#协议栈" title="Permanent link">&para;</a></h4>
+<h2 id="接口说明-应用服务api">接口说明-应用服务【API】<a class="headerlink" href="#接口说明-应用服务api" title="Permanent link">&para;</a></h2>
+<h3 id="使用说明">使用说明<a class="headerlink" href="#使用说明" title="Permanent link">&para;</a></h3>
+<h4 id="原理">原理<a class="headerlink" href="#原理" title="Permanent link">&para;</a></h4>
+<h5 id="协议栈">协议栈<a class="headerlink" href="#协议栈" title="Permanent link">&para;</a></h5>
 <p>如上图所示：</p>
 <p>如上图所示，在机器人 Orin 系统中，存在一个名为 ControlCenter 程序（简称：CC）。它是机器人的主控程序，它对外提供统一的 API 操作接口。该 API 接口以 TCP 端口 51000 对外提供 TCP 连接服务。客户程序使用 API SDK，即：ubt_robot 库，与 ControlCenter 建立长连接，实现双向的请求与通知。</p>
 <p>客户端C++程序不限定其运行实体。可以是运行在 Orin 系统容器中，也可以运行在客户自己的计算机系统中，如工程机上。只要能通过网络与机器人中 ControlCenter API 提供的 TCP 51000 端口建立连接并进行正常的 TCP 通信即可。</p>
-<h4 id="关于-api_id-与-token">关于 api_id 与 token<a class="headerlink" href="#关于-api_id-与-token" title="Permanent link">&para;</a></h4>
+<h5 id="关于-api_id-与-token">关于 api_id 与 token<a class="headerlink" href="#关于-api_id-与-token" title="Permanent link">&para;</a></h5>
 <p>为了方便机器人对接入的 API 进行合法性校验，每个客户端程序在使用 ubt_robot 库之前都需要指定 api_id 与 token。其中 api_id 用于表明客户端程序的身份，同一时刻机器人端仅允许持有该身份的一个客户程序接入。token 则用于鉴定 api_id 的合法性，防止伪造。</p>
 <ul>
 <li>
@@ -6235,7 +7669,7 @@ int32 wordnum           #几个汉字或者几个单词
 </code></pre></div>
 <p><strong>Python 用户注意：</strong>
 如果你使用 Python 进行开发（文档 6.1.2 提及 <code>ubt_api_tiny_python</code>），在实例化 <code>ubt_robot</code> 库时，通常也会有类似的参数位置用于传入 <code>api_id</code> 和 <code>token</code>。根据文档说明，传入任意字符串作为 <code>api_id</code>，并将 <code>token</code> 留空或 <code>None</code> 即可。</p>
-<h4 id="客户端连接互斥性与认证说明">客户端连接互斥性与认证说明<a class="headerlink" href="#客户端连接互斥性与认证说明" title="Permanent link">&para;</a></h4>
+<h5 id="客户端连接互斥性与认证说明">客户端连接互斥性与认证说明<a class="headerlink" href="#客户端连接互斥性与认证说明" title="Permanent link">&para;</a></h5>
 <p>为了帮助开发者更好地理解 <code>api_id</code> 的工作机制，特此补充以下关键说明：</p>
 <p><strong>相同 </strong><strong><code>api_id</code></strong><strong> 的连接冲突（互斥性）</strong></p>
 <ul>
@@ -6246,7 +7680,7 @@ int32 wordnum           #几个汉字或者几个单词
 <p><strong>冲突结果：</strong>如果客户端 A 已使用 <code>api_id="demo"</code> 成功连接，此时客户端 B 再次使用相同的 <code>api_id="demo"</code> 发起连接请求，系统将强制断开客户端 A 的连接，并接受客户端 B 的连接。这通常被称为“踢下线”机制。</p>
 </li>
 </ul>
-<h3 id="api-库使用指引">API 库使用指引<a class="headerlink" href="#api-库使用指引" title="Permanent link">&para;</a></h3>
+<h4 id="api-库使用指引">API 库使用指引<a class="headerlink" href="#api-库使用指引" title="Permanent link">&para;</a></h4>
 <p>基于开发者容器的精简版的 SDK 文件 zip：</p>
 <p>C++:</p>
 <p><a href="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/ubt_api_tiny.20260203.zip">ubt_api_tiny.20260203.zip</a></p>
@@ -6284,7 +7718,7 @@ int32 wordnum           #几个汉字或者几个单词
 <p>pip install ubt_robot-1.0.0-cp310-cp310-linux_aarch64.whl</p>
 <p>里面同样提供了与C++ api类似的 example可供参考,可通过:</p>
 <p>python3 01_ubt_api_demo.py 运行对应的demo程序</p>
-<h4 id="demo示例">demo示例<a class="headerlink" href="#demo示例" title="Permanent link">&para;</a></h4>
+<h5 id="demo示例">demo示例<a class="headerlink" href="#demo示例" title="Permanent link">&para;</a></h5>
 <p><strong>examples/01_ubt_</strong><strong>api</strong><strong>_demo.cpp </strong>中实现了使用 API 连接机器人的 API 服务，并通过 API 的 requestSync() 方法，向 control_center 发送了 "cc.api.fault.current.get" 的请求，在得到了 control_center 的回复之后，将结果打印出来。</p>
 <p>代码内容：</p>
 <div class="language-C++ highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
@@ -6328,7 +7762,7 @@ int32 wordnum           #几个汉字或者几个单词
 <p>运行效果：</p>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%207.png" /></p>
 <p>可以看到，程序已获取到故障列表的数据，后续示例也以上面的命令为标准，修改对应文件名即可。</p>
-<h4 id="连接成功与断开事件监听">连接成功与断开事件监听<a class="headerlink" href="#连接成功与断开事件监听" title="Permanent link">&para;</a></h4>
+<h5 id="连接成功与断开事件监听">连接成功与断开事件监听<a class="headerlink" href="#连接成功与断开事件监听" title="Permanent link">&para;</a></h5>
 <p>如果客户端程序需要在与机器人连接成功与连接断开时执行某些业务相关的操作，可以有通过设置回调的方式实现。</p>
 <p><strong>接口定义</strong><strong>：</strong></p>
 <div class="language-C++ highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">Api</span><span class="w"> </span><span class="p">{</span>
@@ -6374,7 +7808,7 @@ int32 wordnum           #几个汉字或者几个单词
 <p><strong>执行效果</strong><strong>：</strong></p>
 <p>demo文件：<strong>examples/02_connect_cb_demo.cpp</strong></p>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%203.png" /></p>
-<h4 id="异步发送请求">异步发送请求<a class="headerlink" href="#异步发送请求" title="Permanent link">&para;</a></h4>
+<h5 id="异步发送请求">异步发送请求<a class="headerlink" href="#异步发送请求" title="Permanent link">&para;</a></h5>
 <p>上面 demo 演示了使用 API 的 requestSync() 以同步的方式调用请求，该方式会阻塞性地等待机器人回应。如果想要更为高效的请求，可以采用异常请求的方法 request(method, cb)。</p>
 <p><strong>接口定义</strong><strong>：</strong></p>
 <div class="language-C++ highlight"><pre><span></span><code><a id="__codelineno-68-1" name="__codelineno-68-1" href="#__codelineno-68-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">Api</span><span class="w"> </span><span class="p">{</span>
@@ -6445,7 +7879,7 @@ int32 wordnum           #几个汉字或者几个单词
 <p><strong>运行效果</strong><strong>：</strong></p>
 <p>demo文件：<strong>examples/03_async_request_demo.cpp</strong></p>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%2010.png" /></p>
-<h4 id="异步发送通知">异步发送通知<a class="headerlink" href="#异步发送通知" title="Permanent link">&para;</a></h4>
+<h5 id="异步发送通知">异步发送通知<a class="headerlink" href="#异步发送通知" title="Permanent link">&para;</a></h5>
 <p><strong>接口定义：</strong></p>
 <div class="language-C++ highlight"><pre><span></span><code><a id="__codelineno-70-1" name="__codelineno-70-1" href="#__codelineno-70-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">Api</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-70-2" name="__codelineno-70-2" href="#__codelineno-70-2"></a><span class="w">  </span><span class="p">...</span>
@@ -6486,7 +7920,7 @@ int32 wordnum           #几个汉字或者几个单词
 <p>demo文件：<strong>examples/04_notify_demo.cpp</strong></p>
 <p>当故障状态变化时，即可接收到对应消息：</p>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%2013.png" /></p>
-<h4 id="添加服务监听">添加服务监听<a class="headerlink" href="#添加服务监听" title="Permanent link">&para;</a></h4>
+<h5 id="添加服务监听">添加服务监听<a class="headerlink" href="#添加服务监听" title="Permanent link">&para;</a></h5>
 <p>上面提及，机器人与客户程序之间不像 HTTP 这种单向请求，而是可以进行双向的。机器人有事件也可以主动通知到客户程序。客户程序为了能在机器人主动发起通知或请求时能执行对应的操作，而需要使用 addService() 进行注册。</p>
 <p><strong>接口定义：</strong></p>
 <div class="language-C++ highlight"><pre><span></span><code><a id="__codelineno-72-1" name="__codelineno-72-1" href="#__codelineno-72-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">Api</span><span class="w"> </span><span class="p">{</span>
@@ -6534,7 +7968,7 @@ int32 wordnum           #几个汉字或者几个单词
 <p><strong>运行效果：</strong></p>
 <p>demo文件：<strong>examples/05_addservice_demo.cpp</strong></p>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%2022.png" /></p>
-<h4 id="注意事项_1">注意事项<a class="headerlink" href="#注意事项_1" title="Permanent link">&para;</a></h4>
+<h5 id="注意事项_1">注意事项<a class="headerlink" href="#注意事项_1" title="Permanent link">&para;</a></h5>
 <ul>
 <li>
 <p>必须先调用 initialize() 之后再调用 start() ；</p>
@@ -6549,8 +7983,8 @@ int32 wordnum           #几个汉字或者几个单词
 <p>确保执行的异步操作全部执行完毕且收到执行结果后再 stop 。</p>
 </li>
 </ul>
-<h2 id="业务接口">业务接口<a class="headerlink" href="#业务接口" title="Permanent link">&para;</a></h2>
-<h3 id="执行技能">执行技能<a class="headerlink" href="#执行技能" title="Permanent link">&para;</a></h3>
+<h3 id="业务接口">业务接口<a class="headerlink" href="#业务接口" title="Permanent link">&para;</a></h3>
+<h4 id="执行技能">执行技能<a class="headerlink" href="#执行技能" title="Permanent link">&para;</a></h4>
 <p><strong>技能、任务定义：</strong></p>
 <p>技能：一种流程的模板，定义了该流程执行的规则，以及需要传入的参数。</p>
 <p>任务：对于某个技能的实例，是对技能的具象化。</p>
@@ -6563,7 +7997,7 @@ int32 wordnum           #几个汉字或者几个单词
 <p>任务：将1#纸箱子从，从A点位，搬到B点位；</p>
 </li>
 </ul>
-<h4 id="启动技能任务">启动技能任务<a class="headerlink" href="#启动技能任务" title="Permanent link">&para;</a></h4>
+<h5 id="启动技能任务">启动技能任务<a class="headerlink" href="#启动技能任务" title="Permanent link">&para;</a></h5>
 <p><strong>接口定义</strong></p>
 <p>技能启动器类：skill.h</p>
 <div class="language-C++ highlight"><pre><span></span><code><a id="__codelineno-74-1" name="__codelineno-74-1" href="#__codelineno-74-1"></a><span class="c1">//! 技能类，用于启动技能</span>
@@ -6676,7 +8110,7 @@ int32 wordnum           #几个汉字或者几个单词
 <p><strong>运行</strong><strong>效果</strong></p>
 <p>demo文件：<strong>examples/06_skill_work_demo.cpp</strong></p>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%209.png" /></p>
-<h4 id="停止任务">停止任务<a class="headerlink" href="#停止任务" title="Permanent link">&para;</a></h4>
+<h5 id="停止任务">停止任务<a class="headerlink" href="#停止任务" title="Permanent link">&para;</a></h5>
 <p><strong>使用示例</strong></p>
 <div class="language-C++ highlight"><pre><span></span><code><a id="__codelineno-77-1" name="__codelineno-77-1" href="#__codelineno-77-1"></a><span class="k">auto</span><span class="w"> </span><span class="n">work</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">skill</span><span class="p">.</span><span class="n">launch</span><span class="p">(</span><span class="s">&quot;A000016&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">);</span>
 <a id="__codelineno-77-2" name="__codelineno-77-2" href="#__codelineno-77-2"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">work</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
@@ -6695,7 +8129,7 @@ int32 wordnum           #几个汉字或者几个单词
 <p><strong>运行效果</strong></p>
 <p>demo文件：<strong>examples/07_work_stop_demo.cpp</strong></p>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%202.png" /></p>
-<h4 id="获取技能列表">获取技能列表<a class="headerlink" href="#获取技能列表" title="Permanent link">&para;</a></h4>
+<h5 id="获取技能列表">获取技能列表<a class="headerlink" href="#获取技能列表" title="Permanent link">&para;</a></h5>
 <p>注：该方法需 control center 版本在0.5.73以上支持</p>
 <table>
 <thead>
@@ -6734,7 +8168,7 @@ int32 wordnum           #几个汉字或者几个单词
 <p><strong>运行效果</strong></p>
 <p>demo文件：<strong>examples/08_get_skill_list_demo.cpp</strong></p>
 <p><img alt="image" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image_noext.jpeg" /></p>
-<h4 id="获取技能-profile">获取技能 profile<a class="headerlink" href="#获取技能-profile" title="Permanent link">&para;</a></h4>
+<h5 id="获取技能-profile">获取技能 profile<a class="headerlink" href="#获取技能-profile" title="Permanent link">&para;</a></h5>
 <p>注：该方法需 control center 版本在0.5.73以上支持</p>
 <table>
 <thead>
@@ -6925,8 +8359,8 @@ int32 wordnum           #几个汉字或者几个单词
 <p><strong>运行效果</strong></p>
 <p>demo文件：<strong>examples/09_get_skill_profile_demo.cpp</strong></p>
 <p><img alt="image.png" src="../%E5%9B%BE%E7%89%87%E5%92%8C%E9%99%84%E4%BB%B6/image%2015.png" /></p>
-<h4 id="技能罗列">技能罗列<a class="headerlink" href="#技能罗列" title="Permanent link">&para;</a></h4>
-<h5 id="a000001tts">A000001：TTS<a class="headerlink" href="#a000001tts" title="Permanent link">&para;</a></h5>
+<h5 id="技能罗列">技能罗列<a class="headerlink" href="#技能罗列" title="Permanent link">&para;</a></h5>
+<h6 id="a000001tts">A000001：TTS<a class="headerlink" href="#a000001tts" title="Permanent link">&para;</a></h6>
 <p><strong>功能</strong>：将文本转成语音进行播报。</p>
 <p><strong>参数</strong>：</p>
 <ul>
@@ -6947,7 +8381,7 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-80-3" name="__codelineno-80-3" href="#__codelineno-80-3"></a><span class="w">  </span><span class="nt">&quot;speed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">50</span>
 <a id="__codelineno-80-4" name="__codelineno-80-4" href="#__codelineno-80-4"></a><span class="p">}</span>
 </code></pre></div>
-<h5 id="a000002navto">A000002：NavTo<a class="headerlink" href="#a000002navto" title="Permanent link">&para;</a></h5>
+<h6 id="a000002navto">A000002：NavTo<a class="headerlink" href="#a000002navto" title="Permanent link">&para;</a></h6>
 <p><strong>功能</strong>：指定坐标或者地点进行导航</p>
 <p><strong>参数</strong>：</p>
 <ul>
@@ -6980,7 +8414,7 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-82-3" name="__codelineno-82-3" href="#__codelineno-82-3"></a><span class="w">  </span><span class="nt">&quot;enableTrackNav&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="c1">// 不填或者为false时为轨道导航，true时使用轨道导航</span>
 <a id="__codelineno-82-4" name="__codelineno-82-4" href="#__codelineno-82-4"></a><span class="p">}</span>
 </code></pre></div>
-<h5 id="a000004setlegmode">A000004：SetLegMode<a class="headerlink" href="#a000004setlegmode" title="Permanent link">&para;</a></h5>
+<h6 id="a000004setlegmode">A000004：SetLegMode<a class="headerlink" href="#a000004setlegmode" title="Permanent link">&para;</a></h6>
 <p><strong>功能</strong>：设置腿部模式</p>
 <p><strong>参数</strong>：</p>
 <ul>
@@ -7007,7 +8441,7 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-83-2" name="__codelineno-83-2" href="#__codelineno-83-2"></a><span class="w">  </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;STAND&quot;</span>
 <a id="__codelineno-83-3" name="__codelineno-83-3" href="#__codelineno-83-3"></a><span class="p">}</span>
 </code></pre></div>
-<h5 id="a000012setmap">A000012：SetMap<a class="headerlink" href="#a000012setmap" title="Permanent link">&para;</a></h5>
+<h6 id="a000012setmap">A000012：SetMap<a class="headerlink" href="#a000012setmap" title="Permanent link">&para;</a></h6>
 <p><strong>功能</strong>：设置地图</p>
 <p><strong>参数</strong>：</p>
 <ul>
@@ -7018,7 +8452,7 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-84-2" name="__codelineno-84-2" href="#__codelineno-84-2"></a><span class="w">  </span><span class="nt">&quot;mapId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;office_13floor&quot;</span>
 <a id="__codelineno-84-3" name="__codelineno-84-3" href="#__codelineno-84-3"></a><span class="p">}</span>
 </code></pre></div>
-<h5 id="a000013relocation">A000013：Relocation<a class="headerlink" href="#a000013relocation" title="Permanent link">&para;</a></h5>
+<h6 id="a000013relocation">A000013：Relocation<a class="headerlink" href="#a000013relocation" title="Permanent link">&para;</a></h6>
 <p><strong>功能</strong>：重定位</p>
 <p><strong>参数</strong>：</p>
 <ul>
@@ -7050,13 +8484,13 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-85-7" name="__codelineno-85-7" href="#__codelineno-85-7"></a><span class="w">  </span><span class="nt">&quot;pose&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mf">0.1</span><span class="p">]</span>
 <a id="__codelineno-85-8" name="__codelineno-85-8" href="#__codelineno-85-8"></a><span class="p">}</span>
 </code></pre></div>
-<h5 id="a000020startmotion">A000020：StartMotion<a class="headerlink" href="#a000020startmotion" title="Permanent link">&para;</a></h5>
+<h6 id="a000020startmotion">A000020：StartMotion<a class="headerlink" href="#a000020startmotion" title="Permanent link">&para;</a></h6>
 <p><strong>功能</strong>：启动运控</p>
 <p><strong>参数</strong>：为空</p>
 <p><strong>示例</strong><strong>参数</strong>：</p>
 <div class="language-JSON highlight"><pre><span></span><code><a id="__codelineno-86-1" name="__codelineno-86-1" href="#__codelineno-86-1"></a><span class="p">{}</span>
 </code></pre></div>
-<h5 id="a000026executepresetlimbaction">A000026：ExecutePresetLimbAction<a class="headerlink" href="#a000026executepresetlimbaction" title="Permanent link">&para;</a></h5>
+<h6 id="a000026executepresetlimbaction">A000026：ExecutePresetLimbAction<a class="headerlink" href="#a000026executepresetlimbaction" title="Permanent link">&para;</a></h6>
 <p><strong>功能</strong>：执行特定肢体动作</p>
 <p><strong>参数</strong>：</p>
 <ul>
@@ -7153,8 +8587,8 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-87-2" name="__codelineno-87-2" href="#__codelineno-87-2"></a><span class="w">  </span><span class="nt">&quot;actionId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;qyh/handshake&quot;</span>
 <a id="__codelineno-87-3" name="__codelineno-87-3" href="#__codelineno-87-3"></a><span class="p">}</span>
 </code></pre></div>
-<h3 id="网络配置">网络配置<a class="headerlink" href="#网络配置" title="Permanent link">&para;</a></h3>
-<h4 id="设置wifi网络">设置WiFi网络<a class="headerlink" href="#设置wifi网络" title="Permanent link">&para;</a></h4>
+<h4 id="网络配置">网络配置<a class="headerlink" href="#网络配置" title="Permanent link">&para;</a></h4>
+<h5 id="设置wifi网络">设置WiFi网络<a class="headerlink" href="#设置wifi网络" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7196,8 +8630,8 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-88-12" name="__codelineno-88-12" href="#__codelineno-88-12"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-88-13" name="__codelineno-88-13" href="#__codelineno-88-13"></a><span class="p">);</span>
 </code></pre></div>
-<h3 id="状态">状态<a class="headerlink" href="#状态" title="Permanent link">&para;</a></h3>
-<h4 id="当前支持的状态列表">当前支持的状态列表<a class="headerlink" href="#当前支持的状态列表" title="Permanent link">&para;</a></h4>
+<h4 id="状态">状态<a class="headerlink" href="#状态" title="Permanent link">&para;</a></h4>
+<h5 id="当前支持的状态列表">当前支持的状态列表<a class="headerlink" href="#当前支持的状态列表" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7234,7 +8668,7 @@ int32 wordnum           #几个汉字或者几个单词
 </tr>
 </tbody>
 </table>
-<h4 id="获取指定状态">获取指定状态<a class="headerlink" href="#获取指定状态" title="Permanent link">&para;</a></h4>
+<h5 id="获取指定状态">获取指定状态<a class="headerlink" href="#获取指定状态" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7275,7 +8709,7 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-89-11" name="__codelineno-89-11" href="#__codelineno-89-11"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-89-12" name="__codelineno-89-12" href="#__codelineno-89-12"></a><span class="p">);</span>
 </code></pre></div>
-<h4 id="获取状态列表">获取状态列表<a class="headerlink" href="#获取状态列表" title="Permanent link">&para;</a></h4>
+<h5 id="获取状态列表">获取状态列表<a class="headerlink" href="#获取状态列表" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7314,8 +8748,8 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-90-9" name="__codelineno-90-9" href="#__codelineno-90-9"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-90-10" name="__codelineno-90-10" href="#__codelineno-90-10"></a><span class="p">);</span>
 </code></pre></div>
-<h3 id="人机交互">人机交互<a class="headerlink" href="#人机交互" title="Permanent link">&para;</a></h3>
-<h4 id="订阅唤醒事件">订阅唤醒事件<a class="headerlink" href="#订阅唤醒事件" title="Permanent link">&para;</a></h4>
+<h4 id="人机交互">人机交互<a class="headerlink" href="#人机交互" title="Permanent link">&para;</a></h4>
+<h5 id="订阅唤醒事件">订阅唤醒事件<a class="headerlink" href="#订阅唤醒事件" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7354,7 +8788,7 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-91-9" name="__codelineno-91-9" href="#__codelineno-91-9"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-91-10" name="__codelineno-91-10" href="#__codelineno-91-10"></a><span class="p">);</span>
 </code></pre></div>
-<h4 id="取消唤醒事件的订阅">取消唤醒事件的订阅<a class="headerlink" href="#取消唤醒事件的订阅" title="Permanent link">&para;</a></h4>
+<h5 id="取消唤醒事件的订阅">取消唤醒事件的订阅<a class="headerlink" href="#取消唤醒事件的订阅" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7393,7 +8827,7 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-92-9" name="__codelineno-92-9" href="#__codelineno-92-9"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-92-10" name="__codelineno-92-10" href="#__codelineno-92-10"></a><span class="p">);</span>
 </code></pre></div>
-<h4 id="接收唤醒事件">接收唤醒事件<a class="headerlink" href="#接收唤醒事件" title="Permanent link">&para;</a></h4>
+<h5 id="接收唤醒事件">接收唤醒事件<a class="headerlink" href="#接收唤醒事件" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7432,8 +8866,8 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-93-9" name="__codelineno-93-9" href="#__codelineno-93-9"></a>
 <a id="__codelineno-93-10" name="__codelineno-93-10" href="#__codelineno-93-10"></a><span class="w">  </span><span class="p">...</span>
 </code></pre></div>
-<h3 id="地图">地图<a class="headerlink" href="#地图" title="Permanent link">&para;</a></h3>
-<h4 id="获取地图列表">获取地图列表<a class="headerlink" href="#获取地图列表" title="Permanent link">&para;</a></h4>
+<h4 id="地图">地图<a class="headerlink" href="#地图" title="Permanent link">&para;</a></h4>
+<h5 id="获取地图列表">获取地图列表<a class="headerlink" href="#获取地图列表" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7472,7 +8906,7 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-94-9" name="__codelineno-94-9" href="#__codelineno-94-9"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-94-10" name="__codelineno-94-10" href="#__codelineno-94-10"></a><span class="p">);</span>
 </code></pre></div>
-<h4 id="删除地图">删除地图<a class="headerlink" href="#删除地图" title="Permanent link">&para;</a></h4>
+<h5 id="删除地图">删除地图<a class="headerlink" href="#删除地图" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7513,7 +8947,7 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-95-11" name="__codelineno-95-11" href="#__codelineno-95-11"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-95-12" name="__codelineno-95-12" href="#__codelineno-95-12"></a><span class="p">);</span>
 </code></pre></div>
-<h4 id="普通建图">普通建图<a class="headerlink" href="#普通建图" title="Permanent link">&para;</a></h4>
+<h5 id="普通建图">普通建图<a class="headerlink" href="#普通建图" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7556,7 +8990,7 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-96-12" name="__codelineno-96-12" href="#__codelineno-96-12"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-96-13" name="__codelineno-96-13" href="#__codelineno-96-13"></a><span class="p">);</span>
 </code></pre></div>
-<h4 id="增量建图">增量建图<a class="headerlink" href="#增量建图" title="Permanent link">&para;</a></h4>
+<h5 id="增量建图">增量建图<a class="headerlink" href="#增量建图" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7599,7 +9033,7 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-97-12" name="__codelineno-97-12" href="#__codelineno-97-12"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-97-13" name="__codelineno-97-13" href="#__codelineno-97-13"></a><span class="p">);</span>
 </code></pre></div>
-<h4 id="取消建图保存建图">取消建图/保存建图<a class="headerlink" href="#取消建图保存建图" title="Permanent link">&para;</a></h4>
+<h5 id="取消建图保存建图">取消建图/保存建图<a class="headerlink" href="#取消建图保存建图" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
@@ -7640,8 +9074,8 @@ int32 wordnum           #几个汉字或者几个单词
 <a id="__codelineno-98-11" name="__codelineno-98-11" href="#__codelineno-98-11"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-98-12" name="__codelineno-98-12" href="#__codelineno-98-12"></a><span class="p">);</span>
 </code></pre></div>
-<h3 id="运动">运动<a class="headerlink" href="#运动" title="Permanent link">&para;</a></h3>
-<h4 id="矢量行走">矢量行走<a class="headerlink" href="#矢量行走" title="Permanent link">&para;</a></h4>
+<h4 id="运动">运动<a class="headerlink" href="#运动" title="Permanent link">&para;</a></h4>
+<h5 id="矢量行走">矢量行走<a class="headerlink" href="#矢量行走" title="Permanent link">&para;</a></h5>
 <table>
 <thead>
 <tr>
