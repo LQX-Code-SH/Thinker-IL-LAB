@@ -60,6 +60,14 @@ Thinker 机器人模仿学习工具链，为 **天工行者（无疆）** 与 **
 </div>
 </div>
 
+### 应用案例
+
+**Walker S2 EDU 探索者 · VLA 抓取与搬运**
+
+<video src="assets/walker-s2应用案例.mp4" controls muted width="100%"></video>
+
+详见 [Walker S2 EDU 探索者 应用案例](walker-s2/application-case.md)。
+
 ## 整体架构
 
 仓库包含 `ubt_sim`（仿真平台）与 `ubt_IL`（模仿学习平台）两个子项目，关系与数据流：
