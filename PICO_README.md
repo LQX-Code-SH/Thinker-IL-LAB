@@ -226,3 +226,14 @@ Remote Vision 和 `PC Service` 必须填写同一个电脑 IP。
 cd /ubt_sim/teleoperation/control/walker_c1
 ./prepare_pico_runtime.sh /opt/pico-sdk /opt/pico-runtime
 ```
+
+## 七、当前限制
+
+- PICO 手柄和裸手遥操作已经在 C1 仿真中验证；当前没有连接或控制过 C1 真机。
+- `30 Hz` 是 PICO 控制和录制的目标频率。录制由相机帧触发，实际落盘频率会受仿真、ROS callback
+  和图像编码性能影响；现有历史样本约为 `4.9～6.0 Hz`。转换训练数据前必须检查 HDF5 中的
+  `observations/timestamp` 和 `record_hz`，不能在没有重采样时直接标记为 30 Hz。
+- 当前采用“全部录制、后续人工筛选”的数据管理方式：从 episode 开始到保存之间的内容都会写入
+  HDF5，录制器不自动判断抓取成功或失败。转换和训练前应由人工播放检查，筛除失败、误操作、长时间
+  停顿或频率异常的数据；HDF5 中现有 `success=true` 只表示文件按录制流程保存，不应直接作为任务
+  成功标签使用。
