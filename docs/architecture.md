@@ -80,7 +80,7 @@ Bridge2 (系统 Python 3.10 + ROS2)
 ## 项目结构
 
 ```
-UBTECH-IL-LAB/
+Thinker-IL-LAB/
 ├── ubt_sim/                    # 仿真平台
 │   ├── assets/                 # 3D 模型（USD/URDF/贴图，Git LFS）
 │   ├── config/                 # YAML 任务/场景配置

@@ -1,6 +1,6 @@
 # 天工 Pro（TienKung Pro）
 
-优必选天工 Pro 人形机器人，50 DOF，双手为 12×2 五指灵巧手。
+天工 Pro 人形机器人，50 DOF，双手为 12×2 五指灵巧手。
 
 ![TienKung Pro 仿真界面预览](../assets/tienkung-pro仿真界面预览.png)
 

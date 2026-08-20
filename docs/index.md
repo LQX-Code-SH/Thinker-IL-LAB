@@ -1,10 +1,10 @@
-# UBTECH-IL-LAB
+# Thinker-IL-LAB
 
-优必选 EDU 版机器人模仿学习工具链，为 **天工 Pro（TienKung Pro）** 与 **Walker S2** 机器人提供从仿真数据采集到真机部署的完整模仿学习解决方案。
+Thinker 机器人模仿学习工具链，为 **天工 Pro（TienKung Pro）** 与 **Walker S2** 机器人提供从仿真数据采集到真机部署的完整模仿学习解决方案。
 
 基于 [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) 与 [HuggingFace LeRobot](https://github.com/huggingface/lerobot) 框架构建。
 
-[:fontawesome-brands-github: **GitHub 仓库** · LQX-Code-SH/UBTECH-IL-LAB](https://github.com/LQX-Code-SH/UBTECH-IL-LAB){ .md-button .md-button--primary }
+[:fontawesome-brands-github: **GitHub 仓库** · LQX-Code-SH/Thinker-IL-LAB](https://github.com/LQX-Code-SH/Thinker-IL-LAB){ .md-button .md-button--primary }
 [快速开始 :material-arrow-right:](getting-started.md){ .md-button }
 
 ## 核心能力
@@ -92,8 +92,8 @@
 
 - [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) - 高保真机器人仿真环境
 - [HuggingFace LeRobot](https://github.com/huggingface/lerobot) - 模仿学习框架（ACT 策略、数据格式与训练/推理工具链）
-- [Thinker Studio](https://thinkercosmos.ubtrobot.com/#/studio) - 优必选遥操数采平台
-- [Thinker cosmos开源社区](https://thinkercosmos.ubtrobot.com/#/open-source-center?ref=header-nav) - 优必选开源中心
+- [Thinker Studio](https://thinkercosmos.ubtrobot.com/#/studio) - Thinker 遥操数采平台
+- [Thinker cosmos开源社区](https://thinkercosmos.ubtrobot.com/#/open-source-center?ref=header-nav) - Thinker 开源社区
 
 ## License
 

@@ -13,8 +13,8 @@ git config --global https.proxy http://127.0.0.1:7897
 export GIT_LFS_PROXY="http://127.0.0.1:7897"   # LFS 走代理
 
 # 1. 克隆仓库（先跳过 LFS 和子模块，加速克隆）
-GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/LQX-Code-SH/UBTECH-IL-LAB.git
-cd UBTECH-IL-LAB
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/LQX-Code-SH/Thinker-IL-LAB.git
+cd Thinker-IL-LAB
 
 # 2. 拉取 LFS 大文件
 git lfs pull

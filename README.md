@@ -1,8 +1,8 @@
-# UBTECH-IL-LAB 文档站点
+# Thinker-IL-LAB 文档站点
 
 本分支（`docs-source`）是文档站点的**源码分支**，仅包含 MkDocs 文档源码，与代码分支互不干扰。
 
-线上站点：<https://lqx-code-sh.github.io/UBTECH-IL-LAB/>
+线上站点：<https://lqx-code-sh.github.io/Thinker-IL-LAB/>
 
 ## 分支结构
 

@@ -3,7 +3,7 @@
 > 在 Jetson AGX Orin 上**不依赖 Docker**，用 conda 环境 `env_vla`（Python 3.12）运行 TienKung LeRobot 的推理 / 训练部署。`ubt_IL/scripts/deploy/tienkung_pro/arm_64/` 为自包含部署包：环境构建脚本、host 版部署脚本、本地编译的 PyTorch wheel。
 
 - 目标设备：Jetson AGX Orin（JetPack 6 / L4T R36.4.0 / Ubuntu 22.04 / glibc 2.35 / CUDA 12.6）
-- `PROJECT_ROOT` = `/home/nvidia/vla/UBTECH-IL-LAB/ubt_IL`
+- `PROJECT_ROOT` = `/home/nvidia/vla/Thinker-IL-LAB/ubt_IL`
 - 设计原则：host 版脚本用 `PROJECT_ROOT` + CLI 参数覆盖原脚本里硬编码的容器路径（`/ubt_IL/...`、`/lerobot/.venv/bin/...`），**不 sudo、不建软链、不改原脚本**。
 
 ## 1. 运行架构（双 Python 栈）
@@ -49,7 +49,7 @@ env_vla (conda, Python 3.12):  LeRobot + tienkung 插件 + torch
 
 ### 3.1 前置条件
 
-- 项目代码位于 `/home/nvidia/vla/UBTECH-IL-LAB/`。
+- 项目代码位于 `/home/nvidia/vla/Thinker-IL-LAB/`。
 - 已安装 conda（miniconda / miniforge）。
 - 宿主机已有 ROS2 Humble（`/opt/ros/humble`，含 rclpy、bodyctrl_msgs、cv_bridge）。
 - 系统 python3.10 已装 `pyorbbecsdk2` / `cv2` / `zmq` / `numpy`（位于 `~/.local`）。缺失时补装：
@@ -61,7 +61,7 @@ env_vla (conda, Python 3.12):  LeRobot + tienkung 插件 + torch
 ### 3.2 构建环境（首次）
 
 ```bash
-cd /home/nvidia/vla/UBTECH-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64
+cd /home/nvidia/vla/Thinker-IL-LAB/ubt_IL/scripts/deploy/tienkung_pro/arm_64
 bash setup_env.sh          # 创建 conda env_vla (python=3.12)，装 wheel + LeRobot + 插件并自检
 ```
 

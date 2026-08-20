@@ -1,9 +1,9 @@
-site_name: UBTECH-IL-LAB
-site_description: 优必选机器人模仿学习工具链 - 基于 Isaac Sim 与 LeRobot 的完整模仿学习解决方案
-site_author: UBTECH Robotics
-site_url: https://lqx-code-sh.github.io/UBTECH-IL-LAB/
-repo_url: https://github.com/LQX-Code-SH/UBTECH-IL-LAB
-repo_name: LQX-Code-SH/UBTECH-IL-LAB
+site_name: Thinker-IL-LAB
+site_description: Thinker 机器人模仿学习工具链 - 基于 Isaac Sim 与 LeRobot 的完整模仿学习解决方案
+site_author: Thinker Robotics
+site_url: https://lqx-code-sh.github.io/Thinker-IL-LAB/
+repo_url: https://github.com/LQX-Code-SH/Thinker-IL-LAB
+repo_name: LQX-Code-SH/Thinker-IL-LAB
 
 docs_dir: docs
 
@@ -13,8 +13,6 @@ extra_css:
 theme:
   name: material
   language: zh
-  logo: assets/优必选logo.png
-  favicon: assets/优必选logo.png
   features:
     - navigation.tabs
     - navigation.sections

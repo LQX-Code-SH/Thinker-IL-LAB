@@ -1,6 +1,6 @@
 # Walker S2
 
-优必选 Walker S2 人形机器人，34 DOF，双手为 PGC 两指夹爪（可选 V4 灵巧手）。
+Walker S2 人形机器人，34 DOF，双手为 PGC 两指夹爪（可选 V4 灵巧手）。
 
 ![Walker S2 仿真界面预览](../assets/walker-s2仿真界面预览.png)
 
