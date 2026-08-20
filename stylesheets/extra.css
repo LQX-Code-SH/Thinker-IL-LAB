@@ -27,3 +27,20 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/*
+ * 预览图统一尺寸：等宽等高，等比缩放。
+ * object-fit: contain 保证不裁剪，比例不符时留白，留白区域用浅色底标出。
+ */
+.img-uniform {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: var(--md-default-fg-color--lightest);
+  border-radius: 0.1rem;
+}
+
+/* 竖版图（评估曲线）用更高的固定比例 */
+.img-uniform--tall {
+  aspect-ratio: 3 / 4;
+}

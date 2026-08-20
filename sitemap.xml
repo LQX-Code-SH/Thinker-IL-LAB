@@ -17,11 +17,35 @@
          <lastmod>2026-08-20</lastmod>
     </url>
     <url>
+         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/docker/</loc>
+         <lastmod>2026-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/hdf5-layouts/</loc>
+         <lastmod>2026-08-20</lastmod>
+    </url>
+    <url>
          <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/hf-manage/</loc>
          <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/playback/</loc>
+         <lastmod>2026-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/il/</loc>
+         <lastmod>2026-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/il/docker/</loc>
+         <lastmod>2026-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/sim/</loc>
+         <lastmod>2026-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/sim/docker/</loc>
          <lastmod>2026-08-20</lastmod>
     </url>
     <url>
@@ -53,6 +77,10 @@
          <lastmod>2026-08-20</lastmod>
     </url>
     <url>
+         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/cc-api/</loc>
+         <lastmod>2026-08-20</lastmod>
+    </url>
+    <url>
          <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/convert-train/</loc>
          <lastmod>2026-08-20</lastmod>
     </url>
@@ -69,11 +97,19 @@
          <lastmod>2026-08-20</lastmod>
     </url>
     <url>
+         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/robot-control/</loc>
+         <lastmod>2026-08-20</lastmod>
+    </url>
+    <url>
          <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/sim-setup/</loc>
          <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/sim-workflow/</loc>
+         <lastmod>2026-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/wrist-camera/</loc>
          <lastmod>2026-08-20</lastmod>
     </url>
 </urlset>
