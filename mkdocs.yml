@@ -68,8 +68,7 @@ nav:
           - 真机部署: walker-s2/deploy.md
           - 推理服务器: walker-s2/inference-server.md
           - 腕部相机: walker-s2/wrist-camera.md
-          - 真机控制 SDK: walker-s2/robot-control.md
-          - SDK 二次开发（CC-API）: walker-s2/cc-api.md
+          - SDK 二次开发文档: walker-s2/cc-api.md
   - 通用参考:
     - 容器环境: common/docker.md
     - 数据转换详解: common/data-conversion.md

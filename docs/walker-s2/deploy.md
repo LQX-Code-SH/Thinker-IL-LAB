@@ -2,6 +2,12 @@
 
 > 部署脚本：`ubt_IL/scripts/deploy/walker_s2/rollout.sh`，仿真部署与真机部署共用（差异见各工作流页）。本页给出完整参数、安全预检与在线评估说明。
 
+## 前置条件
+
+- 真机**上电站立**并进入**开发者模式**。
+- 开机流程：机器人开机后打开伺服按 `D` 启动内部运控 -> 机器人落地扶稳按 `A` 进入站立模式。遥控器详细操作参考[《Walker S2 EDU 探索者 二次开发文档》](cc-api.md)。
+- Walker 真机部署在机器人 **Vision 板**上运行，需将项目和模型拷贝到 Vision 板上并构建、启动容器；构建脚本会自动识别当前主板类型构建相应的 arm 容器。
+
 ## 部署形态速查
 
 | 场景 | 命令要点 |
@@ -11,19 +17,48 @@
 | 回注仿真验证 | `ZMQ_HOST=127.0.0.1`（仿真容器先起任务与桥接） |
 | 长时间常驻部署 | 用 [推理服务器](inference-server.md)（免冷启动） |
 
-```bash
-# 标准部署（真机 10D，机器人 Vision 板容器内）
-bash /ubt_IL/scripts/deploy/walker_s2/robot_ready.sh      # 前置：初始化动作（回零用 --home）
+## 部署步骤（真机）
 
+```bash
+# 0. 进入开发者模式——机器人主控 PC 的 ubt 容器
+ssh -p 2222 ubt@192.168.11.2    # 输入密码：Ubtubt@9880
+# 向 service 请求进入开发者模式，true 为进入，false 为退出
+ros2 service call /sys/task/developer_mode std_srvs/srv/SetBool "{data: true}"
+# true 为开发者模式，false 则为普通模式
+ros2 topic echo /sys/state/walker_mode
+
+# 1. 构建并启动推理容器——机器人 Vision 板
+# 1.1 拷贝项目（代码 + 模型）到 Vision 板
+scp 项目代码和模型 /home/walker/
+# 1.2 登录 Vision 板并构建容器
+ssh walker@192.168.11.3          # 密码 aa
+cd 项目路径/ubt_IL/docker
+bash run.sh build
+# 1.3 启动容器
+bash run.sh start
+bash run.sh bash
+
+# 2. 初始化动作（抬起手臂到桌面上，回零用 --home）
+bash /ubt_IL/scripts/deploy/walker_s2/robot_ready.sh
+
+# 3. 部署真机 10D 模型异步推理
 ROBOT_MODEL=walker_s2_10d \
 POLICY_PATH=/ubt_IL/model/walker_pick_part_real_10d_2RGB_act/checkpoints/080000/pretrained_model \
 INFERENCE_TYPE=act_async INFERENCE_HZ=1 \
 FPS=13 DURATION=60 \
 bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 
-# 验证相机通路，可指定相机话题/机器人配置
+# 4.（可选）验证相机通路，可指定相机话题/机器人配置
 /usr/bin/python3 scripts/deploy/walker_s2/preview_camera.py --robot walker_s2_10d
 ```
+
+> **注意区分两台机器**：
+> - **Jetson `192.168.11.3`**（SSH `walker`，密码 `aa`）：跑容器 `lerobot-tienkung`、做推理。
+> - **机器人主控 PC `192.168.11.2`**（SSH `ubt`，端口 2222）：切开发者模式 / ROS2，**不跑推理容器**。
+
+## 部署效果演示
+
+<video src="../../assets/walker真机部署效果.mp4" controls muted width="100%"></video>
 
 ## 初始化/回零（robot_ready.sh）
 
@@ -82,7 +117,9 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 
 ## 推理服务器（常驻预热）
 
-长时间/多任务常驻部署用推理服务器，免每次冷启动，支持 `start/stop/home/load` 指令与远程拉起，详见 [推理服务器](inference-server.md)。
+长时间/多任务常驻部署用推理服务器，免每次冷启动（真机验证 2026-08-09：预热 ~6s 到 READY，`start`/`stop`/`home`/`shutdown` 全通过），支持 `start/stop/home/status/shutdown` 指令与 `load` 热切换模型、远程拉起，详见 [推理服务器](inference-server.md)。
+
+> `start`/`home`/`shutdown` 会让机器人运动，请在机旁执行。
 
 ## 常见问题
 
@@ -91,5 +128,6 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 | 部署时报维度不匹配 | 安全预检拒绝：确认 `ROBOT_MODEL` 与策略维度对应（10D->`walker_s2_10d`、19D->`walker_s2_19d`、31D->`walker_s2_31d`） |
 | 部署时机器人不动 | 真机确认 Bridge2 已启动（5561/5562）、相机中继已启动（5563）、已进入开发者模式；仿真确认 `ZMQ_HOST=127.0.0.1` 且仿真任务已启动 |
 | 推理服务器 `start` 报错 | `start/stop` 需 `INFERENCE_TYPE=act_async`；`sync` 引擎无 pause/resume 语义 |
+| `launch --remote` 失败 | 确认 `--host` 是 **Jetson `192.168.11.3`**（SSH `walker`）而非主控 PC；SSH 用户需对 `sudo docker exec` 有权限 |
 | 重复拉起推理服务器失败 | 单例 pid 文件 `/tmp/walker_inference_server.pid` 存在；`shutdown` 正常退出或手动清理后再拉 |
 | 仿真相机与真机相机尺寸不同 | 仿真 RGB 为 [3,240,320]（10D）或 [3,480,640]（33D），真机为 [256,320] 等；模型输入需与训练数据一致，勿混用 |
