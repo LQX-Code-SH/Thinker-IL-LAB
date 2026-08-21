@@ -124,6 +124,4 @@ POLICY_PATH=/ubt_IL/model/test_model ZMQ_HOST=192.168.41.2 DURATION=60 \
 ## Walker C1（Astron）
 
 Walker C1 的仿真采集、训练与推理完整流程（在线 IK 苹果抓放，非轨迹回放）单独整理在
-[README_C1_LEROBOT.md](README_C1_LEROBOT.md)，关节命名与真机 SDK 核对结果见
-[C1_joint_map.md](C1_joint_map.md)，PICO 遥操作见 [PICO_README.md](PICO_README.md)，完整调试历史见
-[C1_HANDOFF.md](C1_HANDOFF.md)。
+[README_C1_LEROBOT.md](README_C1_LEROBOT.md)，PICO 遥操作见 [PICO_README.md](PICO_README.md)。
