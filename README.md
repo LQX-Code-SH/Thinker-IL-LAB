@@ -6,7 +6,7 @@ Thinker 机器人模仿学习工具链
 
 ## 项目简介
 
-本项目基于 [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) 与 [LeRobot](https://github.com/huggingface/lerobot) 框架开发，为天工行者（Walker TienKung）及 Walker S2 EDU 探索者机器人提供完整的模仿学习工具链，涵盖以下核心能力：
+本项目基于 [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) 与 [LeRobot](https://github.com/huggingface/lerobot) 框架开发，为天工行者无疆（Walker TienKung Pro）及 Walker S2 Edu 探索者 机器人提供完整的模仿学习工具链，涵盖以下核心能力：
 
 | 能力              | 说明                                          | 状态      |
 | ----------------- | --------------------------------------------- | --------- |
@@ -15,24 +15,24 @@ Thinker 机器人模仿学习工具链
 | 📦 数据采集与转换 | HDF5 / LeRobot 格式数据采集，格式转换与清洗   | ✅ 已完成 |
 | 🧠 模型训练       | 基于 LeRobot 的模仿学习策略训练               | ✅ 已完成 |
 | 🤖 真机部署       | 模型推理与真机控制部署                        | ✅ 已完成 |
-| 🤖 支持机型      | 天工行者（Walker TienKung） / Walker S2 EDU(已支持)        | ✅ 已发布 |
-| 🤖 其他机型       | Walker C1 EDU 共创者 / 天工行者 DEX（Walker TienKung DEX） | 🚧 待发布 |
+| 🤖 支持机型      | 天工行者无疆 / Walker S2 Edu 探索者(已支持)        | ✅ 已发布 |
+| 🤖 其他机型       | Walker C1 Edu 共创者 / 天工行者无疆 DEX（Walker TienKung DEX）        | 🚧 待发布 |
 
 ## 效果展示
 
 ### 仿真平台预览
 
-| 天工行者 | Walker S2 EDU |
+| 天工行者无疆 | Walker S2 Edu 探索者 |
 |-------------|-----------|
-| <img src="ubt_sim/docs/assets/tienkung-pro仿真界面预览.png" alt="天工行者仿真界面预览" width="460"> | <img src="ubt_sim/docs/assets/walker-s2仿真界面预览.png" alt="Walker S2 EDU 仿真界面预览" width="460"> |
+| <img src="ubt_sim/docs/assets/tienkung-pro仿真界面预览.png" alt="天工行者无疆仿真界面预览" width="460"> | <img src="ubt_sim/docs/assets/walker-s2仿真界面预览.png" alt="Walker S2 Edu 探索者 仿真界面预览" width="460"> |
 
 ### 测试案例
 
-| 天工行者（无疆）仿真 | 天工行者（无疆）真机 |
+| 天工行者无疆 仿真 | 天工行者无疆 真机 |
 |---|---|
 | <video src="ubt_IL/docs/assets/tienkung仿真部署效果.mp4" controls muted width="460"></video> | <video src="ubt_IL/docs/assets/tienkung真机部署效果.mp4" controls muted width="460"></video> |
 
-| Walker S2 EDU 探索者仿真 | Walker S2 EDU 探索者真机 |
+| Walker S2 Edu 探索者 仿真 | Walker S2 Edu 探索者 真机 |
 |---|---|
 | <video src="ubt_IL/docs/assets/walker仿真部署效果.mp4" controls muted width="460"></video> | <video src="ubt_IL/docs/assets/walker真机部署效果.mp4" controls muted width="460"></video> |
 
@@ -48,7 +48,7 @@ Thinker 机器人模仿学习工具链
             │               │④仿真部署                   │               │⑤真机部署
             │①数据采集       ▼ （ROS桥接）                │②真机采集       │（ROS桥接）
    ┌────────┴────────────────────────┐        ┌─────────┴───────────────▼───────────┐
-   │         ubt_sim 仿真平台         │        │     真机（天工行者 / Walker S2 EDU）   │
+   │         ubt_sim 仿真平台         │        │     真机（天工行者无疆/Walker S2 Edu 探索者）      │
    │        （Isaac Sim 容器）        │        │     ROS_DOMAIN_ID=0 直连网段          │
    └─────────────────────────────────┘        └─────────────────────────────────────┘
 ```
@@ -95,12 +95,12 @@ git submodule update --init
 
 | 主题 | 文档 |
 |------|------|
-| 仿真快速上手（天工行者） | [ubt_sim/docs/tienkung_pro/getting-started.md](ubt_sim/docs/tienkung_pro/getting-started.md) |
-| 仿真快速上手（Walker S2 EDU） | [ubt_sim/docs/walker_s2/getting-started.md](ubt_sim/docs/walker_s2/getting-started.md) |
-| 训练部署快速上手（天工行者） | [ubt_IL/docs/tienkung_pro/getting-started.md](ubt_IL/docs/tienkung_pro/getting-started.md) |
-| 训练部署快速上手（Walker S2 EDU） | [ubt_IL/docs/walker_s2/getting-started.md](ubt_IL/docs/walker_s2/getting-started.md) |
-| 模仿学习仿真工作流（天工行者 / Walker S2 EDU） | [sim-workflow.md](ubt_IL/docs/tienkung_pro/sim-workflow.md) / [sim-workflow.md](ubt_IL/docs/walker_s2/sim-workflow.md) |
-| 模仿学习真机工作流（天工行者 / Walker S2 EDU） | [real-workflow.md](ubt_IL/docs/tienkung_pro/real-workflow.md) / [real-workflow.md](ubt_IL/docs/walker_s2/real-workflow.md) |
+| 仿真快速上手（天工行者无疆） | [ubt_sim/docs/tienkung_pro/getting-started.md](ubt_sim/docs/tienkung_pro/getting-started.md) |
+| 仿真快速上手（Walker S2 Edu 探索者） | [ubt_sim/docs/walker_s2/getting-started.md](ubt_sim/docs/walker_s2/getting-started.md) |
+| 训练部署快速上手（天工行者无疆） | [ubt_IL/docs/tienkung_pro/getting-started.md](ubt_IL/docs/tienkung_pro/getting-started.md) |
+| 训练部署快速上手（Walker S2 Edu 探索者） | [ubt_IL/docs/walker_s2/getting-started.md](ubt_IL/docs/walker_s2/getting-started.md) |
+| 模仿学习仿真工作流（天工行者无疆 / Walker S2 Edu 探索者） | [sim-workflow.md](ubt_IL/docs/tienkung_pro/sim-workflow.md) / [sim-workflow.md](ubt_IL/docs/walker_s2/sim-workflow.md) |
+| 模仿学习真机工作流（天工行者无疆 / Walker S2 Edu 探索者） | [real-workflow.md](ubt_IL/docs/tienkung_pro/real-workflow.md) / [real-workflow.md](ubt_IL/docs/walker_s2/real-workflow.md) |
 | 数据转换详细说明 | [ubt_IL/scripts/convert/README.md](ubt_IL/scripts/convert/README.md) |
 | ARM 板（Jetson Orin）真机部署 | [ubt_IL/scripts/deploy/tienkung_pro/arm_64/README.md](ubt_IL/scripts/deploy/tienkung_pro/arm_64/README.md) |
 
@@ -117,4 +117,7 @@ git submodule update --init
 
 ## License
 
-Apache-2.0
+本仓库采用分层许可：
+
+- 除下述专有资产外，其余文件均以 [Apache-2.0](LICENSE) 许可发布；
+- 部分 UBTECH 专有资产（闭源 SDK 归档、预编译二进制、机器人 URDF/USD 模型及文档图片视频等）受 [UBTECH 专有资产许可](ubt_IL/docs/LICENSES/README.md)（`UBTECH-PROPRIETARY.txt`）约束，仅限在 GitHub 平台内有限使用，详情见 [License scope](ubt_IL/docs/LICENSES/README.md)。

@@ -1,0 +1,59 @@
+UBTECH PROPRIETARY ASSET LICENSE
+
+Copyright © 2026 UBTECH ROBOTICS CORP LTD. All rights reserved.
+
+1. Scope
+
+This license applies only to the files identified as UBTECH proprietary
+assets in ubt_IL/docs/LICENSES/README.md (the "Assets"). Third-party
+components in or used by the Assets remain governed by the license terms
+identified in ubt_IL/docs/LICENSES/SDK-THIRD-PARTY-NOTICES.md.
+
+2. Limited permission to use
+
+UBTECH ROBOTICS CORP LTD grants you a limited, non-exclusive,
+non-transferable, and non-sublicensable permission to download, possess,
+install, load, execute, display, and otherwise use the Assets in their
+unmodified form. You may make only those copies strictly necessary for such
+use.
+
+2A. Authorized installation-time RUNPATH adjustment
+
+Notwithstanding Section 3(a), you may allow the unmodified installation tool
+distributed with this project to replace the vendor build-host RUNPATH in
+installed copies of `libcc_api_client.so*` with `$ORIGIN`, solely as necessary
+to install and use the SDK securely. This exception does not permit changing
+the original wheel files or making any other modification to an Asset.
+
+3. Restrictions
+
+You may not:
+
+(a) modify, adapt, translate, transform, or create derivative works from any
+Asset, except for the installation-time RUNPATH adjustment expressly
+authorized by Section 2A;
+
+(b) distribute, publish, transmit, sublicense, sell, lease, lend, transfer,
+or otherwise make any Asset available to another person or entity outside
+GitHub. If UBTECH publishes the Assets in a public GitHub repository, you may
+view and fork that repository only through functionality provided by GitHub
+and subject to the applicable GitHub terms of service;
+
+(c) reverse engineer, decompile, or disassemble any Asset, except to the
+limited extent that applicable law expressly permits such activity despite
+this restriction; or
+
+(d) remove, alter, or obscure any copyright, proprietary, or attribution
+notice associated with an Asset.
+
+4. Ownership and reservation of rights
+
+The Assets are licensed, not sold. UBTECH ROBOTICS CORP LTD retains all
+right, title, and interest in and to the Assets. No right or license is
+granted except as expressly stated in this license.
+
+5. Disclaimer
+
+THE ASSETS ARE PROVIDED "AS IS", WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, WHETHER EXPRESS OR IMPLIED, TO THE MAXIMUM EXTENT PERMITTED BY
+APPLICABLE LAW.

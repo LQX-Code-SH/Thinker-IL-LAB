@@ -2,7 +2,7 @@
     <name>ubt_ros2_example</name>
     <version>0.0.0</version>
     <description>This is the ubt_ros2_example package</description>
-    <maintainer email="nanjie.hu@ubtrobot.com"></maintainer>
+    <maintainer email="noreply@ubtrobot.com"></maintainer>
     <license>No License</license>
 
     <buildtool_depend>ament_cmake</buildtool_depend>
