@@ -1,6 +1,6 @@
-# Walker S2 仿真工作流（Simulation Workflow）
+# Walker S2 EDU 探索者仿真工作流（Simulation Workflow）
 
-> 适用于 **Isaac Sim 仿真 → Walker S2 真机** 的完整闭环：仿真采集 → 数据转换 → 模型训练 → 策略评估 → 回注仿真部署。
+> 适用于 **Isaac Sim 仿真 → Walker S2 EDU 真机** 的完整闭环：仿真采集 → 数据转换 → 模型训练 → 策略评估 → 回注仿真部署。
 > 对应的代码位于 `ubt_IL/scripts/{convert,train,deploy}/walker_s2/` 与 `ubt_sim/` 仿真采集工程。
 
 ## 目录
@@ -209,7 +209,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 ## 5. 策略评估（离线 MSE）
 
 不连机器人，在 LeRobot 数据集上做离线 MSE 评估（预测 vs 真值），并生成逐 episode 对比图。
-脚本（与天工共用）：[`ubt_IL/scripts/eval/eval_policy.py`](../../scripts/eval/eval_policy.py)。
+脚本（与天工行者（Walker TienKung）共用）：[`ubt_IL/scripts/eval/eval_policy.py`](../../scripts/eval/eval_policy.py)。
 
 示例：
 ```bash

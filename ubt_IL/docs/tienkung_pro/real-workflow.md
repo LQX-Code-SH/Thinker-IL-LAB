@@ -1,6 +1,6 @@
-# 天工 Pro 真机数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
+# 天工行者真机数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
 
-> 适用机器人：**天工 Pro（Tienkung Pro）真机**
+> 适用机器人：**天工行者（Walker TienKung）真机**
 
 本文档给出从**真机 HDF5 原始数据**到 **LeRobot 数据集**、**ACT 模型训练**、**离线策略评估**、最终**部署到真机**的完整流程，可复制命令。转换/训练/评估在 `ubt_IL` 容器内执行，真机部署提供「容器版」与「Jetson host 版」两种方案。
 
@@ -124,7 +124,7 @@ HF_HUB_OFFLINE=1 lerobot-dataset-viz \
 示例：
 
 ```bash
-# 可视化合并后的天工抓取数据集
+# 可视化合并后的天工行者抓取数据集
 HF_HUB_OFFLINE=1 lerobot-dataset-viz \
   --repo-id tienkung_pick_up_merged \
   --episode-index 0 \
@@ -212,7 +212,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 评估输出示例（逐 episode 预测 vs 真值对比）：
 
-![天工真机模型离线评估曲线](../assets/tienkung真机模型离线评估曲线.png)
+![天工行者真机模型离线评估曲线](../assets/tienkung真机模型离线评估曲线.png)
 
 **主要参数**：
 

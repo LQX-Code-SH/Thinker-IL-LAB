@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-Dual-process bridge design (same pattern as TienKung): LeRobot (Python 3.12) communicates with `walker/ros2_walker_bridge.py` (Bridge2, Python 3.10) via ZMQ for actions/status. Bridge2 interfaces with Walker S2 body/hand/gripper hardware via ROS2 DDS. Camera images flow through a **separate** `walker_camera_relay.py` process (Python 3.10), which subscribes to ROS2 `shm_msgs/Image*` topics and publishes JPEG over ZMQ to LeRobot's `WalkerCamera`.
+Dual-process bridge design (same pattern as Walker TienKung): LeRobot (Python 3.12) communicates with `walker/ros2_walker_bridge.py` (Bridge2, Python 3.10) via ZMQ for actions/status. Bridge2 interfaces with Walker S2 EDU body/hand/gripper hardware via ROS2 DDS. Camera images flow through a **separate** `walker_camera_relay.py` process (Python 3.10), which subscribes to ROS2 `shm_msgs/Image*` topics and publishes JPEG over ZMQ to LeRobot's `WalkerCamera`.
 
 ```
 LeRobot Inference (Python 3.12)       Bridge2 (Python 3.10)
@@ -13,7 +13,7 @@ LeRobot Inference (Python 3.12)       Bridge2 (Python 3.10)
                                          │
                                   ┌──────┴──────┐
                                   │             │
-                            Walker S2 HW    Body / Hand / Gripper
+                            Walker S2 EDU HW    Body / Hand / Gripper
 
 LeRobot Inference (Python 3.12)       CameraRelay (Python 3.10, 独立进程)
   ZMQ SUB ← 5563 (images)        ←    ZMQ PUB → 5563
@@ -222,7 +222,7 @@ The entrypoint auto-installs on container start:
 
 ## DOF Architecture
 
-Walker S2 supports variable-DOF deployment via an `IntEnum` registry pattern, identical to the TienKung architecture.
+Walker S2 EDU supports variable-DOF deployment via an `IntEnum` registry pattern, identical to the Walker TienKung architecture.
 
 ### Key Files
 

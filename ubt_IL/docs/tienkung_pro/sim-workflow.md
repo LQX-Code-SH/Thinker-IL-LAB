@@ -1,6 +1,6 @@
-# 天工 Pro 仿真数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
+# 天工行者仿真数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
 
-> 适用机器人：**天工 Pro（Tienkung Pro）**
+> 适用机器人：**天工行者（Walker TienKung）**
 > 数据来源：**Isaac Sim 仿真器采集**（`ubt_sim` 项目）
 > 容器：`lerobot-tienkung`（`docker/run.sh` 构建/启动，项目挂载 `/ubt_IL`）
 
@@ -225,7 +225,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 评估输出示例（逐 episode 预测 vs 真值对比）：
 
-![天工模型离线评估曲线](../assets/tienkung模型离线评估曲线.png)
+![天工行者模型离线评估曲线](../assets/tienkung模型离线评估曲线.png)
 
 **主要参数**：
 
@@ -247,7 +247,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 ## 6. 模型部署（仿真）
 
-脚本：`/ubt_IL/scripts/deploy/tienkung_pro/rollout.sh`，仿真部署使用ubt_sim模块代替机器人真机进行测试。该仿真环境与真机ROS话题部署和通信方法一致，可用于真机部署前的验证工作，避免真机动作错误造成损坏等严重后果。仿真模块容器独立运行，与模型训练推理容器在同一主机通过本地回环127.0.0.1网段进行ROS通信。仿真环境使用方法详见：[ubt_sim 天工仿真 getting-started](../../../ubt_sim/docs/tienkung_pro/getting-started.md)。
+脚本：`/ubt_IL/scripts/deploy/tienkung_pro/rollout.sh`，仿真部署使用ubt_sim模块代替机器人真机进行测试。该仿真环境与真机ROS话题部署和通信方法一致，可用于真机部署前的验证工作，避免真机动作错误造成损坏等严重后果。仿真模块容器独立运行，与模型训练推理容器在同一主机通过本地回环127.0.0.1网段进行ROS通信。仿真环境使用方法详见：[ubt_sim 天工行者仿真 getting-started](../../../ubt_sim/docs/tienkung_pro/getting-started.md)。
 
 **部署步骤**（仿真容器与推理容器分别操作）：
 

@@ -1,4 +1,4 @@
-# Walker S2 部署（Rollout）
+# Walker S2 EDU 探索者部署（Rollout）
 
 容器内执行，前置条件：Bridge2 已由容器 entrypoint 自动启动。
 
@@ -70,10 +70,10 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 
 ---
 
-# Walker S2 离线策略评估（eval_policy.py）
+# Walker S2 EDU 离线策略评估（eval_policy.py）
 
 不连机器人，对训练好的策略在 LeRobot 数据集上做离线 MSE 评估（预测 vs 真值），并生成逐
-episode 对比图。部署到真机前先用它量化策略质量。脚本（与天工共用）：[eval_policy.py](../../eval/eval_policy.py)。
+episode 对比图。部署到真机前先用它量化策略质量。脚本（与天工行者（Walker TienKung）共用）：[eval_policy.py](../../eval/eval_policy.py)。
 
 ```bash
 /lerobot/.venv/bin/python /ubt_IL/scripts/eval/eval_policy.py \
@@ -99,7 +99,7 @@ episode 对比图。部署到真机前先用它量化策略质量。脚本（与
 
 ---
 
-# Walker S2 推理服务器（常驻预热）
+# Walker S2 EDU 推理服务器（常驻预热）
 
 `rollout.sh` 每次都重跑冷启动（policy 加载到 CUDA + 桥接拉起），耗时长。推理服务器
 **常驻**一个进程，一次性预热加载模型 + 连机器人，之后外部经 ZMQ 指令随时

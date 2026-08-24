@@ -1,6 +1,6 @@
 # Docker 容器
 
-本目录提供 **LeRobot + ROS2 Humble** 容器化环境，面向天工 (TienKung) 与 Walker S2 真机模仿学习的训练与部署。支持两种架构：x86_64 工作站与 Jetson/aarch64 真机，由 `env.sh` 依据宿主机架构自动选择对应 Dockerfile 与默认参数。
+本目录提供 **LeRobot + ROS2 Humble** 容器化环境，面向天工行者（Walker TienKung）与 Walker S2 EDU 探索者真机模仿学习的训练与部署。支持两种架构：x86_64 工作站与 Jetson/aarch64 真机，由 `env.sh` 依据宿主机架构自动选择对应 Dockerfile 与默认参数。
 
 ## 目录文件
 
@@ -80,9 +80,9 @@ BASE_IMAGE=docker.io/dustynv/l4t-pytorch:r36.4.0 bash run.sh build
 
 1. **架构强绑定，不能单机并存双架构**。arm64 镜像并非通用 arm64，而是 Jetson 专用：基镜像 `dustynv/l4t-pytorch` 面向 JetPack 6、torch wheel 为 Orin sm_87 (CC 8.7) 源码编译、GPU 参数依赖 Jetson 版 `--runtime nvidia`。x86 宿主机只能构建并运行 x86 容器；arm64 容器必须在 Jetson 上构建与运行。跨架构用 buildx + QEMU 理论可行，但 colcon 编译 ROS2 msg 极慢，且产出的 aarch64 二进制无法在 x86 运行。
 
-2. **bodyctrl_msgs 两架构均可用，安装方式不同**。x86 用预编译 deb（`ros2_msgs/ros-humble-bodyctrl-msgs_0.0.1-1_amd64.deb`，含 x86_64 原生 type-support，`dpkg` 装入 `/opt/ros/humble`）；arm64 无对应 deb，改由 `Dockerfile.arm64` 构建时从 `ros2_msgs/bodyctrl_msgs_src` 源码 colcon 编译到 `/opt/bodyctrl_msgs_ws`，`entrypoint.sh` 与 `run.sh bash` 启动时 source。源码备份自 `ubt_sim/teleoperation/msgs/body_crtl_msgs_src`（包名 `bodyctrl_msgs`，与 deb 同名同版本）。Walker S2 不依赖 bodyctrl_msgs（其消息由 `entrypoint.sh` 从 `/ubt_IL/walker/walker_sdk_ros2` 源码编译 8 个包）。
+2. **bodyctrl_msgs 两架构均可用，安装方式不同**。x86 用预编译 deb（`ros2_msgs/ros-humble-bodyctrl-msgs_0.0.1-1_amd64.deb`，含 x86_64 原生 type-support，`dpkg` 装入 `/opt/ros/humble`）；arm64 无对应 deb，改由 `Dockerfile.arm64` 构建时从 `ros2_msgs/bodyctrl_msgs_src` 源码 colcon 编译到 `/opt/bodyctrl_msgs_ws`，`entrypoint.sh` 与 `run.sh bash` 启动时 source。源码备份自 `ubt_sim/teleoperation/msgs/body_crtl_msgs_src`（包名 `bodyctrl_msgs`，与 deb 同名同版本）。Walker S2 EDU 不依赖 bodyctrl_msgs（其消息由 `entrypoint.sh` 从 `/ubt_IL/walker/walker_sdk_ros2` 源码编译 8 个包）。
 
-3. **FastDDS 必须禁用共享内存**。容器内即使 `--network=host`，共享内存传输仍会导致 `ros2 topic list` 可用但 `echo`/`subscribe` 失败。`fastdds_no_shm.xml` 白名单含 `127.0.0.1` 与 Walker S2 直连网段 `192.168.11.3`；改网段时需同步更新此文件。
+3. **FastDDS 必须禁用共享内存**。容器内即使 `--network=host`，共享内存传输仍会导致 `ros2 topic list` 可用但 `echo`/`subscribe` 失败。`fastdds_no_shm.xml` 白名单含 `127.0.0.1` 与 Walker S2 EDU 直连网段 `192.168.11.3`；改网段时需同步更新此文件。
 
 4. **TORCH_HOME 已重定向**。基镜像默认 `TORCH_HOME=/data/models/torch`，容器内 `/data` 不存在且无权创建，已改到 bind mount 路径 `/ubt_IL/.cache/torch`，使 torchvision ResNet 等 pretrained 权重可下载并持久化。Dockerfile、`env.sh`、`entrypoint.sh` 三处协同设置。
 

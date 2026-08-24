@@ -1,7 +1,7 @@
 # 真机本体 ARM_64 部署流程
 
 > 在 Jetson AGX Orin 上**不依赖 Docker**，用 conda 环境 `env_vla`（Python 3.12）运行
-> TienKung LeRobot 的推理 / 训练部署。本目录为自包含部署包：环境构建脚本、host 版部署脚本、
+> Walker TienKung LeRobot 的推理 / 训练部署。本目录为自包含部署包：环境构建脚本、host 版部署脚本、
 > 本地编译的 PyTorch wheel，以及本文档。
 >
 > - 适用目录：`ubt_IL/scripts/deploy/tienkung_pro/arm_64/`
@@ -23,7 +23,7 @@ env_vla (conda, Python 3.12):  LeRobot + tienkung 插件 + torch
    │
    ├── 5558 ◄── ImageServer (系统 py3.10 + pyorbbecsdk) ──► 相机
    │
-   └── 5559 ──► Bridge2 (系统 py3.10 + ROS2) ──ROS2 DDS──► 天工硬件
+   └── 5559 ──► Bridge2 (系统 py3.10 + ROS2) ──ROS2 DDS──► 天工行者硬件
        5560 ◄──┘
 ```
 

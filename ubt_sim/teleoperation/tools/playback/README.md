@@ -10,8 +10,8 @@
 架构：共用核心 [common.py](common.py)（HDF5 加载、节奏、CLI、Rerun 预览）+ 机器人适配层
 [robots/](robots/)（schema + ROS2 发布器 + 首帧对齐）。两个薄入口脚本：
 
-- `playback_walker_s2.py` — Walker S2（17 身体关节 + 7+7 V4 手 + 2 夹爪 + 4 相机）
-- `playback_tienkung_pro.py` — 天工 Pro（7+7 臂 + 6+6 手 + 1 相机含深度）
+- `playback_walker_s2.py` — Walker S2 EDU 探索者（17 身体关节 + 7+7 V4 手 + 2 夹爪 + 4 相机）
+- `playback_tienkung_pro.py` — 天工行者（Walker TienKung）（7+7 臂 + 6+6 手 + 1 相机含深度）
 
 ## 环境准备（容器内）
 
@@ -20,7 +20,7 @@
 # （锁 0.23.0：0.24+ 要求 numpy>=2，与本容器 numpy<2 约束冲突）
 docker exec -it ubt-sim /usr/bin/python3 -m pip install "numpy<2" "rerun-sdk==0.23.0" -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 控制模式额外需要（walker 需要 SDK 消息包，天工仅需 ROS2）：
+# 控制模式额外需要（walker 需要 SDK 消息包，天工行者仅需 ROS2）：
 source /opt/ros/humble/setup.bash
 source /opt/ubt_sim/walker_sdk_ros2_msgs/install/setup.bash   # 仅 walker
 
@@ -60,18 +60,18 @@ python3 teleoperation/tools/playback_walker_s2.py \
     --episode dataset/walker_s2/1786681892 --mode preview
 ```
 
-- 天工 Pro 同理，脚本换成 `playback_tienkung_pro.py`
+- 天工行者同理，脚本换成 `playback_tienkung_pro.py`
 
 - `--episode` 缺省 = `dataset/<robot>/` 下最新（时间戳目录名最大）episode
 - `--max-frames N` 只记录前 N 帧（大文件调试用）
-- Rerun 面板：`cameras/color/<相机名>`（图像）、`cameras/depth/...`（天工深度）、
+- Rerun 面板：`cameras/color/<相机名>`（图像）、`cameras/depth/...`（天工行者深度）、
   `action/<组>/<通道名>`（指令曲线）、`observation|puppet/...`（观测曲线），
   均随 `frame_index` / `timestamp` 两条时间轴同步
 
 ## 控制模式
 
 回放**直发录制帧原始值**（最忠实）：walker 17 关节 `RobotCommand(MODE_POSITION)` @
-`/mc/sdk/robot_command` + 双手 `JointCommand(mode=5)` + 双夹爪 `GripCmd`；天工
+`/mc/sdk/robot_command` + 双手 `JointCommand(mode=5)` + 双夹爪 `GripCmd`；天工行者
 `CmdSetMotorPosition`(14 电机) @ `/arm/cmd_pos` + 双手 `JointState`。
 仿真（bridge 转发）与真机话题完全一致，同一脚本通吃，仅 ROS_DOMAIN_ID 不同。
 
@@ -97,15 +97,15 @@ ROS_DOMAIN_ID=0 python3 teleoperation/tools/playback_tienkung_pro.py \
 | `--start/--end` | `0`/末帧 | 帧索引或 `"5s"`（第 5 秒）；`--end` **不含**末帧 |
 | `--rate` | 数据集 fps | 发布频率（walker 仿真桥接身体限 100Hz，>100 会被静默限速） |
 | `--loop` | 关 | 循环播放直到 Ctrl-C |
-| `--align-first` | 关 | 播放前平滑移动到首帧位姿（walker: quintic 插值 3s；天工: 关节空间 ramp ~2s） |
+| `--align-first` | 关 | 播放前平滑移动到首帧位姿（walker: quintic 插值 3s；天工行者: 关节空间 ramp ~2s） |
 | `--dry-run` | 关 | 只打印不发布 |
 | `--interp` | 关 | 【walker】记录帧间线性插值到 `--rate`（更平滑，偏离原始记录） |
-| `--spd/--cur` | `0.2/5.0` | 【天工】电机默认速度/电流 |
-| `--arm-clamp-lo/hi` | `±2.5` | 【天工】臂限位（teleoperation 侧无臂限位常量，保守假设） |
+| `--spd/--cur` | `0.2/5.0` | 【天工行者】电机默认速度/电流 |
+| `--arm-clamp-lo/hi` | `±2.5` | 【天工行者】臂限位（teleoperation 侧无臂限位常量，保守假设） |
 
 ### 安全须知
 
-- 限位裁剪默认开启（walker 用硬件限位表，天工手 [0,1]/臂保守限位）；数据含 NaN/inf 直接拒绝
+- 限位裁剪默认开启（walker 用硬件限位表，天工行者手 [0,1]/臂保守限位）；数据含 NaN/inf 直接拒绝
 - `--align-first` 在回放前先对齐首帧位姿，避免从任意当前位姿直接跳变
 - Ctrl-C 停止后机器人**保持最后指令**（仿真侧 HoldTargetManager 保持；真机需自行复位）
 - 回放前务必先 `--dry-run`，并确认 `ROS_DOMAIN_ID` 与目标一致（真机 0 / 仿真 146）、机器人处于安全位置

@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-Dual-process bridge design: LeRobot (Python 3.12) communicates with `tienkung/ros2_deploy_bridge.py` (Bridge2, Python 3.10) via ZMQ. Bridge2 interfaces with the TienKung robot hardware via ROS2 DDS. Images come from a separate ImageServer process.
+Dual-process bridge design: LeRobot (Python 3.12) communicates with `tienkung/ros2_deploy_bridge.py` (Bridge2, Python 3.10) via ZMQ. Bridge2 interfaces with the Walker TienKung robot hardware via ROS2 DDS. Images come from a separate ImageServer process.
 
 ```
 LeRobot Inference (Python 3.12)       Bridge2 (Python 3.10)
@@ -147,7 +147,7 @@ The plugin registers via `make_device_from_device_class` fallback in `__init__.p
 
 ## DOF Architecture
 
-TienKung supports variable-DOF deployment via an `IntEnum` registry pattern.
+Walker TienKung supports variable-DOF deployment via an `IntEnum` registry pattern.
 
 ### Key Files
 
