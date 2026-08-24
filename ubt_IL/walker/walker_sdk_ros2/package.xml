@@ -4,7 +4,7 @@
   <name>robot_control</name>
   <version>0.0.1</version>
   <description>Walker S2 机器人低层 SDK Python 控制包</description>
-  <maintainer email="qingxiang.liu@ubtrobot.com">qingxiangliu</maintainer>
+  <maintainer email="noreply@ubtrobot.com">qingxiangliu</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_python</buildtool_depend>

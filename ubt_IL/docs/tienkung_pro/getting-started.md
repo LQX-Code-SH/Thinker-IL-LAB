@@ -1,9 +1,9 @@
-# 天工行者（Walker TienKung）模仿学习快速开始
+# 天工行者无疆（Walker TienKung Pro）模仿学习快速开始
 
 > 对应代码：`ubt_IL/tienkung/`（LeRobot 插件 `lerobot_robot_tienkung`）
 > 全流程：**数据准备 → 模型训练 → 策略评估 → 模型部署**
 
-本文档给出天工行者从克隆代码到真机/仿真器部署的最简路径，按需执行每一步。各步骤的完整参数说明与可复制命令见工作流专项文档：
+本文档给出天工行者无疆 从克隆代码到真机/仿真器部署的最简路径，按需执行每一步。各步骤的完整参数说明与可复制命令见工作流专项文档：
 
 - 仿真工作流：→ [sim-workflow.md](./sim-workflow.md)（仿真采集 → 转换 → 训练 → 评估 → 回注仿真器部署）
 - 真机工作流：→ [real-workflow.md](./real-workflow.md)（真机采集 → 转换 → 训练 → 评估 → 真机部署，含「远程容器版」与「Jetson host 版」两种方案）
@@ -100,7 +100,7 @@ bash run.sh bash       # 进入容器，后续命令均在容器内执行
 - 仿真部署：→ [sim-workflow.md §6 模型部署（仿真）](./sim-workflow.md#6-模型部署仿真)
 - 真机部署：→ [real-workflow.md §6 模型部署（真机）](./real-workflow.md#6-模型部署真机)
 
-> 注意：`JOINT_CONFIG` 必须与训练 DOF 一致（26D 模型 `tienkung_26`，13D 模型 `tienkung_13`）；真机部署需先进入半身运控模式（[天工行者文档](https://docs.ubtrobot.com/walker-tienkung/docs/user-guide/8)）。另外真机模型部署前也可在仿真中测试模型效果避免DOF配置不匹配造成意料之外的动作。
+> 注意：`JOINT_CONFIG` 必须与训练 DOF 一致（26D 模型 `tienkung_26`，13D 模型 `tienkung_13`）；真机部署需先进入半身运控模式（[天工行者无疆文档](https://docs.ubtrobot.com/walker-tienkung/docs/user-guide/8)）。另外真机模型部署前也可在仿真中测试模型效果避免DOF配置不匹配造成意料之外的动作。
 
 ## 9. 常见问题
 

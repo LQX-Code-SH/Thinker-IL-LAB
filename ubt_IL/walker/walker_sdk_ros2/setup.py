@@ -14,7 +14,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='qingxiangliu',
-    maintainer_email='qingxiang.liu@ubtrobot.com',
+    maintainer_email='noreply@ubtrobot.com',
     description='Walker S2 机器人低层 SDK Python 控制包',
     license='Apache-2.0',
     entry_points={

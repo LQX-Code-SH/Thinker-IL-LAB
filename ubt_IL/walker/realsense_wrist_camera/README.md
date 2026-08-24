@@ -1,6 +1,6 @@
 # realsense_wrist_camera
 
-Intel RealSense D405 wrist camera ROS2 publisher for Walker S2 EDU.
+Intel RealSense D405 wrist camera ROS2 publisher for Walker S2 Edu 探索者.
 
 ## Quick Start
 
@@ -69,7 +69,7 @@ Config format (`configs/wrist_cameras.json`):
 }
 ```
 
-## Walker S2 EDU Integration
+## Walker S2 Edu 探索者
 
 Publishes `shm_msgs/Image1m` on standard wrist topics. `walker_camera_relay.py` picks them up automatically — no extra config.
 

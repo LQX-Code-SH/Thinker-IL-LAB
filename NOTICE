@@ -1,0 +1,19 @@
+Thinker-IL-LAB
+Copyright 2026 UBTECH ROBOTICS CORP LTD
+
+This product includes software developed by the Isaac Lab Project Developers
+(https://github.com/isaac-sim/IsaacLab) under the BSD-3-Clause license.
+
+This product includes software developed by NVIDIA CORPORATION & AFFILIATES
+(Isaac GR00T) under the Apache License 2.0.
+
+This product includes PyTorch and torchvision binaries distributed by the
+PyTorch project (https://pytorch.org/) under the BSD-3-Clause license.
+
+This product includes LeRobot developed by The HuggingFace Inc. team
+(https://github.com/huggingface/lerobot) under the Apache License 2.0
+(git submodule ubt_IL/lerobot).
+
+UBTECH proprietary assets in this repository are distributed under the
+UBTECH Proprietary Asset License; see ubt_IL/docs/LICENSES/README.md for the
+full license scope.

@@ -4,7 +4,7 @@
   <version>0.0.0</version>
   <description>EtherCAT task messages (DH gripper PGC-140-50, electric cylinder, etc.)</description>
 
-  <maintainer email="dev@ubtrobot.com">ubt</maintainer>
+  <maintainer email="noreply@ubtrobot.com">ubt</maintainer>
   <license>Apache-2.0</license>
 
   <!-- Build system -->

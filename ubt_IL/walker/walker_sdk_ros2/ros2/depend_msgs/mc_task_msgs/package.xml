@@ -4,7 +4,7 @@
   <version>0.0.0</version>
   <description>This is the mc_task_msgs package</description>
 
-  <maintainer email="zhangbin.xu@ubtrobot.com">xzb</maintainer>
+  <maintainer email="noreply@ubtrobot.com">xzb</maintainer>
   <license>Apache-2.0</license>
 
   <!-- Build system -->

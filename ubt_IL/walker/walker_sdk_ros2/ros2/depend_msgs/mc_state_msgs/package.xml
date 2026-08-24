@@ -4,7 +4,7 @@
   <version>0.0.0</version>
   <description>This is the mc_state_msgs package</description>
 
-  <maintainer email="zhanjia.bi@ubtrobot.com">bzj</maintainer>
+  <maintainer email="noreply@ubtrobot.com">bzj</maintainer>
   <license>Apache-2.0</license>
 
   <!-- Build system -->

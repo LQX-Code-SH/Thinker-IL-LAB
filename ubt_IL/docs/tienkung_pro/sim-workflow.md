@@ -1,10 +1,10 @@
-# 天工行者仿真数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
+# 天工行者无疆 仿真数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
 
-> 适用机器人：**天工行者（Walker TienKung）**
+> 适用机器人：**天工行者无疆（Walker TienKung Pro）**
 > 数据来源：**Isaac Sim 仿真器采集**（`ubt_sim` 项目）
 > 容器：`lerobot-tienkung`（`docker/run.sh` 构建/启动，项目挂载 `/ubt_IL`）
 
-本文档给出tienkung2.0从**仿真 HDF5 原始数据**到 **LeRobot 数据集**、**ACT 模型训练**、**离线策略评估**、最终**仿真器部署**的完整工作流程，可快速复现。全部转换/训练/评估/部署脚本在 `ubt_IL` 容器内执行。
+本文档给出TienKung2.0从**仿真 HDF5 原始数据**到 **LeRobot 数据集**、**ACT 模型训练**、**离线策略评估**、最终**仿真器部署**的完整工作流程，可快速复现。全部转换/训练/评估/部署脚本在 `ubt_IL` 容器内执行。
 
 ## 目录
 
@@ -142,7 +142,7 @@ HF_HUB_OFFLINE=1 lerobot-dataset-viz \
   --root /ubt_IL/dataset/tienkung_sim_pick_place
 ```
 
-![tienkung 仿真数据集可视化界面](../assets/tienkung仿真数据集可视化.png)
+![TienKung 仿真数据集可视化界面](../assets/tienkung仿真数据集可视化.png)
 
 > **注意**：`--root` 须指向包含 `meta/` 目录的数据集路径（即 `repo_id` 目录本身），而非父目录。`HF_HUB_OFFLINE=1` 用于禁止访问 HuggingFace Hub。
 
@@ -225,7 +225,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 评估输出示例（逐 episode 预测 vs 真值对比）：
 
-![天工行者模型离线评估曲线](../assets/tienkung模型离线评估曲线.png)
+![天工行者无疆模型离线评估曲线](../assets/tienkung模型离线评估曲线.png)
 
 **主要参数**：
 
@@ -247,7 +247,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 ## 6. 模型部署（仿真）
 
-脚本：`/ubt_IL/scripts/deploy/tienkung_pro/rollout.sh`，仿真部署使用ubt_sim模块代替机器人真机进行测试。该仿真环境与真机ROS话题部署和通信方法一致，可用于真机部署前的验证工作，避免真机动作错误造成损坏等严重后果。仿真模块容器独立运行，与模型训练推理容器在同一主机通过本地回环127.0.0.1网段进行ROS通信。仿真环境使用方法详见：[ubt_sim 天工行者仿真 getting-started](../../../ubt_sim/docs/tienkung_pro/getting-started.md)。
+脚本：`/ubt_IL/scripts/deploy/tienkung_pro/rollout.sh`，仿真部署使用ubt_sim模块代替机器人真机进行测试。该仿真环境与真机ROS话题部署和通信方法一致，可用于真机部署前的验证工作，避免真机动作错误造成损坏等严重后果。仿真模块容器独立运行，与模型训练推理容器在同一主机通过本地回环127.0.0.1网段进行ROS通信。仿真环境使用方法详见：[ubt_sim 天工行者无疆仿真 getting-started](../../../ubt_sim/docs/tienkung_pro/getting-started.md)。
 
 **部署步骤**（仿真容器与推理容器分别操作）：
 

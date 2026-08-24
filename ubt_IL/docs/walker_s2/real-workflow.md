@@ -1,6 +1,6 @@
-# Walker S2 EDU 探索者真机工作流（Real-Workflow）
+# Walker S2 Edu 探索者 真机工作流（Real-Workflow）
 
-> 适用于 **真机数据采集 -> Walker S2 EDU 真机部署** 的完整闭环：真机采集 -> 数据转换 -> 模型训练 -> 策略评估 -> 真机部署。
+> 适用于 **真机数据采集 -> Walker S2 Edu 探索者 真机部署** 的完整闭环：真机采集 -> 数据转换 -> 模型训练 -> 策略评估 -> 真机部署。
 > 对应的代码位于 `ubt_IL/scripts/{convert,train,deploy}/walker_s2/`。
 
 ## 目录
@@ -181,7 +181,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 ## 5. 策略评估（离线 MSE）
 
 不连机器人，在 LeRobot 数据集上做离线 MSE 评估（预测 vs 真值），并生成逐 episode 对比图。
-脚本（与天工行者（Walker TienKung）共用）：[`ubt_IL/scripts/eval/eval_policy.py`](../../scripts/eval/eval_policy.py)。
+脚本（与天工行者无疆共用）：[`ubt_IL/scripts/eval/eval_policy.py`](../../scripts/eval/eval_policy.py)。
 
 示例：
 ```bash
@@ -215,7 +215,7 @@ cd /ubt_IL/lerobot
 
 #### 前置条件：
  - 真机上电站立并进入开发者模式。
- - 操作流程：机器人开机后打开伺服按D启动内部运控 -> 机器人落地扶稳按A进入站立模式，机器人遥控器详细操作参考[《Walker S2 EDU 二次开发文档》](./sdk-guide.md)。
+ - 操作流程：机器人开机后打开伺服按D启动内部运控 -> 机器人落地扶稳按A进入站立模式，机器人遥控器详细操作参考[《Walker S2 Edu 探索者 二次开发文档》](./sdk-guide.md)。
  - walker真机部署在机器人vision板上运行，需将项目和模型拷贝到vision板上并构建容器和启动容器。
 
 ### 6.1 推理部署
@@ -226,7 +226,7 @@ cd /ubt_IL/lerobot
 
 ```bash
 # 0. 进入开发者模式--机器人Vision板ubt容器
-ssh -p 2222 ubt@192.168.11.2/3  # 输入密码：Ubtubt@9880
+ssh -p 2222 ubt@192.168.11.2/3  # 输入密码：请向您的技术支持人员获取
 #向service请求进入开发者模式true为进入,false为退出
 ros2 service call /sys/task/developer_mode std_srvs/srv/SetBool "{data: true}"
 #true为开发者模式,false则为普通模式
@@ -236,7 +236,7 @@ ros2 topic echo /sys/state/walker_mode
 # 1.1 拷贝项目到vision板
 scp 项目代码和模型 /home/walker/
 # 1.2 进入vision板并构建容器
-ssh walker@192.168.11.3 # 登陆机器人Vision板,密码aa
+ssh walker@192.168.11.3 # 登陆机器人Vision板,密码请向您的技术支持人员获取
 cd 项目路径/ubt_IL/docker
 bash run.sh build
 # 1.3 启动容器
@@ -272,7 +272,7 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 | `STRATEGY` | `base` | rollout 策略类型 |
 | `FPS` | `13` | 控制频率 |
 | `DURATION` | `30` | 运行时长（秒） |
-| `TASK` | `walker s2 rollout` | 任务描述 |
+| `TASK` | `Walker S2 Edu 探索者 rollout` | 任务描述 |
 | `PREVIEW_CAMERA` | `1` | 是否显示相机预览窗口 |
 | `RECORD_ACTIONS` | `1` | 是否记录 rollout 动作（`RECORD_OUTPUT_DIR` 指定输出） |
 | `INFERENCE_TYPE` | `sync` | 推理引擎类型（`sync` / `act_async`） |

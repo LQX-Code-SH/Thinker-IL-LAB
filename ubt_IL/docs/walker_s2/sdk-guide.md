@@ -1,4 +1,4 @@
-# 【CC\-API】Walker S2 EDU 探索者SDK二次开发文档
+# 【CC\-API】Walker S2 Edu 探索者优必选SDK二次开发文档
 
 **【二次开发责任与品牌形象保护条款】**
 
@@ -37,11 +37,11 @@
 
 ![image\.png](assets/image%204.png)
 
-# 关于优必选 Walker S2 EDU 探索者
+# 关于优必选 Walker S2 Edu 探索者
 
-Walker S2 EDU是优必选推出的工业版人形机器人，它集成了多项具身智能技术，具备高负载、自主导航和多场景适配的核心能力。
+Walker S2 Edu 探索者是优必选推出的工业版人形机器人，它集成了多项具身智能技术，具备高负载、自主导航和多场景适配的核心能力。
 
-Walker S2 EDU机器人整机共42个自由度，由42个一体化关节电机驱动，实现精确运动控制。其结构包括：头部2个自由度，单臂7个自由度（肩、肘、腕），腰部2个自由度，单手6个自由度（三代手），单腿6个自由度（髋、膝、踝）。
+Walker S2 Edu 探索者机器人整机共42个自由度，由42个一体化关节电机驱动，实现精确运动控制。其结构包括：头部2个自由度，单臂7个自由度（肩、肘、腕），腰部2个自由度，单手6个自由度（三代手），单腿6个自由度（髋、膝、踝）。
 
 ## 总体规格参数
 
@@ -242,11 +242,11 @@ Walker S2 EDU机器人整机共42个自由度，由42个一体化关节电机驱
 
 ## 连接机器人
 
-1. 以太网线连接Walker S2 EDU机器人：使用网线与机器人以太网口连接
+1. 以太网线连接Walker S2 Edu 探索者机器人：使用网线与机器人以太网口连接
 
 2. 接着打开网络设置，找到机器人所连接的网卡，进入 IPv4 ，将 IPv4 方式改为手动，地址设置为192\.168\.11\.99，子网掩码设置为255\.255\.255\.0，完成后点击应用，等待网络重新连接\.
 
-3. 通过SSH，在PC1或PC2登录ROS 2容器并运行Demo程序或者自定义程序\(ssh ubt@192\.168\.11\.2/3 \-p 2222 密码Ubtubt@9880\)
+3. 通过SSH，在PC1或PC2登录ROS 2容器并运行Demo程序或者自定义程序\(ssh ubt@192\.168\.11\.2/3 \-p 2222 密码请向您的技术支持人员获取\)
 
 ![image\.png](assets/image.png)
 
@@ -278,8 +278,8 @@ Walker S2 EDU机器人整机共42个自由度，由42个一体化关节电机驱
 
 |**主机**|**架构**|**地址**|**用户名**|**密码**|
 |---|---|---|---|---|
-|PC1|x86|192\.168\.11\.2:2222|ubt|Ubtubt@9880|
-|PC2|arm|192\.168\.11\.3:2222|ubt|@Ubtubt@9880|
+|PC1|x86|192\.168\.11\.2:2222|ubt|请向您的技术支持人员获取|
+|PC2|arm|192\.168\.11\.3:2222|ubt|请向您的技术支持人员获取|
 
 开发者容器内置文件路径:
 
@@ -291,7 +291,7 @@ Walker S2 EDU机器人整机共42个自由度，由42个一体化关节电机驱
 
 ```C++
 ssh -p 2222 ubt@192.168.11.2/3
-# 输入密码：Ubtubt@9880
+# 输入密码：请向您的技术支持人员获取
 ```
 
 3. 进入开发者模式
@@ -376,11 +376,11 @@ ros2 topic echo /sys/state/walker_mode
 
 ## ROS 2 SDK 概述
 
-完整版优必选SDK由优必选机器人公司开发，提供了丰富的接口，涵盖头部、臂部、肘部、手部和腿部的电机控制，以及六维力、IMU（惯性测量单元）和相机的使用，用于编写和部署机器人应用程序，旨在帮助开发人员快速灵活地构建自己的应用程序来精确控制和使用机器人，以满足在不同应用场景下的需求。您可以按照我们提供的接口和例程，配套本开发指南，完成对Walker S2 EDU的二次开发。
+完整版优必选SDK由优必选机器人公司开发，提供了丰富的接口，涵盖头部、臂部、肘部、手部和腿部的电机控制，以及六维力、IMU（惯性测量单元）和相机的使用，用于编写和部署机器人应用程序，旨在帮助开发人员快速灵活地构建自己的应用程序来精确控制和使用机器人，以满足在不同应用场景下的需求。您可以按照我们提供的接口和例程，配套本开发指南，完成对Walker S2 Edu 探索者的二次开发。
 
 ## ROS 2 SDK 获取
 
-现阶段需要SDK的定制软件包 及 demo程序，请客户通过优必选对接人\-如销售或项目，再找公司研发体系人员 jialong\.kuang@ubtrobot\.com 联系提供，切勿直接发邮件提问题或需求；
+现阶段需要SDK的定制软件包 及 demo程序，请客户通过优必选对接人\-如销售或项目，评估开发工作量及商务事宜，切勿直接发邮件提问题或需求；
 
 > 现阶段\-\>升级流程和方式：
 > 
@@ -398,7 +398,7 @@ ros2 topic echo /sys/state/walker_mode
 
 ```C++
 ssh -p 2222 ubt@192.168.11.3
-# 输入密码：Ubtubt@9880
+# 输入密码：请向您的技术支持人员获取
 ```
 
 - 在你可以下载并构建我们的ROS 2 demo程序
@@ -442,11 +442,11 @@ ros2 topic list
 
     示例源代码位于/example/src文件夹下,我们提供如下示例程序
 
-    - audio\_player 利用Walker S2 EDU内置喇叭播放固定音频文件
+    - audio\_player 利用Walker S2 Edu 探索者内置喇叭播放固定音频文件
 
-    - powerboardstate\_subscriber  读取Walker S2 EDU电源板状态信息
+    - powerboardstate\_subscriber  读取Walker S2 Edu 探索者电源板状态信息
 
-    - batterystate\_subscriber 订阅Walker S2 EDU电源状态信息
+    - batterystate\_subscriber 订阅Walker S2 Edu 探索者电源状态信息
 
     - pub\_arm\_command 发布手臂控制
 
@@ -484,12 +484,12 @@ ros2 topic list
 
 |**平台**|**地址**|**系统版本**|**ROS 2****容器**|
 |---|---|---|---|
-|Walker S2 EDU x86|192\.168\.11\.2|Ubuntu 22\.04|humble|
-|Walker S2 EDU Orin|192\.168\.11\.3|Ubuntu 22\.04|humble|
+|Walker S2 Edu 探索者 x86|192\.168\.11\.2|Ubuntu 22\.04|humble|
+|Walker S2 Edu 探索者 Orin|192\.168\.11\.3|Ubuntu 22\.04|humble|
 
 # 全局值说明
 
-- 说明：完整版优必选Walker S2 EDU头部、臂部、腰部和腿部的电机的命名ID定义如下
+- 说明：完整版优必选Walker S2 Edu 探索者头部、臂部、腰部和腿部的电机的命名ID定义如下
 
 ```JSON
 {9001, "switch main", "主交换机"},
@@ -1360,7 +1360,7 @@ ros2 topic info `/sensor/camera/stereo_left(or right)/image/raw`确定 msg格式
 
 - healthstatus：具体的健康状态如下列表
 
-![企业微信截图\_1770618087732\.png](assets/企业微信截图_1770618087732.png)
+![故障码表\.png](assets/故障码表.png)
 
 - 代码示例
 
@@ -1746,7 +1746,7 @@ string LLM_CHAT_FAILED_STR = "LLM chat failed"
 
 ### 5\.6\.2、麦克风数据获取
 
-- 说明：获取Walker S2 EDU麦克风数据或者降噪后数据，原始数据为8通道，16KHz，降噪后数据为1通道，16KHz
+- 说明：获取Walker S2 Edu 探索者麦克风数据或者降噪后数据，原始数据为8通道，16KHz，降噪后数据为1通道，16KHz
 
 - 获取方式：topic
 
@@ -3000,7 +3000,7 @@ ament_package()
 输入：
 
 ```C++
-// `model`: 模型，目前仅支持Walker S2 EDU臂模型(kS2Arm)
+// `model`: 模型，目前仅支持Walker S2 Edu 探索者臂模型(kS2Arm)
 manipulation::kinematics::Model model
 ```
 
@@ -3033,7 +3033,7 @@ const Eigen::VectorXd& zero_positions
 // `location`: 位置，区分左右臂，即 location = manipulation::kinematics::Location::kLeft,
 // or location = manipulation::kinematics::Location::kRight
 manipulation::kinematics::Location location
-// `model`: 模型，目前仅支持Walker S2 EDU臂模型(kS2Arm)/Cruzr S2臂模型(kS2Arm)/Astron 臂模型(kAstronArm)
+// `model`: 模型，目前仅支持Walker S2 Edu 探索者臂模型(kS2Arm)/Cruzr S2臂模型(kS2Arm)/Astron 臂模型(kAstronArm)
 manipulation::kinematics::Model model
 ```
 
@@ -3068,7 +3068,7 @@ const Eigen::VectorXd& zero_positions
 // `location`: 位置，区分左右臂，即 location = manipulation::kinematics::Location::kLeft,
 //  or location = manipulation::kinematics::Location::kRight
 manipulation::kinematics::Location location
-// `model`: 模型，目前仅支持Walker S2 EDU臂模型(kS2Arm)/Cruzr S2臂模型(kS2Arm)/Astron 臂模型(kAstronArm)
+// `model`: 模型，目前仅支持Walker S2 Edu 探索者臂模型(kS2Arm)/Cruzr S2臂模型(kS2Arm)/Astron 臂模型(kAstronArm)
 manipulation::kinematics::Model model
 ```
 
@@ -3399,7 +3399,7 @@ Python:
 
 ```Shell
 scp -P 2222 所在路径/ubt_api_tiny.202XXXXX.zip ubt@192.168.11.3:/debug/
-# 输入密码：Ubtubt@9880
+# 输入密码：请向您的技术支持人员获取
 ```
 
 然后通过 ssh 进入开发者容器的终端，在 /debug/ 目录下，即可看到上述zip文件。
@@ -4598,7 +4598,7 @@ yaw = \[\-0\.6, 0\.6\]
 
 Q1：是否支持躺下/坐立开机？
 
-A1：不支持，当前版本 Walker S2 EDU 只支持悬吊开机，且开机前需要注意上肢以及脚踝开机位置，关节位置异常会导致产品异常运行。
+A1：不支持，当前版本 Walker S2 Edu 探索者 只支持悬吊开机，且开机前需要注意上肢以及脚踝开机位置，关节位置异常会导致产品异常运行。
 
 Q2：是否支持力控？
 

@@ -18,12 +18,12 @@
 只能用 cp310 的硬件相关服务（pyorbbecsdk 相机、ROS2 桥接）。两者通过 ZMQ 解耦，互不污染。
 
 ```
-env_vla (conda, Python 3.12):  LeRobot + tienkung 插件 + torch
+env_vla (conda, Python 3.12):  LeRobot + TienKung 插件 + torch
    │  lerobot-rollout 推理 / lerobot-train 训练 / image_client 通路验证
    │
    ├── 5558 ◄── ImageServer (系统 py3.10 + pyorbbecsdk) ──► 相机
    │
-   └── 5559 ──► Bridge2 (系统 py3.10 + ROS2) ──ROS2 DDS──► 天工行者硬件
+   └── 5559 ──► Bridge2 (系统 py3.10 + ROS2) ──ROS2 DDS──► 天工行者无疆硬件
        5560 ◄──┘
 ```
 
@@ -35,7 +35,7 @@ env_vla (conda, Python 3.12):  LeRobot + tienkung 插件 + torch
 
 **两个栈的归属：**
 
-- **env_vla (3.12)**：`rollout_host.sh`、`train_host.sh`、`image_client_host.sh`。装 torch / LeRobot / tienkung 插件，运行前需 `conda activate env_vla`。
+- **env_vla (3.12)**：`rollout_host.sh`、`train_host.sh`、`image_client_host.sh`。装 torch / LeRobot / TienKung 插件，运行前需 `conda activate env_vla`。
 - **系统 python3 `/usr/bin/python3` (3.10.12) + `/opt/ros/humble`**：`image_server_host.sh`、`robot_ready.sh`，以及 Bridge2（`ros2_deploy_bridge.py`，由插件用 `/usr/bin/python3` 自动启动，**无需在 env_vla 装 rclpy**）。
 
 **state/action 为 26 维**，顺序为 `[左臂7 | 右臂7 | 左手6 | 右手6]`（由 `TienKungRobotConfig.all_joints` 决定，对应模型 action/observation 张量映射）。
@@ -46,7 +46,7 @@ env_vla (conda, Python 3.12):  LeRobot + tienkung 插件 + torch
 
 | 文件 | 作用 | 运行栈 |
 |------|------|--------|
-| `setup_env.sh` | 一键构建 conda 环境 `env_vla`（Python 3.12 + 本地 wheel + LeRobot + tienkung 插件），末尾自检导入 | 构建器（conda） |
+| `setup_env.sh` | 一键构建 conda 环境 `env_vla`（Python 3.12 + 本地 wheel + LeRobot + TienKung 插件），末尾自检导入 | 构建器（conda） |
 | `rollout_host.sh` | 策略推理部署（`lerobot-rollout`） | env_vla (3.12) |
 | `train_host.sh` | ACT 模型训练（`lerobot-train`，可选） | env_vla (3.12) |
 | `image_server_host.sh` | 相机图像服务：相机 → ZMQ 5558 (JPEG)，供 env_vla 侧 ImageServerCamera 连接 | 系统 python3.10 + pyorbbecsdk |
@@ -178,7 +178,7 @@ STEPS=100000 BATCH_SIZE=8 bash train_host.sh
 
 ## 4. 注意事项与排错
 
-- **Python 3.12**：LeRobot 0.5.2 + tienkung 插件原生运行，免源码补丁；勿降级 3.10。
+- **Python 3.12**：LeRobot 0.5.2 + TienKung 插件原生运行，免源码补丁；勿降级 3.10。
 - **本地 wheel**：torch/torchvision 用本目录的 cp312 wheel（Jetson 专属，链接本机 glibc 2.35）。
   勿用 PyPI 的 aarch64 wheel（CPU-only、无 CUDA），也勿用需 GLIBC_2.38 的预编译 wheel（本机 2.35 会崩）。
 - **numpy 必须 <2**：本地 torch 按 numpy 1.x 编译，装 2.x 会触发 "compiled using NumPy 1.x" 崩溃。

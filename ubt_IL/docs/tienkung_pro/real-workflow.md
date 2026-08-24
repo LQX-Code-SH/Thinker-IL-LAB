@@ -1,6 +1,6 @@
-# 天工行者真机数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
+# 天工行者无疆 真机数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
 
-> 适用机器人：**天工行者（Walker TienKung）真机**
+> 适用机器人：**天工行者无疆（Walker TienKung Pro）真机**
 
 本文档给出从**真机 HDF5 原始数据**到 **LeRobot 数据集**、**ACT 模型训练**、**离线策略评估**、最终**部署到真机**的完整流程，可复制命令。转换/训练/评估在 `ubt_IL` 容器内执行，真机部署提供「容器版」与「Jetson host 版」两种方案。
 
@@ -124,14 +124,14 @@ HF_HUB_OFFLINE=1 lerobot-dataset-viz \
 示例：
 
 ```bash
-# 可视化合并后的天工行者抓取数据集
+# 可视化合并后的天工行者无疆抓取数据集
 HF_HUB_OFFLINE=1 lerobot-dataset-viz \
   --repo-id tienkung_pick_up_merged \
   --episode-index 0 \
   --root /ubt_IL/dataset/tienkung_pick_up_merged
 ```
 
-![tienkung 真机数据集可视化界面](../assets/tienkung真机数据集可视化.png)
+![TienKung 真机数据集可视化界面](../assets/tienkung真机数据集可视化.png)
 
 > **注意**：`--root` 须指向包含 `meta/` 目录的数据集路径（即 `repo_id` 目录本身），而非父目录。`HF_HUB_OFFLINE=1` 用于禁止访问 HuggingFace Hub。
 
@@ -212,7 +212,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 评估输出示例（逐 episode 预测 vs 真值对比）：
 
-![天工行者真机模型离线评估曲线](../assets/tienkung真机模型离线评估曲线.png)
+![天工行者无疆真机模型离线评估曲线](../assets/tienkung真机模型离线评估曲线.png)
 
 **主要参数**：
 
@@ -236,7 +236,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 #### 前置条件：
  - 真机已上电并进入半身运控模式。
- - 操作流程：机器人开机后按A质检 -> 按D回零 -> 机器人落地扶稳长按A进入站立模式 -> F下拨长按A进入半身运控模式 -> E上拨后开始下一步，机器人遥控器详细操作参考 [天工行者操作文档](https://docs.ubtrobot.com/walker-tienkung/docs/user-guide/8)。
+ - 操作流程：机器人开机后按A质检 -> 按D回零 -> 机器人落地扶稳长按A进入站立模式 -> F下拨长按A进入半身运控模式 -> E上拨后开始下一步，机器人遥控器详细操作参考 [天工行者无疆操作文档](https://docs.ubtrobot.com/walker-tienkung/docs/user-guide/8)。
 
 
 <a id="6a-远程设备部署容器"></a>

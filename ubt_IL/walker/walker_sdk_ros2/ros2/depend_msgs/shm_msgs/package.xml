@@ -4,7 +4,7 @@
   <version>0.0.1</version>
   <description>Message definitions for SDK code</description>
 
-  <maintainer email="ziheng.li@ubtrobot.com">Your Name</maintainer>
+  <maintainer email="noreply@ubtrobot.com">Your Name</maintainer>
   <license>Apache-2.0</license>
 
   <!-- build tool -->
