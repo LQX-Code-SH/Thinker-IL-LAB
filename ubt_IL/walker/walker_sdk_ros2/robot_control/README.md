@@ -1,6 +1,6 @@
 # robot_control — Walker S2 EDU 探索者 真机 Python 控制包
 
-从 [executor_node_sdk.py](../rosa_vla_additional/vla-motionx86/src/vla_executor/vla_executor/executor_node_sdk.py) 提取的纯机器人控制版本，**去除 VLA 推理依赖**，提供 Python API 直接控制真机。
+从 `rosa_vla_additional/vla-motionx86/src/vla_executor/vla_executor/executor_node_sdk.py`（外部仓库，未随本仓库分发）提取的纯机器人控制版本，**去除 VLA 推理依赖**，提供 Python API 直接控制真机。
 
 控制方法：方法 2（SDK 控制器，`RobotCommand`/`JointCmd`，`MODE_POSITION=2`）。详见 [../../CLAUDE.md](../../CLAUDE.md) 中"两层控制"章节。
 

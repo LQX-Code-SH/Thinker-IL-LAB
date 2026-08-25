@@ -22,7 +22,7 @@ if np.max(depth_image) > 100:
 ## AgileX 3RGB
 
 #### Note
-> The h5 format is identical to that of the AgileX 3RGB described in [all_robot_h5_info.md](./static/all_robot_h5_info.md).
+> The h5 format is identical to that of the AgileX 3RGB described in all_robot_h5_info.md.
 
 end_effector (7d): [x, y, z, quaternions (x,y,z,w)]
 
@@ -85,7 +85,7 @@ joint_position (7d): [base link, ..., end_effector link, gripper]
 ## Franka 3RGB
 
 #### Note
-> The h5 format is identical to that of the Franka 3RGB described in [all_robot_h5_info.md](./static/all_robot_h5_info.md).
+> The h5 format is identical to that of the Franka 3RGB described in all_robot_h5_info.md.
 
 end_effector (6d): [x, y, z, r, p, y]
 
@@ -164,7 +164,7 @@ joint_position_left/right (16d): [base link, ..., end_effector link, gripper]
 ## Simulation Franka
 
 #### Note
-> The h5 format is identical to that of the Simulation Franka described in [all_robot_h5_info.md](./static/all_robot_h5_info.md).
+> The h5 format is identical to that of the Simulation Franka described in all_robot_h5_info.md.
 
 end_effector (7d): [x, y, z, quaternions (x,y,z,w)]
 
@@ -263,7 +263,7 @@ For more detail of the inspire Dexterous hand, please refer to [the dexterous ha
 ## Tien Kung Gello 1RGB
 
 #### Note
-> The h5 format is identical to that of the Tien Kung Gello 1RGB described in [all_robot_h5_info.md](./static/all_robot_h5_info.md).
+> The h5 format is identical to that of the Tien Kung Gello 1RGB described in all_robot_h5_info.md.
 
 joint_position (16d): [left arm (7d), left hand closure (1d), right arm (7d), right hand closure (1d)]
 
@@ -290,7 +290,7 @@ arm (7d): [base link, ..., end_effector link]
 ## Tien Kung Prod1 Gello 1RGB
 
 #### Note
-> The h5 format is identical to that of the Tien Kung Gello 1RGB described in [all_robot_h5_info.md](./static/all_robot_h5_info.md).
+> The h5 format is identical to that of the Tien Kung Gello 1RGB described in all_robot_h5_info.md.
 
     Found HDF5 file: ./benchmark1_1_release/h5_tienkung_prod1_gello_1rgb/clean_table/success_episodes/train/1216_144211/data/trajectory.hdf5
     
@@ -313,7 +313,7 @@ arm (7d): [base link, ..., end_effector link]
 ## Tien Kung Xsens 1RGB
 
 #### Note
-> The h5 format is identical to that of the Tien Kung Xsens 1RGB described in [all_robot_h5_info.md](./static/all_robot_h5_info.md).
+> The h5 format is identical to that of the Tien Kung Xsens 1RGB described in all_robot_h5_info.md.
 
 end_effector (12d): [left hand (6d), right hand (6d)]
 
@@ -349,7 +349,7 @@ arm (7d): [base link, ..., end_effector link]
 ## UR 1RGB
 
 #### Note
-> The h5 format is identical to that of the UR 1RGB described in [all_robot_h5_info.md](./static/all_robot_h5_info.md).
+> The h5 format is identical to that of the UR 1RGB described in all_robot_h5_info.md.
 
 end_effector (6d): [x, y, z, r, p, y]
 
