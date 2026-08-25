@@ -113,5 +113,5 @@ Walker ZMQ 消息: `{"left_arm":[7], "right_arm":[7], "head":[2], "waist":[1], "
 ## 嵌套文档
 
 - [tienkung/CLAUDE.md](tienkung/CLAUDE.md) — 天工行者插件技术架构（ZMQ 端口、ROS2 话题、ACT 配置、灵巧手逻辑、插件注册）
-- [tienkung/README.md](tienkung/README.md) — 部署操作指南（快速开始、训练、部署、验证）
+- [docs/tienkung_pro/getting-started.md](docs/tienkung_pro/getting-started.md) — 部署操作指南（快速开始、训练、部署、验证）
 - [walker/CLAUDE.md](walker/CLAUDE.md) — Walker S2 EDU 插件技术架构（ZMQ 端口、ROS2 话题、31 维向量、V4 手控制、插件注册）

@@ -59,6 +59,9 @@ ubt_sim/docker/isaac_sim/.codegraph/
 .codegraph/
 ubt_sim/dataset/
 
+# CLAUDE.md（AI 辅助个人配置，不随仓库分发）
+CLAUDE.md
+
 # Walker ROS2/colcon generated artifacts
 ubt_IL/walker/walker_sdk_ros2/build/
 ubt_IL/walker/walker_sdk_ros2/install/
