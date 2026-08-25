@@ -105,7 +105,7 @@ ROS_DOMAIN_ID=0 python3 teleoperation/tools/playback_tienkung_pro.py \
 
 ### 安全须知
 
-- 限位裁剪默认开启（Walker S2 EDU 探索者 用硬件限位表，天工行者无疆手臂保守限位 [0,1]）；数据含 NaN/inf 直接拒绝
+- 限位裁剪默认开启（Walker S2 EDU 探索者 用硬件限位表，天工行者无疆手臂保守限位参考：https://docs.ubtrobot.com/walker-tienkung/docs/sdk/4#34-%E5%A4%A9%E5%B7%A5%E8%A1%8C%E8%80%85%E5%85%B3%E8%8A%82%E5%88%86%E5%B8%83 ）；数据含 NaN/inf 直接拒绝
 - `--align-first` 在回放前先对齐首帧位姿，避免从任意当前位姿直接跳变
 - Ctrl-C 停止后机器人**保持最后指令**（仿真侧 HoldTargetManager 保持；真机需自行复位）
 - 回放前务必先 `--dry-run`，并确认 `ROS_DOMAIN_ID` 与目标一致（真机 0 / 仿真 146）、机器人处于安全位置

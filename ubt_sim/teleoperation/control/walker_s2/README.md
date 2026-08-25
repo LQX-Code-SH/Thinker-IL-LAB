@@ -1,6 +1,6 @@
 # Walker S2 EDU 探索者 control
 
-Walker S2 EDU 探索者 ROS2 control helpers copied and adapted from `/home/qingxiangliu/work/ubt_IL/walker/walker_sdk_ros2/robot_control`.
+Walker S2 EDU 探索者 ROS2 control helpers copied and adapted from `<repo_root>/ubt_IL/walker/walker_sdk_ros2/robot_control`.
 
 Run these scripts with system Python and the Walker SDK ROS2 messages sourced:
 
@@ -13,11 +13,11 @@ Typical simulation flow:
 
 ```bash
 # Terminal 1: start Walker S2 EDU 探索者 sim and bridge
-cd /home/qingxiangliu/work/Thinker-IL-LAB/ubt_sim
+cd <repo_root>/ubt_sim
 UBT_SIM_TASK=UBTSim-WalkerS2-PartSorting-v0 bash scripts/start_sim.sh
 
 # Terminal 2: query state / run small tests（统一入口 walker_s2_controller.py + 子命令）
-cd /home/qingxiangliu/work/Thinker-IL-LAB/ubt_sim/teleoperation/control/walker_s2
+cd <repo_root>/ubt_sim/teleoperation/control/walker_s2
 /usr/bin/python3 walker_s2_controller.py state --print-state      # 原 walker_s2_controller.py --print-state
 /usr/bin/python3 walker_s2_controller.py joint --print            # 原 walker_s2_joint_test.py --print
 /usr/bin/python3 walker_s2_controller.py camera --msg-type sensor_msgs/Image
