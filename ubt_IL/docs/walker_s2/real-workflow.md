@@ -272,7 +272,7 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 | `STRATEGY` | `base` | rollout 策略类型 |
 | `FPS` | `13` | 控制频率 |
 | `DURATION` | `30` | 运行时长（秒） |
-| `TASK` | `Walker S2 EDU 探索者 rollout` | 任务描述 |
+| `TASK` | `walker s2 rollout` | 任务描述 |
 | `PREVIEW_CAMERA` | `1` | 是否显示相机预览窗口 |
 | `RECORD_ACTIONS` | `1` | 是否记录 rollout 动作（`RECORD_OUTPUT_DIR` 指定输出） |
 | `INFERENCE_TYPE` | `sync` | 推理引擎类型（`sync` / `act_async`） |

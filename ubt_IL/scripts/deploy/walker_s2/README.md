@@ -41,7 +41,7 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 | `STRATEGY` | `base` | rollout 策略类型 |
 | `FPS` | `15` | 控制频率 |
 | `DURATION` | `30` | 运行时长（秒） |
-| `TASK` | `Walker S2 EDU 探索者 rollout` | 任务描述 |
+| `TASK` | `walker s2 rollout` | 任务描述 |
 | `ALLOW_DIM_ONLY_POLICY` | `0` | 策略无 action names 时允许仅按维度匹配（设 `1` 开启） |
 
 ### 机器人配置
