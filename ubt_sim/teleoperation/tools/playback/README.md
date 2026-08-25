@@ -10,7 +10,7 @@
 架构：共用核心 [common.py](common.py)（HDF5 加载、节奏、CLI、Rerun 预览）+ 机器人适配层
 [robots/](robots/)（schema + ROS2 发布器 + 首帧对齐）。两个薄入口脚本：
 
-- `playback_walker_s2.py` — Walker S2 Edu 探索者（17 身体关节 + 7+7 V4 手 + 2 夹爪 + 4 相机）
+- `playback_walker_s2.py` — Walker S2 EDU 探索者（17 身体关节 + 7+7 V4 手 + 2 夹爪 + 4 相机）
 - `playback_tienkung_pro.py` — 天工行者无疆（Walker TienKung Pro）（7+7 臂 + 6+6 手 + 1 相机含深度）
 
 ## 环境准备（容器内）
@@ -105,7 +105,7 @@ ROS_DOMAIN_ID=0 python3 teleoperation/tools/playback_tienkung_pro.py \
 
 ### 安全须知
 
-- 限位裁剪默认开启（Walker S2 Edu 探索者 用硬件限位表，天工行者无疆手臂保守限位 [0,1]）；数据含 NaN/inf 直接拒绝
+- 限位裁剪默认开启（Walker S2 EDU 探索者 用硬件限位表，天工行者无疆手臂保守限位 [0,1]）；数据含 NaN/inf 直接拒绝
 - `--align-first` 在回放前先对齐首帧位姿，避免从任意当前位姿直接跳变
 - Ctrl-C 停止后机器人**保持最后指令**（仿真侧 HoldTargetManager 保持；真机需自行复位）
 - 回放前务必先 `--dry-run`，并确认 `ROS_DOMAIN_ID` 与目标一致（真机 0 / 仿真 146）、机器人处于安全位置

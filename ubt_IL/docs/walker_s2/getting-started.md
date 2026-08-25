@@ -1,9 +1,9 @@
-# Walker S2 Edu 探索者 模仿学习快速开始
+# Walker S2 EDU 探索者 模仿学习快速开始
 
 > 对应代码：`ubt_IL/scripts/{convert,train,deploy}/walker_s2/` 与 `ubt_sim/`（仿真采集工程）
 > 全流程：**数据准备 -> 模型训练 -> 策略评估 -> 模型部署**
 
-本文档给出 Walker S2 Edu 探索者 从克隆代码到真机/仿真器部署的最简路径，按需执行每一步。各步骤的完整参数说明与可复制命令见工作流专项文档：
+本文档给出 Walker S2 EDU 探索者 从克隆代码到真机/仿真器部署的最简路径，按需执行每一步。各步骤的完整参数说明与可复制命令见工作流专项文档：
 
 - 仿真工作流：-> [sim-workflow.md](./sim-workflow.md)（仿真采集 -> 转换 -> 训练 -> 评估 -> 回注仿真器部署）
 - 真机工作流：-> [real-workflow.md](./real-workflow.md)（真机采集 -> 转换 -> 训练 -> 评估 -> 真机部署，含推理服务器与 Jetson 远程拉起）
@@ -38,8 +38,8 @@ git submodule update --init  # 初始化 lerobot 子模块
 cd ubt_IL/scripts/convert/common
 export HF_ENDPOINT=https://hf-mirror.com          # （可选）国内加速镜像
 
-python hf_manager.py pull qingxiangliu/Wlaker_Pick_part_real_10d_2RGB   # 下载 Walker S2 Edu 探索者 抓取测试数据集
-python hf_manager.py pull qingxiangliu/Walker_S2_sim_10_2RGB  # 下载 Walker S2 Edu 探索者 仿真抓取测试数据集
+python hf_manager.py pull qingxiangliu/Wlaker_Pick_part_real_10d_2RGB   # 下载 Walker S2 EDU 探索者 抓取测试数据集
+python hf_manager.py pull qingxiangliu/Walker_S2_sim_10_2RGB  # 下载 Walker S2 EDU 探索者 仿真抓取测试数据集
 ```
 > 下载的数据集保存路径位于 `/ubt_IL/dataset/`下。
 

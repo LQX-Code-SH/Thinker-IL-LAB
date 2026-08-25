@@ -1,6 +1,6 @@
-# Walker S2 Edu 探索者 control
+# Walker S2 EDU 探索者 control
 
-Walker S2 Edu 探索者 ROS2 control helpers copied and adapted from `/home/qingxiangliu/work/ubt_IL/walker/walker_sdk_ros2/robot_control`.
+Walker S2 EDU 探索者 ROS2 control helpers copied and adapted from `/home/qingxiangliu/work/ubt_IL/walker/walker_sdk_ros2/robot_control`.
 
 Run these scripts with system Python and the Walker SDK ROS2 messages sourced:
 
@@ -12,7 +12,7 @@ source /opt/ubt_sim/walker_sdk_ros2_msgs/install/setup.bash
 Typical simulation flow:
 
 ```bash
-# Terminal 1: start Walker S2 Edu 探索者 sim and bridge
+# Terminal 1: start Walker S2 EDU 探索者 sim and bridge
 cd /home/qingxiangliu/work/Thinker-IL-LAB/ubt_sim
 UBT_SIM_TASK=UBTSim-WalkerS2-PartSorting-v0 bash scripts/start_sim.sh
 

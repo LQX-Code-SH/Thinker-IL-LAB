@@ -1,6 +1,6 @@
-# Walker S2 Edu 探索者 仿真工作流（Simulation Workflow）
+# Walker S2 EDU 探索者 仿真工作流（Simulation Workflow）
 
-> 适用于 **Isaac Sim 仿真 → Walker S2 Edu 探索者 真机** 的完整闭环：仿真采集 → 数据转换 → 模型训练 → 策略评估 → 回注仿真部署。
+> 适用于 **Isaac Sim 仿真 → Walker S2 EDU 探索者 真机** 的完整闭环：仿真采集 → 数据转换 → 模型训练 → 策略评估 → 回注仿真部署。
 > 对应的代码位于 `ubt_IL/scripts/{convert,train,deploy}/walker_s2/` 与 `ubt_sim/` 仿真采集工程。
 
 ## 目录
@@ -292,7 +292,7 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 | `STRATEGY` | `base` | rollout 策略类型 |
 | `FPS` | `13` | 控制频率 |
 | `DURATION` | `30` | 运行时长（秒） |
-| `TASK` | `Walker S2 Edu 探索者 rollout` | 任务描述 |
+| `TASK` | `Walker S2 EDU 探索者 rollout` | 任务描述 |
 | `PREVIEW_CAMERA` | `1` | 是否显示相机预览窗口 |
 | `RECORD_ACTIONS` | `1` | 是否记录 rollout 动作（`RECORD_OUTPUT_DIR` 指定输出） |
 | `INFERENCE_TYPE` | `sync` | 推理引擎类型（`sync` / `act_async`） |

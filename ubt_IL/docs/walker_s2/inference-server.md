@@ -1,4 +1,4 @@
-# Walker S2 Edu 探索者 推理服务器（常驻预热）
+# Walker S2 EDU 探索者 推理服务器（常驻预热）
 
 > `rollout.sh` 每次冷启动都要重新加载 policy 到 CUDA + 拉起桥接，耗时长。推理服务器**常驻**一个进程，
 > 一次性预热加载模型 + 连接机器人/仿真桥接，之后外部经 ZMQ 指令随时 `start/stop/home/status/shutdown`，

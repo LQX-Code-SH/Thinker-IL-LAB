@@ -1,10 +1,10 @@
-# Walker S2 Edu 探索者 训练
+# Walker S2 EDU 探索者 训练
 
 容器内训练命令，在 `cd /ubt_IL/lerobot` 后执行。
 
 > 便捷封装：`bash /ubt_IL/scripts/train/walker_s2/train.sh`（默认仿真 ACT 配置；`CONFIG` 切换 Pi0.5/真机配置，`STEPS`/`OUTPUT_DIR`/`BATCH_SIZE` 可选覆盖，不设则沿用 config 值）。下方为完整 `lerobot-train` 命令参考。
 
-## Walker S2 Edu 探索者 仿真 ACT 训练
+## Walker S2 EDU 探索者 仿真 ACT 训练
 
 ### 首次训练
 
@@ -67,7 +67,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 ### 关键配置说明
 
-| 字段 | Walker S2 Edu 探索者 仿真 |
+| 字段 | Walker S2 EDU 探索者 仿真 |
 |------|---------------|
 | camera key | `observation.images.camera_head` |
 | 图像 shape | `[3, 360, 640]` |
@@ -78,7 +78,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 ---
 
-## Walker S2 Edu 探索者 仿真 Pi0.5 VLA 训练
+## Walker S2 EDU 探索者 仿真 Pi0.5 VLA 训练
 
 Pi0.5 是 Physical Intelligence 的 ~4B 参数视觉-语言-动作（VLA）模型，基于 PaliGemma-2B 视觉语言骨干 + Gemma-300M 动作专家，使用 flow matching 生成动作。
 
@@ -148,7 +148,7 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 ### 关键配置说明
 
-| 字段 | Walker S2 Edu 探索者 Pi0.5 | 说明 |
+| 字段 | Walker S2 EDU 探索者 Pi0.5 | 说明 |
 |------|-----------------|------|
 | policy type | `pi05` | Pi0.5 VLA 策略 |
 | pretrained_path | `lerobot/pi05_base` | 必须从预训练模型初始化 |

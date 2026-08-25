@@ -1,6 +1,6 @@
-# Walker S2 Edu 探索者 真机工作流（Real-Workflow）
+# Walker S2 EDU 探索者 真机工作流（Real-Workflow）
 
-> 适用于 **真机数据采集 -> Walker S2 Edu 探索者 真机部署** 的完整闭环：真机采集 -> 数据转换 -> 模型训练 -> 策略评估 -> 真机部署。
+> 适用于 **真机数据采集 -> Walker S2 EDU 探索者 真机部署** 的完整闭环：真机采集 -> 数据转换 -> 模型训练 -> 策略评估 -> 真机部署。
 > 对应的代码位于 `ubt_IL/scripts/{convert,train,deploy}/walker_s2/`。
 
 ## 目录
@@ -215,7 +215,7 @@ cd /ubt_IL/lerobot
 
 #### 前置条件：
  - 真机上电站立并进入开发者模式。
- - 操作流程：机器人开机后打开伺服按D启动内部运控 -> 机器人落地扶稳按A进入站立模式，机器人遥控器详细操作参考[《Walker S2 Edu 探索者 二次开发文档》](./sdk-guide.md)。
+ - 操作流程：机器人开机后打开伺服按D启动内部运控 -> 机器人落地扶稳按A进入站立模式，机器人遥控器详细操作参考[《Walker S2 EDU 探索者 二次开发文档》](./sdk-guide.md)。
  - walker真机部署在机器人vision板上运行，需将项目和模型拷贝到vision板上并构建容器和启动容器。
 
 ### 6.1 推理部署
@@ -272,7 +272,7 @@ bash /ubt_IL/scripts/deploy/walker_s2/rollout.sh
 | `STRATEGY` | `base` | rollout 策略类型 |
 | `FPS` | `13` | 控制频率 |
 | `DURATION` | `30` | 运行时长（秒） |
-| `TASK` | `Walker S2 Edu 探索者 rollout` | 任务描述 |
+| `TASK` | `Walker S2 EDU 探索者 rollout` | 任务描述 |
 | `PREVIEW_CAMERA` | `1` | 是否显示相机预览窗口 |
 | `RECORD_ACTIONS` | `1` | 是否记录 rollout 动作（`RECORD_OUTPUT_DIR` 指定输出） |
 | `INFERENCE_TYPE` | `sync` | 推理引擎类型（`sync` / `act_async`） |
