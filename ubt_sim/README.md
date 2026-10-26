@@ -12,12 +12,16 @@ Thinker 机器人仿真平台，基于 NVIDIA Isaac Sim 5.0 + Isaac Lab 2.2 支�
 |--------|-----|------|------|----------|
 | Walker TienKung Pro | 50 | — | 12×2 (五指灵巧手) | `assets/robots/tienkung_pro/tienkung_pro_v2.usd` |
 | Walker S2 EDU 探索者 | 34 | 2×2 (PGC 两指) | — | `assets/robots/walker_s2/s2_v1.usd` |
+| TienKung Dex（天工行者 Dex V3） | 67 | — | 18×2 (Inspire RH5DG2) | `assets/robots/tienkung_dex/usd/tienkung_dex_inspire.usd`（由 URDF 现场转换） |
+| TienKung Dex（BrainCo Revo2 双手） | 53 | — | 11×2 (BrainCo Revo2) | `assets/robots/tienkung_dex/usd/tienkung_dex_brainco.usd`（由 URDF 现场转换） |
 
 ## 当前支持的任务
 
 | 任务 ID | 机器人 | 场景 | 说明 |
 |---------|--------|------|------|
 | `UBTSim-TienkungPro-Parlor-v0` | 天工行者无疆 | 客厅 | 抓苹果遥操作 + 数据采集（默认任务） |
+| `UBTSim-TienkungDex-Parlor-v0` | TienKung Dex（Inspire 双手） | 客厅 | 遥操作 + 全量数据采集（含深度），见 `docs/tienkung_dex/getting-started.md` |
+| `UBTSim-TienkungDex-Brainco-Parlor-v0` | TienKung Dex（BrainCo 双手） | 客厅 | 同上，手部为 Revo2（单手 11 关节） |
 | `UBTSim-WalkerS2-PartSorting-v0` | Walker S2 EDU 探索者 | 零件分拣 | 零件分拣：4 个零件 + 收纳箱（默认任务） |
 | `UBTSim-WalkerS2-PickPart-v0` | Walker S2 EDU 探索者 | 零件分拣 | 单零件抓取：桌面只保留单个零件，配合 `pick_part.py` 采集 |
 

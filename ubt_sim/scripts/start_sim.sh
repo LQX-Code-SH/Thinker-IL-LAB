@@ -18,8 +18,16 @@ UBT_SIM_NUM_ENVS="${UBT_SIM_NUM_ENVS:-1}"
 # Detect robot from task name
 if [[ "$UBT_SIM_TASK" == *"WalkerS2"* ]]; then
     ROBOT="walker_s2"
+elif [[ "$UBT_SIM_TASK" == *"TienkungDex"* ]]; then
+    ROBOT="tienkung_dex"
 else
     ROBOT="tienkung_pro"
+fi
+
+# Hand variant for TienKung Dex task names
+DEX_VARIANT="inspire"
+if [[ "$UBT_SIM_TASK" == *"Brainco"* ]]; then
+    DEX_VARIANT="brainco"
 fi
 BRIDGE_PID=""
 
@@ -67,6 +75,10 @@ if [ -z "${UBT_SIM_NO_BRIDGE:-}" ]; then
             BRIDGE_CFG="${UBT_SIM_WALKER_S2_BRIDGE_CONFIG:-$PROJECT_DIR/teleoperation/bridges/walker_s2/walker_s2_bridge_config.yaml}"
             /usr/bin/python3 "$PROJECT_DIR/teleoperation/bridges/walker_s2/walker_s2_ros2_zmq_bridge.py" \
                 --config "$BRIDGE_CFG" &
+        elif [ "$ROBOT" = "tienkung_dex" ]; then
+            BRIDGE_CFG="${UBT_SIM_TIENKUNG_DEX_BRIDGE_CONFIG:-$PROJECT_DIR/teleoperation/bridges/tienkung_dex/bridge_config.yaml}"
+            /usr/bin/python3 "$PROJECT_DIR/teleoperation/bridges/tienkung_dex/tienkung_dex_ros2_zmq_bridge.py" \
+                --config "$BRIDGE_CFG" --variant "$DEX_VARIANT" &
         else
             /usr/bin/python3 "$PROJECT_DIR/teleoperation/bridges/tienkung_pro/tienkung_pro_ros2_zmq_bridge.py" &
         fi

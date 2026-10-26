@@ -1,0 +1,47 @@
+# TienKung Dex Parlor Task Configuration
+# 路径均相对 assets/ 目录
+#
+# 复用 parlor 场景（scene_v2.usd，与本项目其他机型一致）。
+# 初始位姿按实机 home_standing 标定：pelvis 原点离地 0.998 m，站姿关节角见
+# devices/tienkung_dex/config.py 的 TIENKUNG_DEX_HOME_POSE（膝微屈 0.368/0.341）。
+# 朝向取水平（不带 pro 的 4° 前倾）；如与场景朝向不符只改下面 rot。
+
+scene:
+  usd_path: "scenes/parlor/scene_v2.usd"
+  prim_path: "{ENV_REGEX_NS}/Scene"
+
+robot:
+  name: "tienkung_dex"
+  usd_path: "robots/tienkung_dex/usd/tienkung_dex_inspire.usd"
+  init_state:
+    pos: [7.80, 6.08257, 0.998]  # x, y 沿用 parlor 站位；z = pelvis 离地高度
+    rot: [1.0, 0.0, 0.0, 0.0]    # (w, x, y, z)，水平朝 +X
+
+# 相机挂在 URDF 的 camera_head_link 下（该 link 已按头部相机安装位建模）。
+# 若画面朝向不符，只改这里的 pos/rot，不改 env_cfg。
+cameras:
+  head_rgb:
+    prim_path: "{ENV_REGEX_NS}/Robot/camera_head_link/tienkung_dex_head_rgb"
+    data_types: ["rgb"]
+    resolution: [640, 360]
+    pos: [0.0, 0.0, 0.0]
+    rot: [1.0, 0.0, 0.0, 0.0]
+    focal_length: 24.0
+    horizontal_aperture: 44.76
+    vertical_aperture: 24.99
+  head_depth:
+    prim_path: "{ENV_REGEX_NS}/Robot/camera_head_link/tienkung_dex_head_depth"
+    data_types: ["depth"]
+    resolution: [640, 360]
+    pos: [0.0, 0.0, 0.0]
+    rot: [1.0, 0.0, 0.0, 0.0]
+    focal_length: 24.0
+    horizontal_aperture: 44.76
+    vertical_aperture: 24.99
+
+simulation:
+  dt: 0.01
+  decimation: 1
+  # 每步渲染，避免 15Hz 采集下的重复帧（与走 walker_s2 / tienkung_pro 的结论一致）
+  render_interval: 1
+  episode_length_s: 1000

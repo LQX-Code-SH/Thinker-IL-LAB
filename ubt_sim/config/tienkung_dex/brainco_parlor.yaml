@@ -1,0 +1,43 @@
+# TienKung Dex + BrainCo Revo2 Parlor Task Configuration
+# 路径均相对 assets/ 目录
+#
+# 与 inspire 变体共用同一 parlor 场景和机器人站位，仅手部模型不同
+# （Revo2：单手 11 revolute，指尖 distal 为 mimic）。
+# 初始位姿按实机 home_standing 标定：pelvis 原点离地 0.998 m。
+
+scene:
+  usd_path: "scenes/parlor/scene_v2.usd"
+  prim_path: "{ENV_REGEX_NS}/Scene"
+
+robot:
+  name: "tienkung_dex_brainco"
+  usd_path: "robots/tienkung_dex/usd/tienkung_dex_brainco.usd"
+  init_state:
+    pos: [7.80, 6.08257, 0.998]  # x, y 沿用 parlor 站位；z = pelvis 离地高度
+    rot: [1.0, 0.0, 0.0, 0.0]    # (w, x, y, z)，水平朝 +X
+
+cameras:
+  head_rgb:
+    prim_path: "{ENV_REGEX_NS}/Robot/camera_head_link/tienkung_dex_brainco_head_rgb"
+    data_types: ["rgb"]
+    resolution: [640, 360]
+    pos: [0.0, 0.0, 0.0]
+    rot: [1.0, 0.0, 0.0, 0.0]
+    focal_length: 24.0
+    horizontal_aperture: 44.76
+    vertical_aperture: 24.99
+  head_depth:
+    prim_path: "{ENV_REGEX_NS}/Robot/camera_head_link/tienkung_dex_brainco_head_depth"
+    data_types: ["depth"]
+    resolution: [640, 360]
+    pos: [0.0, 0.0, 0.0]
+    rot: [1.0, 0.0, 0.0, 0.0]
+    focal_length: 24.0
+    horizontal_aperture: 44.76
+    vertical_aperture: 24.99
+
+simulation:
+  dt: 0.01
+  decimation: 1
+  render_interval: 1
+  episode_length_s: 1000

@@ -28,6 +28,11 @@ parser.add_argument("--load_only", action="store_true", help="Load and render th
 parser.add_argument("--zmq_cmd_port", type=int, default=int(os.environ.get("UBT_SIM_WALKER_S2_CMD_PORT", 5655)))
 parser.add_argument("--zmq_status_port", type=int, default=int(os.environ.get("UBT_SIM_WALKER_S2_STATUS_PORT", 5656)))
 parser.add_argument("--zmq_image_port", type=int, default=int(os.environ.get("UBT_SIM_WALKER_S2_IMAGE_PORT", 5657)))
+# TienKung Dex specific (ignored for other robots)
+parser.add_argument("--dex_zmq_cmd_port", type=int, default=int(os.environ.get("UBT_SIM_TIENKUNG_DEX_CMD_PORT", 5755)))
+parser.add_argument("--dex_zmq_status_port", type=int, default=int(os.environ.get("UBT_SIM_TIENKUNG_DEX_STATUS_PORT", 5756)))
+parser.add_argument("--dex_zmq_image_port", type=int, default=int(os.environ.get("UBT_SIM_TIENKUNG_DEX_IMAGE_PORT", 5757)))
+parser.add_argument("--dex_zmq_jpeg_port", type=int, default=int(os.environ.get("UBT_SIM_TIENKUNG_DEX_JPEG_PORT", 5758)))
 parser.add_argument(
     "--physics_device",
     type=str,
@@ -133,6 +138,8 @@ def _detect_robot(task_name: str | None) -> str:
     """Infer robot type from task name."""
     if task_name and "WalkerS2" in task_name:
         return "walker_s2"
+    if task_name and "TienkungDex" in task_name:
+        return "tienkung_dex"
     return "tienkung_pro"
 
 
@@ -299,9 +306,26 @@ def main():
             step_timings, reset_step_timings = patch_step_for_profiling(env)
 
         if args_cli.load_only:
-            role = "Walker S2" if ROBOT == "walker_s2" else "Tienkung Pro"
+            role = {
+                "walker_s2": "Walker S2",
+                "tienkung_dex": "TienKung Dex",
+            }.get(ROBOT, "Tienkung Pro")
             print(f"[INFO] {role} load-only mode: ROS control and action preprocessing are disabled.")
             teleop_interface = None
+        elif ROBOT == "tienkung_dex":
+            from ubt_sim.devices.tienkung_dex import TienkungDexController
+
+            teleop_interface = TienkungDexController(
+                env,
+                cmd_port=args_cli.dex_zmq_cmd_port,
+                status_port=args_cli.dex_zmq_status_port,
+                image_port=args_cli.dex_zmq_image_port,
+                jpeg_port=args_cli.dex_zmq_jpeg_port,
+                camera_names=env.cfg.camera_names,
+                render_interval=env.cfg.sim.render_interval,
+                variant=getattr(env.cfg, "task_variant", "inspire"),
+            )
+            teleop_interface.display_controls()
         elif ROBOT == "walker_s2":
             from ubt_sim.devices.walker_s2 import WalkerS2Controller
 

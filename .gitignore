@@ -80,3 +80,6 @@ ubt_IL/scripts/eval/output/*
 docs/*
 site/*
 mkdocs.yml
+
+# TienKung Dex 的 USD 由 import_tienkung_dex_usd.py 现场生成，不入库
+ubt_sim/assets/robots/tienkung_dex/usd/

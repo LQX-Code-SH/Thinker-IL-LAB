@@ -24,9 +24,12 @@ def init_action_cfg(action_cfg, device):
 
 
 def preprocess_device_action(action: dict[str, Any], teleop_device) -> torch.Tensor:
-    if action.get("tienkung_pro") is not None:
+    if action.get("tienkung_dex") is not None:
+        processed_action = action["tienkung_dex"]
+    elif action.get("tienkung_pro") is not None:
         # Expected input format from teleop se3 agent or other source
         processed_action = action["tienkung_pro"]
     else:
-        raise NotImplementedError(f"Not implemented for this device now: {teleop_device.device_type}")
+        device_type = getattr(teleop_device, "device_type", type(teleop_device).__name__)
+        raise NotImplementedError(f"Not implemented for this device now: {device_type}")
     return processed_action

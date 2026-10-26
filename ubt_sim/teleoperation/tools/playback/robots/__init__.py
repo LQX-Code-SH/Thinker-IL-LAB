@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import h5py
 
+from .tienkung_dex import TienkungDexAdapter
 from .tienkung_pro import TienkungProAdapter
 from .walker_s2 import WalkerS2Adapter
 
 ADAPTERS = {
     "walker_s2": WalkerS2Adapter,
     "tienkung_pro": TienkungProAdapter,
+    "tienkung_dex": TienkungDexAdapter,
 }
 
 
@@ -26,6 +28,11 @@ def detect_robot_type(path: str) -> str:
         rt = f.attrs.get("robot_type")
         if rt and str(rt) in ADAPTERS:
             return str(rt)
+        robot_attr = f.attrs.get("robot")
+        if robot_attr and str(robot_attr) in ADAPTERS:
+            return str(robot_attr)
+        if "joint_observations" in f and "hand_observations" in f:
+            return "tienkung_dex"
         if "puppet" in f:
             return "tienkung_pro"
         if "action/joint_state/position" in f or "action/joint_state/position/data" in f:

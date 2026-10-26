@@ -1,0 +1,22 @@
+# TienKung Dex ROS2 <-> ZMQ bridge configuration
+# 端口与 sim_runner.py / start_sim.sh 中的默认值保持一致（5755-5758）。
+
+zmq:
+  cmd_port: 5755
+  status_port: 5756
+  image_port: 5757
+  jpeg_image_port: 5758
+
+topics:
+  sub:
+    # 关节指令统一用 sensor_msgs/JointState：name=关节名（可省略 _joint 后缀），position=目标弧度
+    body_command:        {topic: "/tienkung_dex/body_command",       type: "JointState", qos: 5}
+    left_hand_command:   {topic: "/tienkung_dex/left_hand_command",  type: "JointState", qos: 5}
+    right_hand_command:  {topic: "/tienkung_dex/right_hand_command", type: "JointState", qos: 5}
+    reset:               {topic: "/sim/cmd_reset",                   type: "Bool", qos: 1}
+  pub:
+    body_state:          {topic: "/tienkung_dex/body_state",         type: "JointState", qos: 10}
+    left_hand_state:     {topic: "/tienkung_dex/left_hand_state",    type: "JointState", qos: 10}
+    right_hand_state:    {topic: "/tienkung_dex/right_hand_state",   type: "JointState", qos: 10}
+    image_rgb:           {topic: "/sensor/camera/head/color/raw",    type: "Image", compressed: false}
+    image_depth:         {topic: "/sensor/camera/head/depth/raw",    type: "Image", compressed: false}
