@@ -32,10 +32,11 @@ import threading
 import rclpy
 import yaml
 import zmq
+from geometry_msgs.msg import Point
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from sensor_msgs.msg import Image
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float32
 
 # 复用 control/tienkung_dex/ 下的纯数据模块（不依赖 isaaclab）
 sys.path.insert(
@@ -56,6 +57,8 @@ from constants import (
 MSG_TYPES = {
     "Bool": Bool,
     "Image": Image,
+    "Float32": Float32,
+    "Point": Point,
 }
 
 
@@ -167,6 +170,13 @@ class TienkungDexRosBridge(Node):
             self.real_msgs["RobotState"], pub_cfg["robot_state"]["topic"], pub_cfg["robot_state"].get("qos", 10)
         )
 
+        # 任务真值（苹果↔盘心距离）：配置里没有就跳过，老配置仍能跑
+        task_cfg = pub_cfg.get("task_dist")
+        if task_cfg:
+            self.pubs["task_dist"] = self.create_publisher(
+                MSG_TYPES[task_cfg["type"]], task_cfg["topic"], task_cfg.get("qos", 10)
+            )
+
         for key, spec in self.cfg["topics"]["sub"].items():
             if key.endswith("_command") and key != "reset":
                 group = key[: -len("_command")]
@@ -178,6 +188,10 @@ class TienkungDexRosBridge(Node):
                 )
             elif key == "reset":
                 self.create_subscription(MSG_TYPES[spec["type"]], spec["topic"], self.reset_cb, spec.get("qos", 10))
+            elif key == "apple_offset":
+                self.create_subscription(
+                    MSG_TYPES[spec["type"]], spec["topic"], self.apple_offset_cb, spec.get("qos", 10)
+                )
 
         hand_cfg = self.cfg["hand_topics"][self.variant]
         for side in ("left", "right"):
@@ -239,6 +253,10 @@ class TienkungDexRosBridge(Node):
         if msg.data:
             self.cmd_socket.send_json({"reset": True})
 
+    def apple_offset_cb(self, msg: Point) -> None:
+        """苹果位置偏移（世界系 x/y，米）。仿真侧按「复位位姿 + 偏移」摆苹果。"""
+        self.cmd_socket.send_json({"apple_offset": [float(msg.x), float(msg.y)]})
+
     # ---------------------------------------------------------------- ZMQ -> ROS
     def _poll_loop(self) -> None:
         poller = zmq.Poller()
@@ -260,6 +278,7 @@ class TienkungDexRosBridge(Node):
         stamp = self.get_clock().now().to_msg()
         self._publish_robot_state(status, stamp)
         self._publish_hand_state(status, stamp)
+        self._publish_task_dist(status)
 
     def _publish_robot_state(self, status: dict, stamp) -> None:
         pos_map = dict(zip(status.get("joint_names") or [], status.get("joint_pos") or []))
@@ -282,6 +301,18 @@ class TienkungDexRosBridge(Node):
                 motor.speed = float(vel_map.get(sim_name, 0.0))
                 container.status.append(motor)
         self.pubs["robot_state"].publish(state)
+
+    def _publish_task_dist(self, status: dict) -> None:
+        """苹果↔盘心距离（仿真真值）转成 ``/sim/task_completed``。
+
+        仿真算不出距离时发的是 -1.0，照原样透传——消费端（采集脚本）自己判
+        "负数 = 没有真值"，桥接不替它做决定。配置里没有这个发布器就跳过。
+        """
+        if "task_dist" not in self.pubs or "task_dist" not in status:
+            return
+        msg = Float32()
+        msg.data = float(status["task_dist"])
+        self.pubs["task_dist"].publish(msg)
 
     def _publish_hand_state(self, status: dict, stamp) -> None:
         pos_map = dict(zip(status.get("joint_names") or [], status.get("joint_pos") or []))

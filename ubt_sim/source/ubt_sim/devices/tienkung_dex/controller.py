@@ -15,9 +15,19 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import numpy as np
+import omni.usd
 from ..device_base import DeviceBase
 from ..tienkung_pro.controller import AsyncJpegCameraSender, AsyncRawCameraSender
 from .action_process import to_controller_data, to_ros_data
+
+try:  # 苹果是刚体：位姿要经 RigidPrim 读，raw USD 在物理步进后不刷新
+    from isaacsim.core.prims import RigidPrim
+except ImportError:  # pragma: no cover
+    try:
+        from omni.isaac.core.prims import RigidPrim
+    except ImportError:
+        RigidPrim = None
 
 try:
     import zmq
@@ -31,6 +41,12 @@ DEFAULT_CMD_PORT = 5755
 DEFAULT_STATUS_PORT = 5756
 DEFAULT_IMAGE_PORT = 5757
 DEFAULT_JPEG_PORT = 5758
+
+# 任务成功判定用的场景 prim：与 tienkung_pro 共用 scenes/parlor/scene_v2.usd，路径相同。
+# 苹果中心到盘心的距离随状态一起发出去（status["task_dist"]），桥接转成
+# /sim/task_completed (Float32)，采集脚本据此决定这一集存不存。
+APPLE_PRIM_PATH = "/World/envs/env_0/Scene/apple"
+PLATE_PRIM_PATH = "/World/envs/env_0/Scene/plate"
 
 
 class TienkungDexController(DeviceBase):
@@ -57,6 +73,15 @@ class TienkungDexController(DeviceBase):
         self._raw_sender = None
         self._jpeg_sender = None
         self._jpeg_frame_count = 0
+
+        # 苹果/盘子的世界位姿（任务成功判定）。apple 是刚体，用 RigidPrim 才拿得到
+        # 物理步进后的位姿；plate 是静态的，raw Prim 够用且避开 RigidBody 层级的
+        # CUDA 问题——与 devices/tienkung_pro/controller.py 的取舍一致。
+        self.apple_prim = self._init_prim(APPLE_PRIM_PATH, rigid=True)
+        self.plate_prim = self._init_prim(PLATE_PRIM_PATH, rigid=False)
+        # 苹果随机化（--randomize-apple）的基准位姿：复位后第一次收到偏移时记下来，
+        # 之后每集的绝对位置都是「它 + 偏移」。reset() 会清掉，逼着重新取一次。
+        self.apple_initial_pos: np.ndarray | None = None
 
         if HAS_ZMQ:
             self.cmd_port = int(kwargs.get("cmd_port", DEFAULT_CMD_PORT))
@@ -107,6 +132,132 @@ class TienkungDexController(DeviceBase):
                 continue
             return name
         return None
+
+    # ------------------------------------------------------- 任务判定（apple↔plate）
+    def _init_prim(self, prim_path: str, rigid: bool = True):
+        """取场景 prim；``rigid=True`` 时包成 RigidPrim 以便读物理更新后的位姿。
+
+        读不到就返回 None，调用方按"拿不到真值"降级处理（``task_dist = -1``）。
+        实现与 ``devices/tienkung_pro/controller.py`` 的同名方法一致。
+        """
+        if rigid and RigidPrim is None:
+            print("[WARNING] RigidPrim 不可用，退回 raw Prim（位姿可能不随物理步进更新）")
+            rigid = False
+        try:
+            stage = omni.usd.get_context().get_stage()
+            prim = stage.GetPrimAtPath(prim_path) if stage else None
+            if prim is None or not prim.IsValid():
+                print(f"[WARNING] Prim not found: {prim_path}")
+                return None
+            if not rigid:
+                return prim
+            try:
+                try:
+                    rigid_prim = RigidPrim(prim_path)
+                except TypeError:  # 老版本是关键字参数
+                    rigid_prim = RigidPrim(prim_path=prim_path)
+                rigid_prim.initialize()
+                return rigid_prim
+            except Exception as exc:  # 刚体初始化失败也要能跑
+                print(f"[WARNING] RigidPrim init failed for {prim_path}: {exc}；退回 raw Prim")
+                return prim
+        except Exception as exc:
+            print(f"[WARNING] Could not init prim {prim_path}: {exc}")
+            return None
+
+    @staticmethod
+    def _get_prim_pose(prim_obj):
+        """返回 (position, orientation)；拿不到就 (None, None)。"""
+        try:
+            if hasattr(prim_obj, "get_world_pose"):        # RigidPrim
+                pos, rot = prim_obj.get_world_pose()
+            elif hasattr(prim_obj, "get_world_poses"):     # 向量化 PrimView
+                positions, orientations = prim_obj.get_world_poses()
+                if len(positions) == 0:
+                    return None, None
+                pos, rot = positions[0], orientations[0]
+            else:                                          # raw USD Prim
+                from pxr import Usd, UsdGeom
+
+                xform = UsdGeom.Xformable(prim_obj).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+                return tuple(xform.ExtractTranslation()), None
+            pos = pos.cpu().numpy() if hasattr(pos, "cpu") else pos
+            rot = rot.cpu().numpy() if hasattr(rot, "cpu") else rot
+            return pos, rot
+        except Exception:
+            return None, None
+
+    def _get_apple_plate_dist(self) -> float:
+        """苹果中心到盘心的距离（米）；拿不到位姿返回 -1.0，调用方据此跳过判定。"""
+        if not self.apple_prim or not self.plate_prim:
+            return -1.0
+        apple_pos, _ = self._get_prim_pose(self.apple_prim)
+        plate_pos, _ = self._get_prim_pose(self.plate_prim)
+        if apple_pos is None or plate_pos is None:
+            return -1.0
+        try:
+            return float(
+                sum((float(a) - float(b)) ** 2 for a, b in zip(apple_pos, plate_pos)) ** 0.5
+            )
+        except Exception:
+            return -1.0
+
+    # ------------------------------------------------------- 苹果随机化
+    def _set_prim_pose(self, prim_obj, position, orientation=None) -> None:
+        """设置刚体世界位姿，并把速度清零（不清会带着旧速度飞出去）。"""
+        if hasattr(prim_obj, "set_world_pose"):        # RigidPrim
+            prim_obj.set_world_pose(position=position, orientation=orientation)
+            if hasattr(prim_obj, "set_velocities"):
+                prim_obj.set_velocities(np.zeros(6))
+        elif hasattr(prim_obj, "set_world_poses"):     # 向量化 PrimView
+            import torch
+
+            device = getattr(prim_obj, "_device", "cuda:0")
+            positions = torch.tensor([position], dtype=torch.float32, device=device)
+            orientations = (
+                torch.tensor([orientation], dtype=torch.float32, device=device)
+                if orientation is not None
+                else None
+            )
+            prim_obj.set_world_poses(positions=positions, orientations=orientations)
+            if hasattr(prim_obj, "set_velocities"):
+                prim_obj.set_velocities(torch.zeros((1, 6), dtype=torch.float32, device=device))
+        else:
+            print("[WARNING] 苹果 prim 不能设置位姿（RigidPrim 初始化失败？），随机化不生效")
+
+    def _apply_apple_offset(self) -> None:
+        """按 ``apple_offset``（世界系 x/y 偏移，米）把苹果挪到「基准位姿 + 偏移」。
+
+        与 ``tienkung_pro`` 同一套做法：复位后第一次收到偏移时把苹果当时的位姿
+        记成基准，之后每集都用「基准 + 偏移」的绝对位置——即使上一集的苹果还
+        躺在盘子里，也不会一集集越挪越偏。z 取基准高度，不取当前高度。
+        """
+        # 先摘掉，别让它跟着 _action 流进关节映射
+        offset = self._action.pop("apple_offset", None)
+        if offset is None or self.apple_prim is None:
+            return
+        try:
+            dx, dy = float(offset[0]), float(offset[1])
+        except (TypeError, ValueError, IndexError):
+            print(f"[WARNING] apple_offset 格式不对，忽略: {offset}")
+            return
+
+        pos, rot = self._get_prim_pose(self.apple_prim)
+        if pos is None:
+            print("[WARNING] 读不到苹果位姿，本次随机化跳过")
+            return
+        if self.apple_initial_pos is None:
+            self.apple_initial_pos = np.asarray(pos, dtype=float)
+            print(f"[INFO] 苹果基准位姿: {np.round(self.apple_initial_pos, 4).tolist()}")
+
+        target = self.apple_initial_pos.copy()
+        target[0] += dx
+        target[1] += dy
+        self._set_prim_pose(self.apple_prim, target, rot)
+        print(
+            f"[INFO] 苹果偏移 ({dx:+.3f}, {dy:+.3f}) m -> 世界系 "
+            f"{np.round(target, 4).tolist()}"
+        )
 
     def _should_send_camera(self) -> bool:
         if self._render_interval == 1:
@@ -162,6 +313,8 @@ class TienkungDexController(DeviceBase):
         self._action = {}
         self.reset_requested = False
         self._step_count = 0
+        # 场景复位后苹果回到初始位姿，基准要重新取（与 tienkung_pro 相同）
+        self.apple_initial_pos = None
 
     def add_callback(self, key, func):
         pass
@@ -201,9 +354,15 @@ class TienkungDexController(DeviceBase):
             if self._action.pop("reset", False):
                 self.reset_requested = True
 
+            # 苹果随机化（--randomize-apple）：先挪苹果再出状态，同一步里
+            # task_dist 就已经反映新位置
+            self._apply_apple_offset()
+
             try:
                 status = to_ros_data(self.env, self.variant)
                 status["timestamp"] = time.time()
+                # 苹果↔盘心距离（真值），供采集脚本判定这一集是否真的抓放成功
+                status["task_dist"] = self._get_apple_plate_dist()
                 self.pub_socket.send_json(status, flags=zmq.NOBLOCK)
             except Exception:
                 pass

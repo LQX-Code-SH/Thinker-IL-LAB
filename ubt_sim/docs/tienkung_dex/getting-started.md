@@ -126,6 +126,17 @@ bash teleoperation/control/tienkung_dex/save_data.sh --variant brainco
 bash teleoperation/control/tienkung_dex/save_data.sh --batch 20
 ```
 
+批量采集的成败按仿真真值判：`/sim/task_completed` 给出苹果中心到盘心的距离，
+小于 `--task-dist-tol`（默认 0.15 m，同 `tienkung_pro` 的 `TASK_SUCCESS_DIST`）
+才落盘并算成功，否则丢弃、计入失败。收不到这个话题（真机 / 旧桥接）时跳过判定。
+
+苹果默认固定在场景里；加 `--randomize-apple` 后每集随机挪一次（世界系相对复位
+位姿 `x=0~10 cm`、`y=0~-10 cm`），抓取航点跟着平移，用于采集有位置多样性的数据：
+
+```bash
+bash teleoperation/control/tienkung_dex/save_data.sh --batch 20 --randomize-apple
+```
+
 产物：一集一个时间戳目录 `dataset/tienkung_dex/<epoch秒>/trajectory.hdf5`
 （与 `tienkung_pro` / `walker_s2` 同布局，目录 0777、文件 0666），字段见
 [control/tienkung_dex/README.md](../../teleoperation/control/tienkung_dex/README.md)。

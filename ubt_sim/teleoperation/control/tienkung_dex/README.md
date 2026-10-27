@@ -205,6 +205,8 @@ ctrl.home()                                    # 分段回站立位
 | 状态 | `/left_hand/angle_actual` / `/left_hand/motor_status` | 厂商消息 | |
 | 图像 | `/ob_camera_head/color/image_raw` / `depth/image_raw` | `sensor_msgs/Image` | rgb8 + 16UC1（mm） |
 | 复位 | `/sim/cmd_reset` | `std_msgs/Bool` | 仅仿真有效；真机没人订阅，发它无副作用 |
+| 任务真值 | `/sim/task_completed` | `std_msgs/Float32` | 苹果中心到盘心的距离（米），仅仿真有；采集脚本据此判成功，-1 = 算不出 |
+| 场景偏移 | `/scene/apple/offset` | `geometry_msgs/Point` | 苹果相对复位位姿的世界系 x/y 偏移（米），仅仿真有效；`--randomize-apple` 用 |
 
 关节 ID ↔ 仿真关节名映射见 `constants.JOINT_ID_TO_SIM`
 （注意真机 15/25 是 `wrist_yaw`，对应仿真 `elbow_yaw_{l,r}_joint`）。
@@ -232,9 +234,28 @@ bash teleoperation/control/tienkung_dex/save_data.sh --batch 20           # 批�
 **批量采集**（`--batch N`）：每集「复位场景 → 回预备位 → 抓 → 放到盘上」，
 由 `pick_apple.py --save` 在**同一个进程**里跑动作 + 录制，录制区间自动掐在
 "预备位收尾完成 → 张手放到盘上"（不含空手回预备位那 5 s），失败集不落盘。
-单集失败不中断整批，`MAX_CONSECUTIVE_FAIL`（默认 3，0 = 关闭熔断）次连续失败才
+单集失败不中断整批，`MAX_CONSECUTIVE_FAIL`（默认 10，0 = 关闭熔断）次连续失败才
 中止；`RESET_WAIT`（默认 3 s）控制复位后等场景稳定的时间。剩余参数原样透传给
 `pick_apple.py`，例如 `--batch 20 --variant brainco --speed 0.04`。
+
+**成败判定**与 `tienkung_pro` 一致：看仿真真值 `/sim/task_completed`
+（`std_msgs/Float32`，苹果中心到盘心的距离，由 `devices/tienkung_dex/controller.py`
+读 `apple` / `plate` 两个 prim 算出来，桥接透传）。距离小于 `--task-dist-tol`
+（默认 0.15 m，同 pro 的 `TASK_SUCCESS_DIST`）才落盘并返回 0，否则丢帧、返回非 0，
+批量里计入 fail。判不了的情况**跳过判定按流程结果保存**并告警：收不到这个话题
+（真机、旧桥接），或仿真报 -1（场景里没有 apple/plate）。
+
+**苹果随机化**（可选，`--randomize-apple`）：每集先按 `x=0~10 cm`、`y=0~-10 cm`
+（世界系，相对复位后的苹果位姿）均匀采样一个偏移，发到 `/scene/apple/offset`
+让仿真把苹果摆过去，同时把 1 号（接近位）和 2 号（抓取位）航点按同一个偏移平移
+（世界系位移转到 pelvis 系），3 号抬升点由 2 号点推出、自动跟随，5 号放置点不动。
+不加这个开关时苹果固定在场景里，行为与之前完全一样；`--dry-run` 下只平移航点、
+不下发偏移。
+
+这个 10 cm × 10 cm 的方块有约 43% 落在右臂从预备位够不着的区域（边界大致是
+`x + |y| ≳ 13 cm`，网格扫描 69/121 可达）。所以抽样后先按回放的同一套链式种子
+试解 1、2 号点，够不着就重抽（最多 8 次，全失败则本集直接判失败、不发运动）——
+日志里会看到 `够不着…重抽` 的行。实际采样因此是「方块 ∩ 可达域」上的均匀分布。
 
 `utils/recorder.py` 订阅的就是上面这套统一话题（`/robot_state` + 厂商手部状态 +
 `/ob_camera_head/*`），action 取 `/arm|head|waist|leg/cmd` 与灵巧手指令，

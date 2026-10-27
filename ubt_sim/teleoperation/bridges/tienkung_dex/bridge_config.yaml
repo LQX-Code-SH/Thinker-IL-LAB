@@ -22,8 +22,14 @@ topics:
     leg_command:   {topic: "/leg/cmd",   type: "ArmCtrl",   qos: 10}
     # 复位是仿真专有话题；真机上发它没有副作用（没人订阅）
     reset:         {topic: "/sim/cmd_reset", type: "Bool",  qos: 1}
+    # 苹果位置偏移（世界系 x/y，米，相对复位后的苹果位姿）；--randomize-apple 用。
+    # 与 tienkung_pro 同名话题；真机上发它同样没有副作用。
+    apple_offset:  {topic: "/scene/apple/offset", type: "Point", qos: 1}
   pub:
     robot_state:   {topic: "/robot_state", type: "RobotState", qos: 10}
+    # 苹果中心到盘心的距离（仿真真值），采集脚本据此判定"苹果真的放进盘子了"。
+    # 与 tienkung_pro 同名话题；真机没有这个话题，采集脚本收不到就跳过判定。
+    task_dist:     {topic: "/sim/task_completed", type: "Float32", qos: 10}
     # 头目相机：真机 16UC1（mm）；仿真侧已在 GPU 上做 m->mm 转换
     image_rgb:     {topic: "/ob_camera_head/color/image_raw", type: "Image", compressed: false}
     image_depth:   {topic: "/ob_camera_head/depth/image_raw", type: "Image", compressed: false}

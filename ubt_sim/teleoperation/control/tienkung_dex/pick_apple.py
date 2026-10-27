@@ -64,8 +64,22 @@ kd 按 ζ≈0.7 配之后是 3.4 mm——已经落在 IK 默认 5 mm 容差（``
     /usr/bin/python3 pick_apple.py --stop-after 5  # 到放置位但先不张手
     /usr/bin/python3 pick_apple.py --no-return-ready    # 放完停在原地
     /usr/bin/python3 pick_apple.py --save          # 顺手录一集抓取段（批量走 save_data.sh --batch）
+    /usr/bin/python3 pick_apple.py --randomize-apple   # 先把苹果随机挪开，再按新位置抓
 
 仿真与真机跑同一份代码，只有 ``ROS_DOMAIN_ID`` 不同。
+
+**苹果随机化**（``--randomize-apple``，可选）：每集先抽一个世界系偏移
+（x 向 +0~10 cm、y 向 0~-10 cm，相对复位后的苹果位姿，见
+:data:`APPLE_OFFSET_X_RANGE` / :data:`APPLE_OFFSET_Y_RANGE`），通过
+``/scene/apple/offset`` 让仿真把苹果摆过去，同时把路径的 1、2 号点（以及由
+2 号点推出来的 3 号点）平移同样的量——苹果挪到哪，手就抓到哪。5 号点（盘子）
+不动。只对仿真有效；真机上发这个偏移没有副作用，但苹果也不会动。
+
+**--save 的成功判定**与 ``tienkung_pro`` 的 ``pick_place_save_data.py`` 同一口径：
+看仿真真值 ``/sim/task_completed``（苹果中心到盘心的距离，米），小于
+``--task-dist-tol``（默认 0.15，与 ``TASK_SUCCESS_DIST`` 相同）才算成功，才落盘；
+否则丢帧并以非 0 退出，``save_data.sh`` 计入失败。收不到这个话题（真机、旧桥接）
+或仿真报 -1（场景里找不到 apple/plate）时判不了，跳过判定、按流程结果保存并告警。
 """
 
 from __future__ import annotations
@@ -104,6 +118,28 @@ DEFAULT_PATH_FILE = os.path.join(_CONTROL_DIR, "grasp_path.json")
 DEFAULT_SAVE_DIR = Path(_CONTROL_DIR).parents[2] / "dataset" / "tienkung_dex"
 DEFAULT_TASK_NAME = "pick_apple"
 
+# 任务成功判定：仿真真值 /sim/task_completed = 苹果中心到盘心的距离（米）。
+# 0.15 与 tienkung_pro 的 TASK_SUCCESS_DIST 相同。实测（2026-10-27，三次抓放）：
+# 苹果放进盘子里是 0.088 / 0.093 / 0.116 m（不是压在盘心，偏几厘米但仍在盘沿内），
+# 留在桌上不动是 0.268 m——阈值落在两者中间，还有 3.4 cm 余量。
+TASK_SUCCESS_DIST = 0.15
+TASK_DIST_TIMEOUT = 1.0   # 等第一帧 /sim/task_completed 的秒数（真机上就是白等）
+TASK_SETTLE_SEC = 1.0     # --no-return-ready 时苹果还在往下落，先等它停稳再量
+
+# 苹果随机化（--randomize-apple）：世界系、相对**复位后的苹果位姿**的偏移。
+# x 向前 +0~10 cm，y 向 -y 0~10 cm（给定范围； pelvis 系与世界系同向，
+# 见 DexController.world_xyz_delta_to_base）。路径上 1、2 号点跟着苹果一起平移。
+APPLE_OFFSET_X_RANGE = (0.0, 0.10)
+APPLE_OFFSET_Y_RANGE = (-0.10, 0.0)
+APPLE_SETTLE_SEC = 1.0    # 偏移下发后等仿真摆好苹果再动
+# 10 cm × 10 cm 的范围会探到手臂在桌面高度的可达边界（实测 x=+8.4 / y=-5.0 cm
+# 时 2 号点 IK 残差 23 mm，回放会在 _send 中止），所以抽完先试解，够不着就重抽。
+APPLE_OFFSET_TRIES = 8
+
+# IK 判失败的阈值，与 ApplePicker._send 里的判断保持一致（米 / 弧度）
+IK_POS_TOL = 0.005
+IK_ROT_TOL = 0.05
+
 # 路径点编号的固定含义（见模块 docstring 的表）；JSON 里也写了同名键，这里对一遍。
 GRASP_INDEX = 2
 LIFT_INDEX = 3
@@ -132,6 +168,7 @@ MIN_DURATION = 1.5          # s，每段最短时长
 SETTLE_WINDOW = 0.15        # s，判定"不再动"的观察窗
 SETTLE_THRESH = 0.0008      # m，窗口内 TCP 位移小于此值才算稳定（0.8mm/0.15s ≈ 5.3mm/s）
 SETTLE_MAX = 1.0            # s，等待稳定的上限（仿真手臂下沉慢，2 s 也到不了更严的判据）
+GRASP_SETTLE_MAX = 3.0      # s，合手前单独等稳的上限（见 _settle_at_grasp）
 
 # --stop-after 名称 -> 在该步之后停下
 STOP_AFTER_STEP = {
@@ -239,7 +276,36 @@ def load_grasp_path(path: str) -> dict:
     return data
 
 
-def resolve_waypoints(data: dict, pose_source: str = "target") -> list[Waypoint]:
+def sample_apple_offset() -> tuple[float, float]:
+    """抽一个苹果偏移（世界系 x, y，米）。每次调用都是新的随机数。"""
+    x = float(np.random.uniform(*APPLE_OFFSET_X_RANGE))
+    y = float(np.random.uniform(*APPLE_OFFSET_Y_RANGE))
+    return x, y
+
+
+def shift_grasp_waypoints(waypoints: list[Waypoint], apple_offset) -> list[Waypoint]:
+    """让抓取相关的点跟着苹果一起平移。
+
+    ``apple_offset`` 是世界系 ``(x, y)`` 米，先换成 pelvis 系位移，再叠加到
+    1 号（接近点）和 2 号（抓取点）上；3 号点由 :func:`derive_waypoints` 从
+    已经平移过的 2 号点推出来，自动跟随；5 号点（盘子）不动。
+    """
+    dx, dy = float(apple_offset[0]), float(apple_offset[1])
+    if dx == 0.0 and dy == 0.0:
+        return list(waypoints)
+    delta = DexController.world_xyz_delta_to_base([dx, dy, 0.0])
+    shifted: list[Waypoint] = []
+    for wp in waypoints:
+        pose = wp.pose.copy()
+        if wp.index <= GRASP_INDEX:
+            pose[:3] += delta
+        shifted.append(Waypoint(wp.index, wp.role, pose, wp.source))
+    return shifted
+
+
+def resolve_waypoints(
+    data: dict, pose_source: str = "target", apple_offset=(0.0, 0.0)
+) -> list[Waypoint]:
     """把 JSON 解析成回放目标，按编号排序，再补上推出的 3 号点。
 
     ``pose_source=target``（默认）：直接回放记录的期望目标变量，不做外推。
@@ -281,7 +347,7 @@ def resolve_waypoints(data: dict, pose_source: str = "target") -> list[Waypoint]
             f"注意: 路径文件里的 {ignored} 号点是旧格式的示教值，已被推导规则取代（忽略）",
             file=sys.stderr,
         )
-    return derive_waypoints(resolved)
+    return derive_waypoints(shift_grasp_waypoints(resolved, apple_offset))
 
 
 def derive_waypoints(taught: list[Waypoint]) -> list[Waypoint]:
@@ -297,6 +363,88 @@ def derive_waypoints(taught: list[Waypoint]) -> list[Waypoint]:
     lift = grasp.pose.copy()
     lift[2] += LIFT_HEIGHT_M
     return list(taught) + [Waypoint(LIFT_INDEX, "lift", lift, "derived")]
+
+
+def grasp_points_reachable(
+    waypoints: list[Waypoint], side: str, variant: str, solver=None
+) -> tuple[bool, float, float]:
+    """从预备位链式解 1、2 号点，判断这套抓取点够不够得着。
+
+    和 :meth:`ApplePicker.dry_run` 同一套链式求解（种子是上一段的解，不是机器人
+    当前姿态——回放时也是这么一条链走下来的），判失败的条件抄 :meth:`ApplePicker._send`：
+    ``pos_err > IK_POS_TOL`` 或 ``rot_err > IK_ROT_TOL`` 时回放就会中止本集。
+    返回 ``(是否可达, 最差位置残差 m, 最差姿态残差 rad)``。
+
+    只查 1、2 号点：5 号点（盘子）不跟苹果走、是示教过的固定点，3 号点由 2 号点
+    沿 world z 抬起来，2 号点够得着它就够得着。
+    """
+    from utils.ik import TienkungDexIK, default_urdf_path
+
+    if solver is None:
+        solver = TienkungDexIK(
+            default_urdf_path(variant),
+            joint_limits=C.BODY_JOINT_LIMITS,
+            joint_limit_margin=0.0,
+        )
+    ready = {k: v for k, v in C.READY_POSE.items() if k in C.ARM_JOINTS[side]}
+    solver.sync_joint_positions(list(ready), list(ready.values()))
+    seed = solver.q.copy()
+
+    worst_pos = worst_rot = 0.0
+    for wp in sorted(waypoints, key=lambda entry: entry.index):
+        if wp.index > GRASP_INDEX:
+            break
+        solver.q = seed.copy()
+        _, ok = solver.solve_ik_single_arm(solver.xyzrpy_to_se3(wp.pose), side)
+        diag = solver.last_fail_info or {}
+        seed = solver.q.copy()
+        pos_err = float(diag.get("pos_err", 0.0 if ok else float("inf")))
+        rot_err = float(diag.get("rot_err", 0.0 if ok else float("inf")))
+        worst_pos, worst_rot = max(worst_pos, pos_err), max(worst_rot, rot_err)
+        if pos_err > IK_POS_TOL or rot_err > IK_ROT_TOL:
+            return False, worst_pos, worst_rot
+    return True, worst_pos, worst_rot
+
+
+def choose_apple_offset(
+    data: dict,
+    pose_source: str,
+    side: str,
+    variant: str,
+    tries: int = APPLE_OFFSET_TRIES,
+) -> tuple[tuple[float, float], list[Waypoint]]:
+    """抽苹果偏移，直到 1、2 号点都在可达域内；返回 ``(偏移, 平移后的路径点)``。
+
+    够不着的偏移先重抽（:func:`grasp_points_reachable` 预演一遍 IK，与真正回放
+    用同一套链式种子）。试满 ``tries`` 次仍不可达就抛 ``RuntimeError``——本集
+    直接算失败，比把机器人开到抓取点才发现 IK 解不出来（要空跑 30 s）划算。
+    """
+    from utils.ik import TienkungDexIK, default_urdf_path
+
+    solver = TienkungDexIK(
+        default_urdf_path(variant),
+        joint_limits=C.BODY_JOINT_LIMITS,
+        joint_limit_margin=0.0,
+    )
+    offset, waypoints = (0.0, 0.0), []
+    for attempt in range(1, max(1, tries) + 1):
+        offset = sample_apple_offset()
+        waypoints = resolve_waypoints(data, pose_source, offset)
+        ok, pos_err, rot_err = grasp_points_reachable(waypoints, side, variant, solver)
+        if ok:
+            if attempt > 1:
+                print(
+                    f"苹果随机化：前 {attempt - 1} 个偏移够不着，第 {attempt} 次抽到 "
+                    f"x={offset[0] * 100:+.1f} cm, y={offset[1] * 100:+.1f} cm",
+                    file=sys.stderr,
+                )
+            return offset, waypoints
+        print(
+            f"苹果随机化：偏移 x={offset[0] * 100:+.1f} cm, y={offset[1] * 100:+.1f} cm "
+            f"够不着（残差 {pos_err * 1000:.1f} mm / {rot_err:.3f} rad），重抽",
+            file=sys.stderr,
+        )
+    raise RuntimeError(f"连续 {tries} 次抽样 2 号点都解不出 IK，检查示教路径与预备位")
 
 
 def _rotation(pose) -> np.ndarray:
@@ -326,6 +474,7 @@ class ApplePicker:
         settle_sec: float = DEFAULT_SETTLE_SEC,
         settle_time: float = DEFAULT_SETTLE_TIME,
         return_ready: bool = True,
+        apple_offset=(0.0, 0.0),
     ):
         self.ctrl = ctrl
         self.side = side
@@ -340,7 +489,14 @@ class ApplePicker:
         self.settle_time = float(settle_time)
         self.return_ready = bool(return_ready)
 
-        self.apple = np.asarray(C.APPLE_WORLD_POS) - np.asarray(C.ROBOT_WORLD_POS)
+        # 苹果随机化后的实际位置（只用于日志里的"距苹果心"，路径点已在
+        # resolve_waypoints 里跟着平移过）
+        self.apple_offset = (float(apple_offset[0]), float(apple_offset[1]))
+        self.apple = (
+            np.asarray(C.APPLE_WORLD_POS)
+            + np.array([*self.apple_offset, 0.0])
+            - np.asarray(C.ROBOT_WORLD_POS)
+        )
         self.plate = np.asarray(C.PLATE_WORLD_POS) - np.asarray(C.ROBOT_WORLD_POS)
         self.table_z = C.TABLETOP_WORLD_Z - C.ROBOT_WORLD_POS[2]
 
@@ -364,9 +520,15 @@ class ApplePicker:
         self.ctrl.get_logger().info(f"[{name}] " + self._target_text(xyz, reference_apple))
 
     def log_path(self) -> None:
+        note = ""
+        if any(self.apple_offset):
+            note = (
+                f"（苹果随机偏移 x={self.apple_offset[0] * 100:+.1f} cm, "
+                f"y={self.apple_offset[1] * 100:+.1f} cm）"
+            )
         self.ctrl.get_logger().info(
             f"路径（pelvis 系，回放目标）：苹果 {np.round(self.apple, 3).tolist()}，"
-            f"盘心 {np.round(self.plate, 3).tolist()}"
+            f"盘心 {np.round(self.plate, 3).tolist()}{note}"
         )
         for wp in self.waypoints:
             pose = wp.pose
@@ -410,13 +572,16 @@ class ApplePicker:
         out[3:] = (out[3:] + np.pi) % (2.0 * np.pi) - np.pi
         return out
 
-    def _wait_settled(self) -> None:
+    def _wait_settled(self, max_sec: float = SETTLE_MAX) -> None:
         """等手臂在重力下垂稳，再走下一段。
 
         仿真手臂是隐式 PD，轨迹走完后还要 2 s 左右才收敛（实测肘 yaw 偏差
         0.19 → 0.11 → 0.03 rad 用了 2 s，肩 pitch 还会慢慢往下沉）。不等稳就发
         下一段，轨迹会从"还在沉降的中点"起步，段与段之间就会叠出一层层抖动。
         注意这里只等稳、不改指令——回放本身是开环的，见模块 docstring。
+
+        ``max_sec`` 是等待上限：段间过渡用默认的 1 s 够，抓取点要更长
+        （见 :meth:`_settle_at_grasp`）。
         """
         if self.settle_time > 0:
             time.sleep(self.settle_time)
@@ -425,7 +590,7 @@ class ApplePicker:
         if prev is None:
             return
         stable_since = None
-        while time.time() - start < SETTLE_MAX:
+        while time.time() - start < max_sec:
             time.sleep(SETTLE_WINDOW)
             cur = self._tcp()
             if cur is None:
@@ -511,8 +676,33 @@ class ApplePicker:
             self.side, {name: pose[name] for name in names if name in pose}, duration_sec=1.2, wait=True
         )
 
+    def _settle_at_grasp(self) -> None:
+        """合手前把手臂等稳，并打印相对抓取点的残余。
+
+        段间过渡的 :meth:`_wait_settled` 只等 1 s（``SETTLE_MAX``），而仿真臂
+        走完轨迹要 2 s 左右才收敛，到抓取点那一刻通常还差十几毫米——手就没
+        真的落到 2 号点上。示教位姿下这个残差方向固定（实测 z 低 14 mm，三集
+        一致），苹果被随机挪开、臂形换了以后残差会翻到上方（实测高 16 mm），
+        手在高处合拢就抓空。这里合手前再等一次，只等稳、不改指令，开环语义
+        不变（残差只记录，不回头补偿）。
+        """
+        self._wait_settled(max_sec=GRASP_SETTLE_MAX)
+        cur = self._tcp()
+        if cur is None:
+            return
+        try:
+            target = np.asarray(self._waypoint(GRASP_INDEX).pose, dtype=float)
+        except KeyError:
+            return
+        err = self._wrap(target - cur)
+        self.ctrl.get_logger().info(
+            f"[grasp] 合手前等稳：相对 2 号点残余 {np.linalg.norm(err[:3]) * 1000:.1f} mm / "
+            f"{np.degrees(np.linalg.norm(err[3:])):.1f}°"
+        )
+
     def _close(self, grip: float) -> bool:
         """合手，拇指侧摆保持预备位 90°（``base_pose``），与遥操作空格一致。"""
+        self._settle_at_grasp()
         base = C.ready_hand_pose(self.ctrl.variant)
         closed = C.hand_closed_pose(self.ctrl.variant, base_pose=base)
         names = self.ctrl.hand_joint_names(self.side)
@@ -647,6 +837,56 @@ class ApplePicker:
         return ok_all
 
 
+def save_if_task_succeeded(
+    recorder: TienkungDexDataRecorder,
+    ctrl: DexController,
+    save_dir: Path,
+    tol: float,
+    task_name: str = DEFAULT_TASK_NAME,
+) -> bool:
+    """跑完一集后按仿真真值决定存不存，返回这一集是否算成功。
+
+    与 ``tienkung_pro/pick_place_save_data.py`` 的 ``run_task`` 同一口径：苹果
+    中心到盘心的距离小于 ``tol`` 才落盘，否则丢帧、这一集算失败（进程退出码
+    非 0，批量采集计入 fail）。与 pro 的差别只有两处，都是往安全方向偏：
+
+    * 收不到 ``/sim/task_completed``（真机 / 旧桥接）或仿真报 -1（场景里没有
+      apple/plate）时**跳过判定、按流程结果保存**——不然真机上整批采集会被一个
+      仿真专有话题全判失败；pro 那边把 -1 当"距离很小"，反而会误存；
+    * 一帧都没录到时不落盘，同样算失败。
+
+    调用前录制必须已经停掉（``_on_place_done`` 或调用方负责）。
+    """
+    if not ctrl.wait_for_task_dist(timeout=TASK_DIST_TIMEOUT):
+        ctrl.get_logger().warning(
+            "收不到 /sim/task_completed（真机或旧桥接），跳过任务判定，按流程结果保存"
+        )
+    else:
+        dist = float(ctrl.latest_task_dist)
+        if not np.isfinite(dist) or dist < 0.0:
+            ctrl.get_logger().warning(f"仿真没给出有效距离（{dist}），跳过任务判定")
+        else:
+            ctrl.get_logger().info(
+                f"任务判定：苹果距盘心 {dist:.4f} m（阈值 {tol:.2f} m）"
+            )
+            if dist >= tol:
+                ctrl.get_logger().warning(
+                    f"苹果没放进盘子（{dist:.4f} m ≥ {tol:.2f} m），丢弃本集"
+                )
+                recorder.recorder.clear()
+                return False
+
+    if recorder.recorder.num_frames == 0:
+        ctrl.get_logger().warning("一帧都没收到，跳过保存")
+        return False
+
+    epoch = recorder.get_clock().now().seconds_nanoseconds()[0]
+    path = prepare_episode_file(episode_path(save_dir, epoch))
+    recorder.save_episode(str(path), attrs={"task": task_name, "episode_index": 1})
+    recorder.recorder.clear()
+    return True
+
+
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="tienkung_dex 右臂抓取苹果：回放 grasp_path.json 里的示教路径",
@@ -680,6 +920,11 @@ def parse_args(argv=None):
     parser.add_argument("--save-dir", default=None, help="录制输出根目录（默认 dataset/tienkung_dex）")
     parser.add_argument("--capture-hz", type=float, default=None, help="录制频率 Hz（默认 15）")
     parser.add_argument("--no-depth", action="store_true", help="--save 时不录深度")
+    parser.add_argument("--task-dist-tol", type=float, default=TASK_SUCCESS_DIST,
+                        help="--save 的成功阈值：苹果中心到盘心距离小于它才落盘（米）")
+    parser.add_argument("--randomize-apple", action="store_true",
+                        help="每集随机挪苹果：世界系相对复位位置 x=0~10 cm、y=0~-10 cm；"
+                             "路径 1、2 号点跟着平移（仅仿真有效）")
     return parser.parse_args(argv)
 
 
@@ -688,9 +933,23 @@ def main(argv=None) -> int:
 
     try:
         data = load_grasp_path(args.path_file)
-        waypoints = resolve_waypoints(data, args.pose_source)
+        side = str(data["side"])
+        recorded_variant = data.get("hand_variant")
+        variant = args.variant or recorded_variant or C.DEFAULT_VARIANT
+        if args.randomize_apple:
+            # 偏移要先抽出来，路径点 1、2 得跟着苹果一起挪（见 resolve_waypoints）；
+            # 抽完先试解 IK，够不着的偏移不采用（见 choose_apple_offset）
+            apple_offset, waypoints = choose_apple_offset(
+                data, args.pose_source, side, variant
+            )
+        else:
+            apple_offset = (0.0, 0.0)
+            waypoints = resolve_waypoints(data, args.pose_source, apple_offset)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"路径文件不可用: {exc}", file=sys.stderr)
+        return 2
+    except RuntimeError as exc:
+        print(f"苹果随机化失败: {exc}", file=sys.stderr)
         return 2
 
     # 示教文件可能只采到一半：先判"这次要跑到的点齐不齐"，免得机器人先回预备位
@@ -706,9 +965,6 @@ def main(argv=None) -> int:
         )
         return 2
 
-    side = str(data["side"])
-    recorded_variant = data.get("hand_variant")
-    variant = args.variant or recorded_variant or C.DEFAULT_VARIANT
     if args.variant and recorded_variant and args.variant != recorded_variant:
         print(
             f"警告: 路径是 {recorded_variant} 手示教的，现在按 {args.variant} 回放，手型可能对不上",
@@ -746,6 +1002,17 @@ def main(argv=None) -> int:
             ctrl.get_logger().error("收不到 /robot_state，检查桥接与 ROS_DOMAIN_ID")
             return 1
 
+        if args.randomize_apple:
+            ctrl.get_logger().info(
+                f"苹果随机化：世界系偏移 x={apple_offset[0] * 100:+.1f} cm, "
+                f"y={apple_offset[1] * 100:+.1f} cm（相对复位后的苹果位姿）"
+            )
+            if args.dry_run:
+                ctrl.get_logger().info("干跑：只按这个偏移解算给路径点，不动仿真里的苹果")
+            else:
+                ctrl.set_apple_offset(*apple_offset)
+                time.sleep(APPLE_SETTLE_SEC)
+
         picker = ApplePicker(
             ctrl,
             waypoints,
@@ -759,6 +1026,7 @@ def main(argv=None) -> int:
             settle_sec=args.settle,
             settle_time=args.settle_time,
             return_ready=not args.no_return_ready,
+            apple_offset=apple_offset,
         )
         ctrl.get_logger().info(
             f"路径 {args.path_file}（{side} 臂，{variant} 手，回放源 {args.pose_source}）"
@@ -776,41 +1044,51 @@ def main(argv=None) -> int:
                 return 1
             time.sleep(0.5)
 
+        placed = False
+        out_dir = Path(args.save_dir) if args.save_dir else DEFAULT_SAVE_DIR
         if recorder is not None:
-            def _save_episode(success: bool) -> None:
-                """张手放置那一刻的回调：成功才落盘，失败/空缓存直接丢。"""
-                if not success:
-                    recorder.stop_episode()
-                    recorder.get_logger().warning("抓取未完成，丢弃本集")
-                    recorder.recorder.clear()
-                    return
+            def _on_place_done(_finished: bool) -> None:
+                """张手放到盘上那一刻：只停录。存不存等仿真真值（见 run 之后）。"""
+                nonlocal placed
+                placed = True
                 recorder.stop_episode()
-                if recorder.recorder.num_frames == 0:
-                    recorder.get_logger().warning("一帧都没收到，跳过保存")
-                    return
-                out_dir = Path(args.save_dir) if args.save_dir else DEFAULT_SAVE_DIR
-                epoch = recorder.get_clock().now().seconds_nanoseconds()[0]
-                path = prepare_episode_file(episode_path(out_dir, epoch))
-                recorder.save_episode(
-                    str(path), attrs={"task": DEFAULT_TASK_NAME, "episode_index": 1}
-                )
-                recorder.recorder.clear()
 
-            picker.on_place_done = _save_episode
+            picker.on_place_done = _on_place_done
             recorder.start_episode()
             ctrl.get_logger().info(
                 f"开始录制抓取段（{recorder.capture_hz:g} Hz）→ "
-                f"{args.save_dir or DEFAULT_SAVE_DIR}/<epoch秒>/{HDF5_REL_PATH}"
+                f"{out_dir}/<epoch秒>/{HDF5_REL_PATH}"
             )
 
         ok = picker.run(stop_after=args.stop_after)
-        if recorder is not None and recorder.recorder.recording:
-            # 走到了这里说明 run() 没跑完就退出了（中途报错），别把半集留下来
-            recorder.stop_episode()
-            recorder.recorder.clear()
-            ctrl.get_logger().warning("流程未走到放置，丢弃本集")
-        ctrl.get_logger().info("抓取完成" if ok else "抓取失败")
-        return 0 if ok else 2
+
+        task_ok = True
+        if recorder is not None:
+            if not placed:
+                # run() 没走到放置就退出了（IK 失败、轨迹被拒、中途报错），别留半集
+                if recorder.recorder.recording:
+                    recorder.stop_episode()
+                recorder.recorder.clear()
+                ctrl.get_logger().warning("流程未走到放置，丢弃本集")
+                task_ok = False
+            else:
+                if args.no_return_ready:
+                    # 没走那 5 s 回预备位，苹果可能还在往下落，等它停稳再量距离
+                    time.sleep(TASK_SETTLE_SEC)
+                task_ok = save_if_task_succeeded(
+                    recorder, ctrl, out_dir, args.task_dist_tol
+                )
+
+        if recorder is None:
+            ctrl.get_logger().info("抓取完成" if ok else "抓取失败")
+            return 0 if ok else 2
+        # 有录制时退出码以"这一集存没存下来"为准（与 tienkung_pro 的
+        # sys.exit(0 if task_succeeded else 1) 同口径）：数据有效但收尾回预备位
+        # 没到位，不判失败——批量里下一集复位场景会把机器人摆回去。
+        ctrl.get_logger().info("本集已保存" if task_ok else "本集未保存（判失败）")
+        if task_ok and not ok:
+            ctrl.get_logger().warning("抓取段已保存，但收尾（回预备位）未完成")
+        return 0 if task_ok else 2
     except KeyboardInterrupt:
         ctrl.get_logger().warning("用户中断")
         return 130

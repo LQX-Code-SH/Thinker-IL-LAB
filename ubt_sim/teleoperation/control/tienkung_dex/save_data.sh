@@ -10,9 +10,15 @@
 #   bash teleoperation/control/tienkung_dex/save_data.sh --auto-start --duration 30 --episodes 5
 #   bash teleoperation/control/tienkung_dex/save_data.sh --batch 20            # 批量采 20 集
 #   bash teleoperation/control/tienkung_dex/save_data.sh --batch 20 --variant brainco
+#   bash teleoperation/control/tienkung_dex/save_data.sh --batch 20 --randomize-apple
+#                              # 每集把苹果随机挪 x=0~10 / y=0~-10 cm（世界系）
 #
 # 批量模式每集产出一个时间戳目录：dataset/tienkung_dex/<epoch秒>/trajectory.hdf5
-set -euo pipefail
+#
+# 不用 set -e（与 tienkung_pro 一致）：单集失败不能中断整批，改用退出码跟踪 +
+# 连续失败熔断。pick_apple.py --save 只在这一集通过任务判定（苹果↔盘心距离
+# < --task-dist-tol，默认 0.15 m）并落盘时返回 0，抓空、放偏、零帧都算失败。
+set -uo pipefail
 
 if [ -f /opt/ros/humble/setup.bash ]; then
     set +u
@@ -46,8 +52,9 @@ if [ "${1:-}" = "--batch" ]; then
     shift 2
     # 复位后等场景（苹果/盘子/机器人）稳定下来再回预备位
     RESET_WAIT="${RESET_WAIT:-3}"
-    # 单集失败不中断整批，连续失败这么多次才熔断（疑似桥接/仿真没起来）
-    MAX_CONSECUTIVE_FAIL="${MAX_CONSECUTIVE_FAIL:-3}"
+    # 单集失败不中断整批，连续失败这么多次才熔断（疑似桥接/仿真没起来）；
+    # 0 表示不熔断。默认值与 tienkung_pro 的 save_data.sh 相同。
+    MAX_CONSECUTIVE_FAIL="${MAX_CONSECUTIVE_FAIL:-10}"
 
     echo "[INFO] 批量采集 $COUNT 集，输出目录: $OUTPUT_DIR"
     success=0
@@ -79,7 +86,7 @@ if [ "${1:-}" = "--batch" ]; then
                 break
             fi
         fi
-        sleep 1
+        sleep 2
     done
 
     echo "=================================="

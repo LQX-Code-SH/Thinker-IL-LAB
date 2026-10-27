@@ -12,7 +12,9 @@
 3. 位姿控制：``move_to_pose`` / ``move_joint`` / ``shift_joint`` / ``home``；
 4. 灵巧手：``move_hand`` / ``open_hand`` / ``close_hand`` / 周期动作；
 5. 双臂 IK：``move_arm_ik`` / ``move_arm_ee_delta[_local|_world]``；
-6. 话题与具身天工 3.0 真机完全一致（``ros2_bridge_msgs`` 的
+6. 任务真值：订阅仿真专有的 ``/sim/task_completed``（苹果↔盘心距离），
+   供采集脚本判定这一集是否真的抓住并放进盘子（``latest_task_dist``）；
+7. 话题与具身天工 3.0 真机完全一致（``ros2_bridge_msgs`` 的
    ``/arm|head|waist|leg/cmd``、``/robot_state``；灵巧手
    ``/left_hand/angle_set`` / ``set_motor_multi``），按关节 ID 编址。
    仿真与真机只有 ``ROS_DOMAIN_ID`` 不同（仿真 146 / 真机 0）——
@@ -51,10 +53,11 @@ from typing import Any, Iterable, Sequence
 
 import numpy as np
 import rclpy
+from geometry_msgs.msg import Point
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float32
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 if _DIR not in sys.path:
@@ -72,6 +75,11 @@ TOPICS = {
     "leg_command": "/leg/cmd",
     "robot_state": "/robot_state",
     "reset": "/sim/cmd_reset",
+    # 仿真专有：苹果中心到盘心的距离（真值，米），与 tienkung_pro 同名话题。
+    # 真机没有它，订阅着等不到消息（采集脚本据此跳过任务判定）。
+    "task_dist": "/sim/task_completed",
+    # 仿真专有：苹果位置偏移（世界系 x/y，米），--randomize-apple 用；真机没有订阅者
+    "apple_offset": "/scene/apple/offset",
     "hand": {
         "brainco": {
             "left": {"command": "/left_hand/set_motor_multi", "state": "/left_hand/motor_status"},
@@ -229,6 +237,12 @@ class DexController(Node):
         self._state_received = threading.Event()
         self._missing_warned: set[str] = set()
 
+        # ---- 任务真值（仿真专有）----
+        # latest_task_dist 收不到消息时停在 inf，事件用于区分"没收到过"
+        # （真机 / 旧桥接）与"收到了但内容无效"（仿真发 -1.0，见 pick_apple）
+        self.latest_task_dist = float("inf")
+        self._task_dist_received = threading.Event()
+
         # ---- 轨迹状态 ----
         self._traj_lock = threading.RLock()
         self._traj_names: list[str] = []
@@ -284,8 +298,13 @@ class DexController(Node):
                 self.real_msgs[GROUP_MSG[group]], TOPICS[f"{group}_command"], self._qos_pub
             )
         self._pubs["reset"] = self.create_publisher(Bool, TOPICS["reset"], 1)
+        self._pubs["apple_offset"] = self.create_publisher(Point, TOPICS["apple_offset"], 1)
         self.create_subscription(
             self.real_msgs["RobotState"], TOPICS["robot_state"], self._real_state_cb, self._qos_sub
+        )
+        # 仿真专有话题：真机没有发布者，订阅着不会报错，只是永远收不到
+        self.create_subscription(
+            Float32, TOPICS["task_dist"], self._task_dist_cb, self._qos_sub
         )
         for side in ("left", "right"):
             topics = TOPICS["hand"][self.variant][side]
@@ -322,6 +341,18 @@ class DexController(Node):
                     self._joint_positions[sim_name] = float(item.pos)
                     self._joint_velocities[sim_name] = float(getattr(item, "speed", 0.0))
         self._state_received.set()
+
+    def _task_dist_cb(self, msg) -> None:
+        self.latest_task_dist = float(msg.data)
+        self._task_dist_received.set()
+
+    def wait_for_task_dist(self, timeout: float = 1.0) -> bool:
+        """等第一帧 ``/sim/task_completed``；收到过返回 True，超时返回 False。
+
+        只在需要任务判定时调用（``pick_apple.py --save``）。真机上没有这个话题，
+        ``timeout`` 就是白等的秒数，所以给得短。
+        """
+        return self._task_dist_received.wait(timeout=max(float(timeout), 0.0))
 
     def _real_hand_state_cb(self, side: str, msg) -> None:
         table = C.hand_channel_joints(self.variant, side)
@@ -1566,6 +1597,17 @@ class DexController(Node):
         return np.array([*base_xyz, roll, pitch, yaw])
 
     @staticmethod
+    def world_xyz_delta_to_base(delta_world: Sequence[float]) -> np.ndarray:
+        """世界系**位移**（3 维）-> pelvis 系位移：只转不平移。
+
+        位姿换算走 :meth:`world_xyzrpy_to_base`（要减机器人位置），而位移没有
+        原点，只乘姿态的转置。当前 ``ROBOT_WORLD_ROT_WXYZ`` 是单位四元数，
+        两个坐标系同向；保留旋转是防止以后机器人摆位改了。
+        """
+        R_base_to_world = _quat_wxyz_to_matrix(C.ROBOT_WORLD_ROT_WXYZ)
+        return R_base_to_world.T @ np.asarray(delta_world, dtype=float)
+
+    @staticmethod
     def base_xyzrpy_to_world(base_xyzrpy: Sequence[float]) -> np.ndarray:
         R_base_to_world = _quat_wxyz_to_matrix(C.ROBOT_WORLD_ROT_WXYZ)
         world_xyz = R_base_to_world @ np.asarray(base_xyzrpy[:3], dtype=float) + np.asarray(
@@ -1578,6 +1620,25 @@ class DexController(Node):
     # ==================================================================
     # 复位 / 监视
     # ==================================================================
+    def set_apple_offset(self, x: float, y: float, repeat: int = 3, interval: float = 0.15) -> None:
+        """把苹果从「复位后的位姿」挪 (x, y)（世界系，米）。只对仿真有效。
+
+        真机上没人订阅这个偏移话题，发出去没有副作用。偏移是相对量：仿真侧按
+        「复位位姿 + 偏移」摆苹果，所以调用前场景应当刚复位过（批量采集每集都
+        先 reset），否则基准会变成苹果当前所在的位置（比如盘子里）。
+
+        与 :meth:`reset_sim` 一样连发几次：脚本刚起来时发现可能还没完成，单发
+        会静默丢掉，苹果不动而航点照偏移走，抓空一集。
+        """
+        msg = Point()
+        msg.x = float(x)
+        msg.y = float(y)
+        msg.z = 0.0
+        for _ in range(max(1, repeat)):
+            self._pubs["apple_offset"].publish(msg)
+            time.sleep(interval)
+        self.get_logger().info(f"苹果偏移已下发: x={x:+.3f} m, y={y:+.3f} m（世界系）")
+
     def reset_sim(self, repeat: int = 3, interval: float = 0.15) -> None:
         """复位仿真场景（真机没有对应接口，真机上调用无意义）。"""
         msg = Bool()
