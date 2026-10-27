@@ -1,0 +1,99 @@
+{
+  "robot": "tienkung_dex",
+  "hand_variant": "inspire",
+  "side": "right",
+  "frame": "位置：pelvis（URDF base，x=前 y=左 z=上）；旋转 rpy = Rz(yaw)·Ry(pitch)·Rx(roll)，基座系绝对姿态",
+  "apple": {
+    "xyz_pelvis": [
+      0.494,
+      -0.25407,
+      0.0332
+    ],
+    "xyz_world": [
+      8.344,
+      5.8285,
+      1.0312
+    ],
+    "source": "constants.APPLE_WORLD_POS - constants.ROBOT_WORLD_POS（出生位中心）",
+    "verified": "2026-10-27 场景重置后头部 RGB+D 反投影复核：世界系 (8.332, 5.843, 1.053)，与出生位差 28.6 mm（表面点偏移），苹果未位移"
+  },
+  "recorded_at": "2026-10-27T11:06:55+00:00",
+  "updated_at": "2026-10-27T11:30:00+00:00",
+  "sequence": "2（已记录；1 号点已删除，接近段少一步）→ 待补 3 / 4 / 5",
+  "removed_waypoints": [
+    {
+      "index": 1,
+      "removed_at": "2026-10-27T11:30:00+00:00",
+      "reason": "从预备位直接到 2 号点已能走通（无需先绕 1 号点），删掉减少一步",
+      "target_xyzrpy": [
+        0.254,
+        -0.43,
+        0.32,
+        1.309,
+        0.52,
+        1.142
+      ]
+    }
+  ],
+  "waypoints": [
+    {
+      "index": 2,
+      "name": "grasp_path_2",
+      "role": "approach",
+      "target": {
+        "xyz": [
+          0.362,
+          -0.31,
+          0.272
+        ],
+        "rpy": [
+          1.647,
+          0.688,
+          1.713
+        ],
+        "rpy_deg": [
+          94.37,
+          39.42,
+          98.15
+        ],
+        "xyzrpy": [
+          0.362,
+          -0.31,
+          0.272,
+          1.647,
+          0.688,
+          1.713
+        ],
+        "note": "期望目标变量（遥操作 _target_pose），自 11:05:36 冻结",
+        "rotation_frame": "pelvis（= world，无旋转偏移）"
+      },
+      "relative_to_apple": {
+        "xyz": [
+          -0.132,
+          -0.0559,
+          0.2388
+        ],
+        "distance_m": 0.2785,
+        "rpy": [
+          1.647,
+          0.688,
+          1.713
+        ],
+        "rpy_deg": [
+          94.37,
+          39.42,
+          98.15
+        ],
+        "rotation_frame": "pelvis（= world，无旋转偏移）",
+        "note": "位置 offset = 目标末端 − 苹果中心；旋转 rpy 是基座系/world 系绝对姿态"
+      },
+      "hand_on_arrival": "open",
+      "hand_action_at_arrival": null,
+      "recorded_at": "2026-10-27T11:06:55+00:00",
+      "recorded_while": "遥操作暂停（T）；右臂目标变量自 11:05:36 冻结"
+    }
+  ],
+  "rotation_frame": "pelvis = world 轴向（constants.ROBOT_WORLD_ROT_WXYZ = (1,0,0,0)，出生无旋转，仅原点相差 ROBOT_WORLD_POS），所以 rpy 在机器人坐标系和世界坐标系下数值相同；不是相对苹果、也不是相对掌根系的量",
+  "position_frame": "路径点位置以「相对苹果中心的 offset」记录（offset = 目标末端 − 苹果中心）；pelvis 系绝对 xyz 同时保留在 target.xyz 里，pick_apple.py 回放用绝对量",
+  "recorded_field": "target（期望目标变量 / 遥操作 _target_pose），不记录实测读数"
+}

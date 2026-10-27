@@ -22,11 +22,13 @@ import torch
 
 from .config import (
     TIENKUNG_DEX_HAND_JOINTS,
+    TIENKUNG_DEX_HOME_POSE,
     TIENKUNG_DEX_JOINT_LIMITS,
     TIENKUNG_DEX_MIMIC_JOINTS,
 )
 from .config_brainco import (
     TIENKUNG_DEX_BRAINCO_HAND_JOINTS,
+    TIENKUNG_DEX_BRAINCO_HOME_POSE,
     TIENKUNG_DEX_BRAINCO_JOINT_LIMITS,
     TIENKUNG_DEX_BRAINCO_MIMIC_JOINTS,
 )
@@ -38,11 +40,13 @@ _VARIANTS: dict[str, dict[str, Any]] = {
         "hand_joints": TIENKUNG_DEX_HAND_JOINTS,
         "joint_limits": TIENKUNG_DEX_JOINT_LIMITS,
         "mimic": TIENKUNG_DEX_MIMIC_JOINTS,
+        "home_pose": TIENKUNG_DEX_HOME_POSE,
     },
     "brainco": {
         "hand_joints": TIENKUNG_DEX_BRAINCO_HAND_JOINTS,
         "joint_limits": TIENKUNG_DEX_BRAINCO_JOINT_LIMITS,
         "mimic": TIENKUNG_DEX_BRAINCO_MIMIC_JOINTS,
+        "home_pose": TIENKUNG_DEX_BRAINCO_HOME_POSE,
     },
 }
 
@@ -66,9 +70,16 @@ def _resolve_value(
     joint_pos_dict: dict[str, float],
     limits: dict[str, tuple[float, float, float, float]],
     mimic: dict[str, dict],
+    home_pose: dict[str, float],
     depth: int = 0,
 ) -> float:
-    """解析单个关节目标，mimic 关节按源关节倍率展开。"""
+    """解析单个关节目标，mimic 关节按源关节倍率展开。
+
+    没收到指令的关节保持站姿（``home_pose``）而不是回零：action 是绝对角度
+    （``use_default_offset=False``），回零会让未下发的那几组关节（例如只发
+    ``/arm/cmd`` 时的腿、腰、头）立刻向 0 运动，与真机"不动就保持当前位姿"
+    的语义不符。
+    """
     if depth > 4:  # 防御 URDF 中意外的 mimic 环
         return 0.0
 
@@ -79,11 +90,11 @@ def _resolve_value(
     if joint_name in mimic:
         info = mimic[joint_name]
         source = info["joint"]
-        return info["multiplier"] * _resolve_value(source, joint_pos_dict, limits, mimic, depth + 1) + info.get(
-            "offset", 0.0
-        )
+        return info["multiplier"] * _resolve_value(
+            source, joint_pos_dict, limits, mimic, home_pose, depth + 1
+        ) + info.get("offset", 0.0)
 
-    return float(joint_pos_dict.get(joint_name, 0.0))
+    return float(joint_pos_dict.get(joint_name, home_pose.get(joint_name, 0.0)))
 
 
 def to_controller_data(joint_pos_dict: dict[str, Any], env, variant: str = DEFAULT_VARIANT) -> torch.Tensor:
@@ -94,7 +105,11 @@ def to_controller_data(joint_pos_dict: dict[str, Any], env, variant: str = DEFAU
 
     limits = spec["joint_limits"]
     mimic = spec["mimic"]
-    results = [_resolve_value(name, joint_pos_dict, limits, mimic) for name in _action_joint_names[variant]]
+    home_pose = spec["home_pose"]
+    results = [
+        _resolve_value(name, joint_pos_dict, limits, mimic, home_pose)
+        for name in _action_joint_names[variant]
+    ]
     actions = torch.tensor(results, dtype=torch.float32, device=env.device)
     return actions.unsqueeze(0).repeat(env.num_envs, 1)
 

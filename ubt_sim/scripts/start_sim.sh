@@ -6,6 +6,8 @@
 #   UBT_SIM_TASK=UBTSim-WalkerS2-PartSorting-v0 bash scripts/start_sim.sh
 #   UBT_SIM_NO_BRIDGE=1 bash scripts/start_sim.sh       # skip ZMQ bridge
 #   UBT_SIM_LOAD_ONLY=1 bash scripts/start_sim.sh        # scene preview only
+#
+# 话题与真机一致，仿真/真机只靠 ROS_DOMAIN_ID 区分（仿真默认 146，真机 0）。
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -58,7 +60,8 @@ if [ -z "${UBT_SIM_NO_BRIDGE:-}" ]; then
         set +u
         source /opt/ros/humble/setup.bash
         set -u
-        export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
+        # 仿真默认 146，真机默认 0——话题完全一样，只靠 domain 分流
+        export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-146}"
 
         if [ "$ROBOT" = "walker_s2" ]; then
             # Walker S2: SDK message packages are required
@@ -76,6 +79,16 @@ if [ -z "${UBT_SIM_NO_BRIDGE:-}" ]; then
             /usr/bin/python3 "$PROJECT_DIR/teleoperation/bridges/walker_s2/walker_s2_ros2_zmq_bridge.py" \
                 --config "$BRIDGE_CFG" &
         elif [ "$ROBOT" = "tienkung_dex" ]; then
+            # 真机同款消息包（ros2_bridge_msgs + 灵巧手），run.sh init 编译
+            if [ -f /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash ]; then
+                set +u
+                source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash
+                set -u
+            else
+                echo "[ERROR] TienKung Dex 桥接需要消息包: /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash"
+                echo "[INFO] 容器内先执行: cd /ubt_sim/docker && bash run.sh init"
+                exit 1
+            fi
             BRIDGE_CFG="${UBT_SIM_TIENKUNG_DEX_BRIDGE_CONFIG:-$PROJECT_DIR/teleoperation/bridges/tienkung_dex/bridge_config.yaml}"
             /usr/bin/python3 "$PROJECT_DIR/teleoperation/bridges/tienkung_dex/tienkung_dex_ros2_zmq_bridge.py" \
                 --config "$BRIDGE_CFG" --variant "$DEX_VARIANT" &

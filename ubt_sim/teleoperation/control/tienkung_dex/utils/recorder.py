@@ -1,12 +1,15 @@
 """tienkung_dex HDF5 录制节点。
 
-订阅桥接发布的 ``JointState`` 与 ``sensor_msgs/Image``，按固定频率把一帧写入
-``control/common/hdf5_recorder.EpisodeRecorder``：
+订阅与真机完全一致的话题（``/robot_state``、厂商灵巧手状态、头部相机），
+按固定频率把一帧写入 ``control/common/hdf5_recorder.EpisodeRecorder``：
 
 * 关节列顺序固定为 ``constants.BODY_JOINTS`` + 当前变体的左右手关节清单
   （inspire 18+18 / brainco 11+11；与训练侧 state 顺序解耦，转换脚本按 name 重排）；
-* action 取最近一次下发的指令（body / 双手 command 话题），未收到指令时用当前状态填充；
+* action 取最近一次下发的指令（``/arm|head|waist|leg/cmd`` 与灵巧手指令），
+  未收到指令时用当前状态填充；
 * 深度按 ``16UC1`` 存储（C++ 图像桥已输出毫米），空值由核心层置 65535。
+
+仿真与真机跑同一份代码，靠 ``ROS_DOMAIN_ID`` 区分（仿真 146 / 真机 0）。
 """
 
 from __future__ import annotations
@@ -20,7 +23,8 @@ from typing import Any
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image, JointState
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import Image
 
 _CONTROL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 if _CONTROL_DIR not in sys.path:
@@ -29,19 +33,24 @@ _COMMON_DIR = os.path.abspath(os.path.join(_CONTROL_DIR, os.pardir, "common"))
 if _COMMON_DIR not in sys.path:
     sys.path.insert(0, _COMMON_DIR)
 
-from constants import BODY_JOINTS, DEFAULT_VARIANT, hand_joints  # noqa: E402
+from constants import (  # noqa: E402
+    BODY_JOINTS,
+    DEFAULT_VARIANT,
+    JOINT_ID_TO_SIM,
+    hand_channel_joints,
+    hand_code_to_rad,
+    hand_joints,
+)
+from dex_controller import GROUP_MSG, TOPICS, load_real_msgs  # noqa: E402
 from hdf5_recorder import EpisodeRecorder  # noqa: E402
 
-DEFAULT_CAPTURE_HZ = 15.0
+try:  # 作为包导入（utils.recorder）/ 作为顶层模块导入都能用
+    from .camera import image_topics
+except ImportError:  # pragma: no cover
+    from camera import image_topics  # type: ignore[no-redef]
 
-BODY_STATE_TOPIC = "/tienkung_dex/body_state"
-LEFT_HAND_STATE_TOPIC = "/tienkung_dex/left_hand_state"
-RIGHT_HAND_STATE_TOPIC = "/tienkung_dex/right_hand_state"
-BODY_COMMAND_TOPIC = "/tienkung_dex/body_command"
-LEFT_HAND_COMMAND_TOPIC = "/tienkung_dex/left_hand_command"
-RIGHT_HAND_COMMAND_TOPIC = "/tienkung_dex/right_hand_command"
-IMAGE_RGB_TOPIC = "/sensor/camera/head/color/raw"
-IMAGE_DEPTH_TOPIC = "/sensor/camera/head/depth/raw"
+DEFAULT_CAPTURE_HZ = 15.0
+GROUP_TOPICS = tuple(f"/{group}/cmd" for group in ("arm", "head", "waist", "leg"))
 
 
 class TienkungDexDataRecorder(Node):
@@ -58,14 +67,13 @@ class TienkungDexDataRecorder(Node):
         self.record_depth = bool(record_depth)
         self.variant = variant
         self.left_hand_joints, self.right_hand_joints = hand_joints(variant)
+        self.real_msgs = load_real_msgs(variant)
 
         self._lock = threading.Lock()
         self._body_pos: dict[str, float] = {}
         self._body_vel: dict[str, float] = {}
         self._left_pos: dict[str, float] = {}
-        self._left_vel: dict[str, float] = {}
         self._right_pos: dict[str, float] = {}
-        self._right_vel: dict[str, float] = {}
         self._cmd_body: dict[str, float] = {}
         self._cmd_left: dict[str, float] = {}
         self._cmd_right: dict[str, float] = {}
@@ -75,39 +83,103 @@ class TienkungDexDataRecorder(Node):
 
         self.recorder = EpisodeRecorder()
 
-        self.create_subscription(JointState, BODY_STATE_TOPIC, self._body_state_cb, 10)
-        self.create_subscription(JointState, LEFT_HAND_STATE_TOPIC, self._left_state_cb, 10)
-        self.create_subscription(JointState, RIGHT_HAND_STATE_TOPIC, self._right_state_cb, 10)
-        self.create_subscription(JointState, BODY_COMMAND_TOPIC, lambda m: self._command_cb(m, "body"), 10)
-        self.create_subscription(JointState, LEFT_HAND_COMMAND_TOPIC, lambda m: self._command_cb(m, "left"), 10)
-        self.create_subscription(JointState, RIGHT_HAND_COMMAND_TOPIC, lambda m: self._command_cb(m, "right"), 10)
-        self.create_subscription(Image, IMAGE_RGB_TOPIC, self._rgb_cb, 10)
+        # ---- 状态：/robot_state + 厂商灵巧手状态 ----
+        self.create_subscription(
+            self.real_msgs["RobotState"], TOPICS["robot_state"], self._state_cb, 10
+        )
+        for group, topic in zip(("arm", "head", "waist", "leg"), GROUP_TOPICS):
+            self.create_subscription(
+                self.real_msgs[GROUP_MSG[group]],
+                topic,
+                lambda msg, g=group: self._command_cb(g, msg),
+                10,
+            )
+
+        for side in ("left", "right"):
+            topics = TOPICS["hand"][variant][side]
+            self.create_subscription(
+                self.real_msgs["hand_state"],
+                topics["state"],
+                lambda msg, s=side: self._hand_state_cb(s, msg),
+                10,
+            )
+            self.create_subscription(
+                self.real_msgs["hand_command"],
+                topics["command"],
+                lambda msg, s=side: self._hand_command_cb(s, msg),
+                10,
+            )
+
+        # C++ 图像桥用 best_effort 发布；订阅端必须一致，否则收不到帧
+        qos_image = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=5,
+        )
+        rgb_topic, depth_topic = image_topics()
+        self.create_subscription(Image, rgb_topic, self._rgb_cb, qos_image)
         if self.record_depth:
-            self.create_subscription(Image, IMAGE_DEPTH_TOPIC, self._depth_cb, 10)
+            self.create_subscription(Image, depth_topic, self._depth_cb, qos_image)
 
         self._timer = self.create_timer(1.0 / self.capture_hz, self._capture_cb)
-        self.get_logger().info(f"TienKung Dex recorder ready @ {self.capture_hz:.1f} Hz (variant={self.variant})")
+        self.get_logger().info(
+            f"TienKung Dex recorder ready @ {self.capture_hz:.1f} Hz "
+            f"(variant={self.variant}, domain={os.environ.get('ROS_DOMAIN_ID', '0')}, rgb={rgb_topic})"
+        )
 
     # ------------------------------------------------------------- callbacks
-    def _body_state_cb(self, msg: JointState) -> None:
+    def _state_cb(self, msg) -> None:
         with self._lock:
-            self._body_pos.update(zip(msg.name, msg.position))
-            self._body_vel.update(zip(msg.name, msg.velocity))
+            for group in ("head", "waist", "arm", "leg"):
+                container = getattr(msg, group, None)
+                if container is None:
+                    continue
+                for item in getattr(container, "status", ()) or ():
+                    try:
+                        joint_id = int(item.name)
+                    except (TypeError, ValueError):
+                        continue
+                    sim_name = JOINT_ID_TO_SIM.get(joint_id)
+                    if sim_name is None:
+                        continue
+                    self._body_pos[sim_name] = float(item.pos)
+                    self._body_vel[sim_name] = float(getattr(item, "speed", 0.0))
 
-    def _left_state_cb(self, msg: JointState) -> None:
+    def _command_cb(self, group: str, msg) -> None:
         with self._lock:
-            self._left_pos.update(zip(msg.name, msg.position))
-            self._left_vel.update(zip(msg.name, msg.velocity))
+            for ctrl in msg.ctrl:
+                try:
+                    joint_id = int(ctrl.name)
+                except (TypeError, ValueError):
+                    continue
+                sim_name = JOINT_ID_TO_SIM.get(joint_id)
+                if sim_name is not None:
+                    self._cmd_body[sim_name] = float(ctrl.pos)
 
-    def _right_state_cb(self, msg: JointState) -> None:
-        with self._lock:
-            self._right_pos.update(zip(msg.name, msg.position))
-            self._right_vel.update(zip(msg.name, msg.velocity))
+    def _hand_codes(self, msg) -> list[int]:
+        field = "positions" if self.variant == "brainco" else "joint_values"
+        raw = getattr(msg, field, None)
+        return [] if raw is None else list(raw)
 
-    def _command_cb(self, msg: JointState, group: str) -> None:
-        target = {"body": self._cmd_body, "left": self._cmd_left, "right": self._cmd_right}[group]
+    def _hand_state_cb(self, side: str, msg) -> None:
+        target = self._left_pos if side == "left" else self._right_pos
+        codes = self._hand_codes(msg)
         with self._lock:
-            target.update(zip(msg.name, msg.position))
+            for channel, joints in enumerate(hand_channel_joints(self.variant, side)):
+                if not joints or channel >= len(codes):
+                    continue
+                joint = joints[0]
+                target[joint] = hand_code_to_rad(self.variant, channel, codes[channel], joint)
+
+    def _hand_command_cb(self, side: str, msg) -> None:
+        target = self._cmd_left if side == "left" else self._cmd_right
+        codes = self._hand_codes(msg)
+        with self._lock:
+            for channel, joints in enumerate(hand_channel_joints(self.variant, side)):
+                if not joints or channel >= len(codes):
+                    continue
+                joint = joints[0]
+                target[joint] = hand_code_to_rad(self.variant, channel, codes[channel], joint)
 
     def _rgb_cb(self, msg: Image) -> None:
         try:
@@ -145,12 +217,14 @@ class TienkungDexDataRecorder(Node):
         with self._lock:
             if not self._body_pos:
                 return
+            # 图像还没到齐就跳过这一拍。否则缺首帧的那几拍只写关节不写图像，
+            # 各 dataset 长度不一致，depth 相对 rgb/joint 整体错位 2 帧。
+            if self._rgb is None or (self.record_depth and self._depth is None):
+                return
             body = [float(self._body_pos.get(n, 0.0)) for n in BODY_JOINTS]
             body_vel = [float(self._body_vel.get(n, 0.0)) for n in BODY_JOINTS]
             left = [float(self._left_pos.get(n, 0.0)) for n in self.left_hand_joints]
-            left_vel = [float(self._left_vel.get(n, 0.0)) for n in self.left_hand_joints]
             right = [float(self._right_pos.get(n, 0.0)) for n in self.right_hand_joints]
-            right_vel = [float(self._right_vel.get(n, 0.0)) for n in self.right_hand_joints]
 
             cmd_body = [float(self._cmd_body.get(n, self._body_pos.get(n, 0.0))) for n in BODY_JOINTS]
             cmd_left = [float(self._cmd_left.get(n, self._left_pos.get(n, 0.0))) for n in self.left_hand_joints]
@@ -162,18 +236,18 @@ class TienkungDexDataRecorder(Node):
                 "joint_velocity": body_vel,
                 "joint_effort": [0.0] * len(BODY_JOINTS),
                 "hand_left_position": left,
-                "hand_left_velocity": left_vel,
+                # 厂商灵巧手状态只有位置，速度/力矩留 0（真机同样没有）
+                "hand_left_velocity": [0.0] * len(self.left_hand_joints),
                 "hand_left_effort": [0.0] * len(self.left_hand_joints),
                 "hand_right_position": right,
-                "hand_right_velocity": right_vel,
+                "hand_right_velocity": [0.0] * len(self.right_hand_joints),
                 "hand_right_effort": [0.0] * len(self.right_hand_joints),
                 "action_joint_position": cmd_body,
                 "action_hand_left_position": cmd_left,
                 "action_hand_right_position": cmd_right,
             }
-            if self._rgb is not None:
-                payload["png:head_rgb"] = self._rgb.copy()
-            if self.record_depth and self._depth is not None:
+            payload["png:head_rgb"] = self._rgb.copy()
+            if self.record_depth:
                 payload["depth:head_depth"] = self._depth.copy()
 
         self.recorder.add_frame(payload)

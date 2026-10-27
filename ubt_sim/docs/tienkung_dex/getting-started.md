@@ -84,22 +84,31 @@ UBT_SIM_TASK=UBTSim-TienkungDex-Parlor-v0 bash scripts/start_sim.sh
 | `UBT_SIM_LOAD_ONLY` | 未设置 | 仅渲染，不接 ROS |
 | `UBT_SIM_TIENKUNG_DEX_CMD_PORT` / `_STATUS_PORT` / `_IMAGE_PORT` / `_JPEG_PORT` | 5755/5756/5757/5758 | ZMQ 端口 |
 | `UBT_SIM_NO_BRIDGE` | 未设置 | 置 1 时不启动桥接 |
+| `ROS_DOMAIN_ID` | 146 | 仿真 146 / 真机 0；话题完全相同，只靠 domain 分流 |
 
 ## 4. 遥操作
 
 ```bash
 source /opt/ros/humble/setup.bash
+source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash
+export ROS_DOMAIN_ID=146          # 真机改成 0
 # Inspire 双手
-/usr/bin/python3 teleoperation/control/tienkung_dex/teleop_controller.py --step 0.02
+/usr/bin/python3 teleoperation/control/tienkung_dex/keyboard_joint_control.py --step 0.02
 # BrainCo 双手
-/usr/bin/python3 teleoperation/control/tienkung_dex/teleop_controller.py --step 0.02 --variant brainco
+/usr/bin/python3 teleoperation/control/tienkung_dex/keyboard_joint_control.py --step 0.02 --variant brainco
 ```
 
 键位：`1`~`6` 切分组（左臂/右臂/左手/右手/头腰/腿），`[`/`]` 选关节，
-`w`/`s` 增减，`o`/`c` 手张开/闭合，`r` 归零，`q` 退出。
+`w`/`s` 增减，`o`/`c` 手张开/闭合，`r` 同步回当前姿态，`q` 退出。
 
-外部遥操作端也可直接向 `/tienkung_dex/{body,left_hand,right_hand}_command`
-发布 `sensor_msgs/JointState`。
+统一 CLI（状态/单关节/末端 IK/手部/回站位/分析/相机/EE 遥操作）见
+[control/tienkung_dex/README.md](../../teleoperation/control/tienkung_dex/README.md)。
+
+外部遥操作端直接向真机同款话题发指令：`/arm|head|waist|leg/cmd`
+（`ros2_bridge_msgs`，`ctrl[].name` = 关节 ID）与 `/left_hand/angle_set`
+（因时）/ `/left_hand/set_motor_multi`（强脑）。因时手是 13 通道、单位 0.1°
+的绝对角码（码越大越伸直，标定与握拳示例见
+`teleoperation/msgs/dex_hand_msgs_src/src/inspire_hand_msgs/msg/SetAngle.msg`）。
 
 ## 5. 采集数据
 
@@ -147,6 +156,11 @@ bash teleoperation/control/tienkung_dex/save_data.sh --variant brainco
 - USD 转换未完成前，启动仿真会因 USD 缺失失败——先执行第 2 步；
 - 初始站姿按实机 `home_standing` 标定：pelvis 离地 0.998 m，膝微屈（左 0.368 / 右 0.341 rad）；
   改站姿需同时更新 `devices/tienkung_dex/config.py` 的 HOME_POSE 与 yaml 的 `init_state.pos[2]`；
-- 相机默认取 `camera_head_link` 原点，画面朝向需目视确认后调整 yaml；
+- 相机取 `camera_head_link` 原点、`rot` 为单位四元数（URDF 已把该 link 摆成 ROS 光学系）；
+  画面朝向由 `head_pitch_joint` 决定（正值为低头，范围 -15°~+58°），不要往 `cameras.*.rot` 里加安装俯角；
+- 仿真主循环约 11 Hz（`scripts/start_sim.sh --perf_stats` 实测每步 Phys ~30 ms + Render ~40 ms，
+  实时率 ≈0.11）：墙钟时长的轨迹（如预备位每段 2.5 s）换算到仿真时间远超关节速度上限，
+  头/臂会明显滞后，轨迹走完后还要几秒才追上。这是时间基准问题，不是执行器刚度的锅——
+  头以 1.27 rad/s 走 45° 只要 0.62 s，真机上 2.5 s 轨迹完全跟得上；
 - Inspire RH5DG2（67 revolute）与 BrainCo Revo2（53 revolute）两套场景均已接入，
   各自需要单独生成 USD 并使用对应任务 ID；录制数据通过 `hand_variant` attr 区分。

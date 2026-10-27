@@ -4,6 +4,8 @@
 全部来自 ``config/tienkung_dex/parlor.yaml``，改场景/相机不需要改代码。
 """
 
+from functools import partial
+
 import isaaclab.envs.mdp as mdp
 import isaaclab.sim as sim_utils
 from isaaclab.assets import AssetBaseCfg, ArticulationCfg
@@ -27,16 +29,27 @@ from ubt_sim.devices.tienkung_dex.config import (
 )
 from ubt_sim.env.digital_twin_env_cfg import ManagerBasedRLDigitalTwinEnvCfg
 from ubt_sim.utils.config_loader import load_config, resolve_asset_path
+from ubt_sim.utils.scene_overrides import spawn_scene_with_table_lift
 
 _TASK_CFG = load_config("tienkung_dex/parlor.yaml")
-_SCENE_USD_PATH = resolve_asset_path(_TASK_CFG["scene"]["usd_path"])
+_SCENE_CFG = _TASK_CFG["scene"]
+_SCENE_USD_PATH = resolve_asset_path(_SCENE_CFG["usd_path"])
 _ROBOT_INIT_STATE = _TASK_CFG["robot"]["init_state"]
 _CAMERAS_CFG = _TASK_CFG["cameras"]
 # 依赖 dict 保序：camera_names 顺序 = YAML 中定义顺序（采集数据列顺序依赖此顺序）
 _CAMERA_NAMES = list(_CAMERAS_CFG.keys())
 
 PARLOR_SCENE_CFG = AssetBaseCfg(
-    spawn=sim_utils.UsdFileCfg(usd_path=_SCENE_USD_PATH),
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=_SCENE_USD_PATH,
+        # 桌面高度覆盖（YAML 的 scene.table_z_scale）：加载后拉伸 table 并抬高
+        # 台上物体，不影响其他机型共用的 scene_v2.usd
+        func=partial(
+            spawn_scene_with_table_lift,
+            table_z_scale=float(_SCENE_CFG.get("table_z_scale", 1.0)),
+            lifted_prims=tuple(_SCENE_CFG.get("table_top_prims", ())),
+        ),
+    ),
 )
 
 
@@ -91,17 +104,26 @@ class TienkungDexParlorSceneCfg(InteractiveSceneCfg):
 
 @configclass
 class ActionsCfg:
-    """Action 分组：与 devices/tienkung_dex/config.py 的关节分组一一对应。"""
+    """Action 分组：与 devices/tienkung_dex/config.py 的关节分组一一对应。
+
+    所有通道统一 ``use_default_offset=False``：action 就是关节目标绝对角度。
+    Isaac Lab 默认 ``use_default_offset=True``，会把 action 解释成
+    ``default_joint_pos + action`` 的偏移量——本机型站立姿态非零
+    （``TIENKUNG_DEX_HOME_POSE``），带偏移的话真机下发的绝对角度到仿真里就
+    会整体平移一个站姿量，同一份控制脚本无法同时驱真机和仿真。
+    """
 
     left_arm_action = mdp.JointPositionActionCfg(
         asset_name="robot",
         joint_names=TIENKUNG_DEX_LEFT_ARM_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
     right_arm_action = mdp.JointPositionActionCfg(
         asset_name="robot",
         joint_names=TIENKUNG_DEX_RIGHT_ARM_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
     left_hand_action = mdp.JointPositionActionCfg(
         asset_name="robot",
@@ -119,21 +141,25 @@ class ActionsCfg:
         asset_name="robot",
         joint_names=TIENKUNG_DEX_HEAD_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
     waist_action = mdp.JointPositionActionCfg(
         asset_name="robot",
         joint_names=TIENKUNG_DEX_WAIST_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
     left_leg_action = mdp.JointPositionActionCfg(
         asset_name="robot",
         joint_names=TIENKUNG_DEX_LEFT_LEG_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
     right_leg_action = mdp.JointPositionActionCfg(
         asset_name="robot",
         joint_names=TIENKUNG_DEX_RIGHT_LEG_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
 
 

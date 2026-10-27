@@ -166,6 +166,18 @@ case "${1:-}" in
               --merge-install \
               --packages-up-to rosa_msgs shm_msgs mc_task_msgs mc_state_msgs ecat_task_msgs"
 
+        # Build TienKung Dex real-robot message packages (ros2_bridge_msgs + 灵巧手)
+        echo "[INFO] Building TienKung Dex real-robot message packages..."
+        docker exec "$CONTAINER_NAME" bash -c "\
+            source /opt/ros/humble/setup.bash && \
+            colcon --log-base /opt/ubt_sim/tienkung_dex_msgs/log build \
+              --base-paths /ubt_sim/teleoperation/msgs/ros2_bridge_msgs_src/src \
+                           /ubt_sim/teleoperation/msgs/dex_hand_msgs_src/src \
+              --build-base /opt/ubt_sim/tienkung_dex_msgs/build \
+              --install-base /opt/ubt_sim/tienkung_dex_msgs/install \
+              --merge-install \
+              --packages-up-to ros2_bridge_msgs brainco_hand_msgs inspire_hand_msgs"
+
         # Build C++ image bridge
         echo "[INFO] Building C++ image bridge..."
         docker exec "$CONTAINER_NAME" bash -c "\
@@ -321,6 +333,20 @@ case "${1:-}" in
         else
             echo "[FAIL] Walker SDK Python message imports: unavailable (run: bash run.sh init)"
             ((ERRORS++))
+        fi
+
+        # TienKung Dex 真机同款消息包（桥接与控制脚本都用它们）
+        if docker exec "$CONTAINER_NAME" test -f /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash 2>/dev/null; then
+            echo "[OK] TienKung Dex real-robot messages: install setup found"
+        else
+            echo "[WARN] TienKung Dex real-robot messages: NOT built (run: bash run.sh init)"
+            ((WARNINGS++))
+        fi
+        if docker exec "$CONTAINER_NAME" bash -c "source /opt/ros/humble/setup.bash && source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash && /usr/bin/python3 -c 'from ros2_bridge_msgs.msg import ArmCtrl, HeadCtrl, RobotState, MotorStatus; from brainco_hand_msgs.msg import SetMotorMulti; from inspire_hand_msgs.msg import SetAngle, GetAngleAct'" 2>/dev/null; then
+            echo "[OK] TienKung Dex real-robot message imports: available"
+        else
+            echo "[WARN] TienKung Dex real-robot message imports: unavailable (run: bash run.sh init)"
+            ((WARNINGS++))
         fi
 
         # GPU

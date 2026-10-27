@@ -131,11 +131,15 @@ class TienkungDexController(DeviceBase):
                 if depth_tensor is not None and depth_tensor.shape[0] != 0:
                     depth_gpu = depth_tensor[0]
 
+            # 不要用 "camera" 键：C++ 图像桥看到它就走"按相机名路由"分支，而该
+            # 分支只发 RGB（没有深度路径，也没有 sensor_msgs/Image 的按相机发布
+            # 器），单相机对的 dex 会因此丢帧。不带该键时桥接走单相机分支，
+            # 按配置的 --rgb-topic / --depth-topic 同时发 RGB 和深度。
             metadata = {
                 "width": int(rgb_gpu.shape[1]),
                 "height": int(rgb_gpu.shape[0]),
                 "format": "raw",
-                "camera": self._rgb_camera,
+                "camera_name": self._rgb_camera,
             }
             self._raw_sender.send(metadata, rgb_gpu, depth_gpu)
         except Exception:
@@ -162,6 +166,25 @@ class TienkungDexController(DeviceBase):
     def add_callback(self, key, func):
         pass
 
+    def _apply_command(self, msg: dict[str, Any]) -> None:
+        """合并一条指令，并清掉同一关节的另一种编址方式。
+
+        手部关节有两种下发方式：绝对弧度 ``{joint: rad}``（legacy 档）与
+        归一化闭合度 ``{joint}_percent``（真机档）。``_action`` 是累积字典，
+        ``action_process._resolve_value`` 又让 ``_percent`` 优先——两种方式都
+        用过时，后到的绝对弧度会被先前残留的 percent 永久压住（表现为手不动）。
+        这里按"最后到达者生效"清掉对方的键。
+        """
+        suffix = "_percent"
+        for key in msg:
+            if not isinstance(key, str) or key == "reset":
+                continue
+            if key.endswith(suffix):
+                self._action.pop(key[: -len(suffix)], None)
+            else:
+                self._action.pop(f"{key}{suffix}", None)
+        self._action.update(msg)
+
     def advance(self) -> dict[str, Any]:
         """接收 ZMQ 指令、回传状态与相机，返回 Isaac Lab action。"""
         if HAS_ZMQ:
@@ -173,7 +196,7 @@ class TienkungDexController(DeviceBase):
                 except Exception:
                     break
                 if isinstance(msg, dict):
-                    self._action.update(msg)
+                    self._apply_command(msg)
 
             if self._action.pop("reset", False):
                 self.reset_requested = True

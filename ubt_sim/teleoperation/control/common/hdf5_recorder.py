@@ -87,6 +87,10 @@ class EpisodeRecorder:
     def stop(self) -> None:
         self._recording = False
 
+    def clear(self) -> None:
+        """丢弃已缓存的帧（保存后复用同一实例，避免下一集重复落盘）。"""
+        self._frames = OrderedDict()
+
     def add_frame(self, payload: dict[str, Any]) -> bool:
         """写入一帧；未开始录制或 payload 缺少 timestamp 时丢弃。"""
         if not self._recording:

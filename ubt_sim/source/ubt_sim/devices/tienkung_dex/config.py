@@ -137,8 +137,9 @@ TIENKUNG_DEX_HOME_POSE = {
     # 头（实机 1/2）
     "head_yaw_joint": 0.0008,
     "head_pitch_joint": 0.0006,
-    # 腰（实机 31/32/33）
-    "waist_pitch_joint": 0.0327,
+    # 腰（实机 31/32/33）；pitch 取 0，不用实机标定的 0.0327（那 1.9° 前倾
+    # 会叠在预备位的重力下垂上，视觉上像没站直）
+    "waist_pitch_joint": 0.0,
     "waist_roll_joint": 0.0067,
     "waist_yaw_joint": 0.0019,
     # 左臂（实机 11-17；实机 wrist_yaw = URDF elbow_yaw）
@@ -239,19 +240,30 @@ TIENKUNG_DEX_CFG = ArticulationCfg(
             stiffness=10.0,
             damping=2.0,
         ),
+        # 头部刚度从 200/20 提到 600/10，压住低头看桌面时的重力下垂与稳态误差。
+        # 注意：仿真里限制头部响应速度的不是刚度，而是 velocity_limit_sim=1.27
+        # rad/s。主循环只有 ~11 Hz（`--perf_stats` 实测每步 Phys 30 ms + Render
+        # 40 ms，RTF≈0.11），2.5 s 墙钟的预备位轨迹换算到仿真时间要 ~5 rad/s，
+        # 头被速度上限卡住，走完仍差 ~0.2 rad，之后几秒才追上（误差与
+        # 2.5/8/20 s 三种时长实测：0.48 / 0.0001 / 0.0000 rad）。真机上 45° 走
+        # 1.27 rad/s 只要 0.62 s，2.5 s 轨迹跟得上，不需要为此降速。
         "head": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_HEAD_JOINTS,
             effort_limit_sim=6.3,
             velocity_limit_sim=1.27,
-            stiffness=200.0,
-            damping=20.0,
+            stiffness=600.0,
+            damping=10.0,
         ),
+        # 腰比手臂（stiffness=80）需要硬得多：它要托住整条上半身，手臂前伸时
+        # 力矩约 30 N·m。200 时预备位实测下垂 0.149 rad（8.5°），视觉上整个人
+        # 前倾；600 把下垂压到约 0.05 rad（3°）。damping 按 sqrt(k) 同比放大，
+        # 保持原阻尼比（仿真 dt=0.01 s，ω_n≈20 rad/s，隐式积分稳定）。
         "waist": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_WAIST_JOINTS,
             effort_limit_sim=200.0,
             velocity_limit_sim=10.0,
-            stiffness=200.0,
-            damping=20.0,
+            stiffness=600.0,
+            damping=35.0,
         ),
         "left_leg": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_LEFT_LEG_JOINTS,

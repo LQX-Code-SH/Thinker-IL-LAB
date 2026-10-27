@@ -77,8 +77,9 @@ TIENKUNG_DEX_BRAINCO_HOME_POSE = {
     # 头（实机 1/2）
     "head_yaw_joint": 0.0008,
     "head_pitch_joint": 0.0006,
-    # 腰（实机 31/32/33）
-    "waist_pitch_joint": 0.0327,
+    # 腰（实机 31/32/33）；pitch 取 0，不用实机标定的 0.0327（那 1.9° 前倾
+    # 会叠在预备位的重力下垂上，视觉上像没站直）
+    "waist_pitch_joint": 0.0,
     "waist_roll_joint": 0.0067,
     "waist_yaw_joint": 0.0019,
     # 左臂（实机 11-17；实机 wrist_yaw = URDF elbow_yaw）
@@ -165,19 +166,22 @@ TIENKUNG_DEX_BRAINCO_CFG = ArticulationCfg(
             stiffness=10.0,
             damping=2.0,
         ),
+        # 头部刚度/阻尼与 config.py 一致（600/10）；仿真里真正卡住头部跟踪的是
+        # 速度上限与 ~11 Hz 的仿真步率，不是刚度，详见 config.py 的注释
         "head": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_HEAD_JOINTS,
             effort_limit_sim=6.3,
             velocity_limit_sim=1.27,
-            stiffness=200.0,
-            damping=20.0,
+            stiffness=600.0,
+            damping=10.0,
         ),
+        # 腰刚度与阻尼说明见 config.py（同为 600/35，压住预备位的重力下垂）
         "waist": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_WAIST_JOINTS,
             effort_limit_sim=200.0,
             velocity_limit_sim=10.0,
-            stiffness=200.0,
-            damping=20.0,
+            stiffness=600.0,
+            damping=35.0,
         ),
         "left_leg": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_LEFT_LEG_JOINTS,

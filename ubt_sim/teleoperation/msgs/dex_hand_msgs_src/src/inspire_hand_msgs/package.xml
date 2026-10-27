@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>inspire_hand_msgs</name>
+  <version>0.1.0</version>
+  <description>
+    因时 RH56 灵巧手消息（仿真端本地重建版）。
+
+    本包按 xhumanoid_sdk 的调用方式重建，用于在仿真机上编译出与真机同名的
+    消息类型，从而让同一份控制脚本既能驱动仿真也能驱动真机。
+    真机自带的厂商包优先：在真机上运行时请 source 厂商包，不要 source 本包。
+    TouchData / Setgestureno 等触觉与固件手势接口未包含（仿真无对应通道）。
+  </description>
+  <maintainer email="dev@ubtrobot.com">UBT Sim</maintainer>
+  <license>Proprietary</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

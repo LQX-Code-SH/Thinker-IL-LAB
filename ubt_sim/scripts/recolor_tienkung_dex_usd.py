@@ -238,6 +238,10 @@ def _iter_link_visuals(stage):
     内层 Xform 名不一定等于 link 名：一个 link 有多个 ``<visual>`` 时，
     名称为 mesh 文件名（如 ``left_base_link/left_base_visual_link``），
     所以按路径层级判断，不能要求两段同名。
+
+    ``decals`` 是贴花容器（见 ``apply_dex_colors_json.py``），不是 link 的视觉，
+    必须排除：否则会给它绑上 ``strongerThanDescendants`` 的机身材质，
+    盖掉贴花自己的较弱绑定。
     """
     prefix = "/visuals/"
     for prim in stage.Traverse():
@@ -245,7 +249,7 @@ def _iter_link_visuals(stage):
         if not path.startswith(prefix):
             continue
         parts = path[len(prefix):].split("/")
-        if len(parts) == 2:
+        if len(parts) == 2 and parts[1] != "decals":
             yield parts[0], prim
 
 

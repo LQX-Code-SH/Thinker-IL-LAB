@@ -1,4 +1,9 @@
 # TienKung Dex ROS2 <-> ZMQ bridge configuration
+#
+# 仿真与真机共用这一套话题：关节、相机、灵巧手的话题与消息类型全部对齐
+# 具身天工 3.0 真机（xhumanoid_sdk）。仿真和真机只有 ROS_DOMAIN_ID 不同
+# （仿真 146 / 真机 0），控制脚本完全不用改。
+#
 # 端口与 sim_runner.py / start_sim.sh 中的默认值保持一致（5755-5758）。
 
 zmq:
@@ -9,14 +14,32 @@ zmq:
 
 topics:
   sub:
-    # 关节指令统一用 sensor_msgs/JointState：name=关节名（可省略 _joint 后缀），position=目标弧度
-    body_command:        {topic: "/tienkung_dex/body_command",       type: "JointState", qos: 5}
-    left_hand_command:   {topic: "/tienkung_dex/left_hand_command",  type: "JointState", qos: 5}
-    right_hand_command:  {topic: "/tienkung_dex/right_hand_command", type: "JointState", qos: 5}
-    reset:               {topic: "/sim/cmd_reset",                   type: "Bool", qos: 1}
+    # 关节指令：ctrl[].name = 真机关节 ID，ctrl[].pos = 绝对角度（rad）
+    # 真机没有 WaistCtrl / LegCtrl，腰、腿与 SDK 一样用 ArmCtrl（字段完全一致）
+    arm_command:   {topic: "/arm/cmd",   type: "ArmCtrl",   qos: 10}
+    head_command:  {topic: "/head/cmd",  type: "HeadCtrl",  qos: 10}
+    waist_command: {topic: "/waist/cmd", type: "ArmCtrl",   qos: 10}
+    leg_command:   {topic: "/leg/cmd",   type: "ArmCtrl",   qos: 10}
+    # 复位是仿真专有话题；真机上发它没有副作用（没人订阅）
+    reset:         {topic: "/sim/cmd_reset", type: "Bool",  qos: 1}
   pub:
-    body_state:          {topic: "/tienkung_dex/body_state",         type: "JointState", qos: 10}
-    left_hand_state:     {topic: "/tienkung_dex/left_hand_state",    type: "JointState", qos: 10}
-    right_hand_state:    {topic: "/tienkung_dex/right_hand_state",   type: "JointState", qos: 10}
-    image_rgb:           {topic: "/sensor/camera/head/color/raw",    type: "Image", compressed: false}
-    image_depth:         {topic: "/sensor/camera/head/depth/raw",    type: "Image", compressed: false}
+    robot_state:   {topic: "/robot_state", type: "RobotState", qos: 10}
+    # 头目相机：真机 16UC1（mm）；仿真侧已在 GPU 上做 m->mm 转换
+    image_rgb:     {topic: "/ob_camera_head/color/image_raw", type: "Image", compressed: false}
+    image_depth:   {topic: "/ob_camera_head/depth/image_raw", type: "Image", compressed: false}
+
+# 灵巧手话题：真机按手型分两套接口，桥接按 --variant 选择
+#
+# 量纲（与厂商接口一致，桥接负责与仿真关节弧度互转）：
+#   因时 angle_set / angle_actual：13 通道、单位 0.1° 的绝对角码，
+#        通道 0-12 依次为 小拇指指根/无名指指根/中指指根/中指侧摆/食指指根/
+#        食指侧摆/小拇指指中/无名指指中/中指指中/食指指中/大拇指侧摆/
+#        大拇指一关节/大拇指二关节（详见 constants.INSPIRE_CHANNELS）
+#   强脑 set_motor_multi / motor_status：6 电机、1~1000 闭合度
+hand_topics:
+  brainco:
+    left:  {command: "/left_hand/set_motor_multi",  state: "/left_hand/motor_status"}
+    right: {command: "/right_hand/set_motor_multi", state: "/right_hand/motor_status"}
+  inspire:
+    left:  {command: "/left_hand/angle_set",   state: "/left_hand/angle_actual"}
+    right: {command: "/right_hand/angle_set",  state: "/right_hand/angle_actual"}

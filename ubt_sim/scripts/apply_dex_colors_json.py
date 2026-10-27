@@ -337,6 +337,12 @@ def apply_colors(usd_path: str | Path, colors: dict, dry_run: bool = False) -> N
         decals_path = outer_path.AppendChild("decals")
         if not stage.GetPrimAtPath(decals_path):
             UsdGeom.Xform.Define(stage, decals_path)
+        # 兜底：旧版 _iter_link_visuals 会把 decals 容器当成视觉，在它上面绑过
+        # strongerThanDescendants 的机身材质，这层绑定会盖掉贴花的较弱直接绑定。
+        decals_xform = stage.GetPrimAtPath(decals_path)
+        for prop in ("material:binding", "material:binding:strength"):
+            if decals_xform.HasProperty(prop):
+                decals_xform.RemoveProperty(prop)
 
         mesh_path = decals_path.AppendChild(f"decal_{_decal_short_name(texture)}")
         if stage.GetPrimAtPath(mesh_path) and root_layer.GetPrimAtPath(mesh_path):

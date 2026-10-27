@@ -8,15 +8,26 @@
 * ``action_observations/*``：下发目标（回放使用）
 * ``camera_observations/{images,depth_images}/head_*``：PNG 字节流 / uint16 毫米
 
-回放直接向 ``/tienkung_dex/{body,left_hand,right_hand}_command`` 发布 ``JointState``。
+回放直接向真机同款话题发布（``/arm|head|waist|leg/cmd`` + 灵巧手指令），
+仿真与真机只差 ``ROS_DOMAIN_ID``（仿真 146 / 真机 0）。
 """
 
 from __future__ import annotations
+
+import os
+import sys
 
 import h5py
 import numpy as np
 
 from ..common import CameraStream, CurveGroup, Episode, derive_fps, read_hdf5_array
+
+# 复用 control/tienkung_dex 的关节表与话题定义
+_CONTROL_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, "control", "tienkung_dex")
+)
+if _CONTROL_DIR not in sys.path:
+    sys.path.insert(0, _CONTROL_DIR)
 
 
 class TienkungDexAdapter:
@@ -120,26 +131,88 @@ class TienkungDexAdapter:
 
 
 class TienkungDexPublisher:
-    """向桥接的话题发布关节目标。"""
+    """按真机编址（关节 ID / 手部通道码）发布关节目标。"""
 
     def __init__(self, node):
-        from sensor_msgs.msg import JointState
+        self._node = node
+        self._ready = False
 
-        self._JointState = JointState
-        self.pubs = {
-            "body": node.create_publisher(JointState, "/tienkung_dex/body_command", 10),
-            "left_hand": node.create_publisher(JointState, "/tienkung_dex/left_hand_command", 10),
-            "right_hand": node.create_publisher(JointState, "/tienkung_dex/right_hand_command", 10),
-        }
+    def _ensure(self, left_names: list[str]) -> None:
+        """首帧推断手型并建发布器（录制数据的关节表在 attrs 里，构造时还拿不到）。"""
+        if self._ready:
+            return
+        import constants as C
+        from dex_controller import GROUP_MSG, TOPICS, load_real_msgs
+
+        self.C = C
+        self.variant = "brainco" if len(left_names) == len(C.hand_joints("brainco")[0]) else "inspire"
+        self._msgs = load_real_msgs(self.variant)
+        self._pubs = {}
+        for group in ("arm", "head", "waist", "leg"):
+            self._pubs[f"{group}_command"] = self._node.create_publisher(
+                self._msgs[GROUP_MSG[group]], TOPICS[f"{group}_command"], 10
+            )
+        for side in ("left", "right"):
+            self._pubs[f"{side}_hand_command"] = self._node.create_publisher(
+                self._msgs["hand_command"], TOPICS["hand"][self.variant][side]["command"], 10
+            )
+        self._ready = True
+
     def publish_frame(self, frame: dict) -> None:
-        for key, value_key, names_key in (
-            ("body", "body", "body_names"),
-            ("left_hand", "hand_l", "left_hand_names"),
-            ("right_hand", "hand_r", "right_hand_names"),
-        ):
-            positions = np.atleast_1d(frame[value_key])
-            names = list(frame.get(names_key) or [])
-            msg = self._JointState()
-            msg.name = names if len(names) == len(positions) else [str(i) for i in range(len(positions))]
-            msg.position = [float(v) for v in positions]
-            self.pubs[key].publish(msg)
+        body = np.atleast_1d(frame["body"])
+        left = np.atleast_1d(frame["hand_l"])
+        right = np.atleast_1d(frame["hand_r"])
+        body_names = list(frame.get("body_names") or [])
+        left_names = list(frame.get("left_hand_names") or [])
+        right_names = list(frame.get("right_hand_names") or [])
+        self._ensure(left_names)
+
+        C = self.C
+        stamp = self._node.get_clock().now().to_msg()
+        lookup = dict(zip(body_names, (float(v) for v in body)))
+        for group, joint_names in C.GROUP_JOINTS.items():
+            msg = self._msgs[GROUP_MSG[group]]()
+            msg.header.stamp = stamp
+            msg.header.frame_id = group
+            msg.mode = C.CONTROL_MODE_POSITION
+            limits = C.GROUP_CMD_LIMITS[group]
+            for name in joint_names:
+                joint_id = C.SIM_TO_JOINT_ID.get(name)
+                if joint_id is None or name not in lookup:
+                    continue
+                ctrl = self._msgs["MotorCtrl"]()
+                ctrl.name = int(joint_id)
+                ctrl.pos = lookup[name]
+                ctrl.spd = float(limits["spd"])
+                ctrl.cur = float(limits["cur"])
+                msg.ctrl.append(ctrl)
+            if msg.ctrl:
+                self._pubs[f"{group}_command"].publish(msg)
+
+        for side, names, values in (("left", left_names, left), ("right", right_names, right)):
+            values_by_name = dict(zip(names, (float(v) for v in values)))
+            codes: list[int] = []
+            for channel, joints in enumerate(C.hand_channel_joints(self.variant, side)):
+                if not joints:
+                    codes.append(0)
+                    continue
+                joint = joints[0]
+                codes.append(
+                    C.hand_rad_to_code(
+                        self.variant, channel, values_by_name.get(joint, 0.0), joint
+                    )
+                )
+
+            msg = self._msgs["hand_command"]()
+            if self.variant == "brainco":
+                count = C.HAND_CHANNEL_COUNT["brainco"]
+                msg.mode = 1
+                msg.positions = codes[:count]
+                msg.speeds = [0] * count
+                msg.currents = [0] * count
+                msg.pwms = [0] * count
+                msg.durations = [0] * count
+            else:
+                msg.hand_id = 1 if side == "left" else 2
+                msg.joint_values = codes
+            self._pubs[f"{side}_hand_command"].publish(msg)

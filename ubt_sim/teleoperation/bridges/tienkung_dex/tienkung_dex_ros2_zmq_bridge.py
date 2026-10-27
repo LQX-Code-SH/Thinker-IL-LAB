@@ -3,11 +3,16 @@
 
 数据流：
 
-* ROS2 -> 仿真：``JointState`` 指令（body / 双手）转成扁平 JSON ``{关节名: 目标}``，
-  通过 ZMQ PUB 发到 ``zmq.cmd_port``（仿真侧 SUB 连接）；
-* 仿真 -> ROS2：从 ``zmq.status_port`` 收状态，按 body / 左右手拆成 ``JointState`` 发布；
+* ROS2 -> 仿真：关节指令转成扁平 JSON ``{关节名: 目标}``，通过 ZMQ PUB 发到
+  ``zmq.cmd_port``（仿真侧 SUB 连接）；
+* 仿真 -> ROS2：从 ``zmq.status_port`` 收状态，打包成 ROS 消息发布；
 * 图像：调用共享的 C++ 图像桥（``../zmq_image_bridge``）把 ZMQ raw 帧转成
   ``sensor_msgs/Image``（RGB + 深度）。
+
+话题与消息类型与具身天工 3.0 真机完全一致（``ros2_bridge_msgs`` 的
+``/arm|head|waist|leg/cmd``、``/robot_state``，灵巧手的
+``/left_hand/set_motor_multi`` / ``/left_hand/angle_set`` 等），按关节 ID 编址。
+仿真与真机只有 ``ROS_DOMAIN_ID`` 不同（仿真 146 / 真机 0），控制脚本不用改。
 
 用法（容器内）：
 
@@ -29,29 +34,92 @@ import yaml
 import zmq
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
-from sensor_msgs.msg import Image, JointState
+from sensor_msgs.msg import Image
 from std_msgs.msg import Bool
 
-# 复用 control/tienkung_dex/constants.py（纯数据，不依赖 isaaclab）
+# 复用 control/tienkung_dex/ 下的纯数据模块（不依赖 isaaclab）
 sys.path.insert(
     0,
     os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, os.pardir, "control", "tienkung_dex"),
 )
-from constants import BODY_JOINTS, DEFAULT_VARIANT, hand_joints, normalize_joint_name, split_status
+from constants import (
+    CONTROL_MODE_POSITION,
+    DEFAULT_VARIANT,
+    GROUP_JOINT_IDS,
+    JOINT_ID_TO_SIM,
+    hand_channel_joints,
+    hand_code_to_rad,
+    hand_joints,
+    hand_rad_to_code,
+)
 
 MSG_TYPES = {
-    "JointState": JointState,
     "Bool": Bool,
     "Image": Image,
 }
-
-# 指令节流：物理步 100Hz，转发更快只会丢弃
-_BODY_PUB_INTERVAL = 1.0 / 100.0
 
 
 def load_bridge_config(config_path: str) -> dict:
     with open(config_path) as f:
         return yaml.safe_load(f)
+
+
+def load_real_msgs(variant: str) -> dict:
+    """导入真机消息包；缺包时给出可执行的修复提示。
+
+    ``brainco_hand_msgs`` / ``inspire_hand_msgs`` 优先用厂商包（真机自带）；
+    仿真机上装的是 ``teleoperation/msgs/dex_hand_msgs_src`` 下按 SDK 用法
+    重建的同名包，字段布局未经厂商核对——这里检测到用的是重建版就告警。
+    """
+    try:
+        from ros2_bridge_msgs.msg import ArmCtrl, HeadCtrl, MotorStatus, RobotState
+    except ImportError as exc:
+        raise RuntimeError(
+            f"{exc}：真机话题档需要 ros2_bridge_msgs。"
+            "容器内先 bash run.sh init（会从 teleoperation/msgs 编译该包），"
+            "或 source /opt/ubt_sim/ros2_bridge_msgs/install/setup.bash"
+        ) from exc
+
+    msgs = {
+        "ArmCtrl": ArmCtrl,
+        "HeadCtrl": HeadCtrl,
+        "MotorStatus": MotorStatus,
+        "RobotState": RobotState,
+    }
+    if variant == "brainco":
+        try:
+            from brainco_hand_msgs.msg import MotorStatus as HandMotorStatus
+            from brainco_hand_msgs.msg import SetMotorMulti
+        except ImportError as exc:
+            raise RuntimeError(
+                f"{exc}：brainco 变体的真机话题档需要 brainco_hand_msgs，"
+                "容器内先 bash run.sh init"
+            ) from exc
+        msgs.update({"hand_command": SetMotorMulti, "hand_state": HandMotorStatus})
+        _warn_if_local_stub("brainco_hand_msgs", "brainco 灵巧手")
+    else:
+        try:
+            from inspire_hand_msgs.msg import GetAngleAct, SetAngle
+        except ImportError as exc:
+            raise RuntimeError(
+                f"{exc}：inspire 变体的真机话题档需要 inspire_hand_msgs，"
+                "容器内先 bash run.sh init"
+            ) from exc
+        msgs.update({"hand_command": SetAngle, "hand_state": GetAngleAct})
+        _warn_if_local_stub("inspire_hand_msgs", "因时灵巧手")
+    return msgs
+
+
+def _warn_if_local_stub(package: str, label: str) -> None:
+    """检测是否在用仿真端重建的消息包（而非厂商包），用一次告警提示。"""
+    module = sys.modules.get(package)
+    path = getattr(module, "__file__", "") or ""
+    if "/opt/ubt_sim/tienkung_dex_msgs/" in path:
+        print(
+            f"[WARN] {label}消息使用仿真端重建的 {package}（{path}）："
+            "字段布局未与厂商包核对；上真机请 source 厂商包",
+            file=sys.stderr,
+        )
 
 
 class TienkungDexRosBridge(Node):
@@ -74,40 +142,96 @@ class TienkungDexRosBridge(Node):
         self.status_socket.setsockopt_string(zmq.SUBSCRIBE, "")
 
         self.pubs: dict[str, any] = {}
-        for key, spec in self.cfg["topics"]["pub"].items():
-            if key in ("image_rgb", "image_depth"):  # 由 C++ 桥负责
-                continue
-            self.pubs[key] = self.create_publisher(MSG_TYPES[spec["type"]], spec["topic"], spec.get("qos", 10))
-
-        self._last_body_pub = 0.0
+        self._warned: set[str] = set()
         self._running = True
         self.cpp_bridge_process = None
+
+        self._setup_io()
+
         self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True, name="zmq-status-poll")
         self._poll_thread.start()
 
-        sub_callbacks = {
-            "body_command": self.command_cb,
-            "left_hand_command": self.command_cb,
-            "right_hand_command": self.command_cb,
-            "reset": self.reset_cb,
-        }
-        for key, spec in self.cfg["topics"]["sub"].items():
-            callback = sub_callbacks.get(key)
-            if callback is None:
-                continue
-            self.create_subscription(MSG_TYPES[spec["type"]], spec["topic"], callback, spec.get("qos", 10))
-
-        self.get_logger().info(f"TienKung Dex ROS2-ZMQ Bridge started (variant={self.variant})")
+        self.get_logger().info(
+            f"TienKung Dex ROS2-ZMQ Bridge started (variant={self.variant}, "
+            f"domain={os.environ.get('ROS_DOMAIN_ID', '0')})"
+        )
         if os.environ.get("DISABLE_CPP_IMAGE_BRIDGE", "0") != "1":
             self.start_cpp_bridge()
 
+    # ------------------------------------------------------------------ 话题
+    def _setup_io(self) -> None:
+        """按关节 ID 编址，话题与消息类型对齐具身天工 3.0（仿真/真机同一套）。"""
+        self.real_msgs = load_real_msgs(self.variant)
+        pub_cfg = self.cfg["topics"]["pub"]
+        self.pubs["robot_state"] = self.create_publisher(
+            self.real_msgs["RobotState"], pub_cfg["robot_state"]["topic"], pub_cfg["robot_state"].get("qos", 10)
+        )
+
+        for key, spec in self.cfg["topics"]["sub"].items():
+            if key.endswith("_command") and key != "reset":
+                group = key[: -len("_command")]
+                self.create_subscription(
+                    self.real_msgs[spec["type"]],
+                    spec["topic"],
+                    lambda msg, g=group: self.group_command_cb(g, msg),
+                    spec.get("qos", 10),
+                )
+            elif key == "reset":
+                self.create_subscription(MSG_TYPES[spec["type"]], spec["topic"], self.reset_cb, spec.get("qos", 10))
+
+        hand_cfg = self.cfg["hand_topics"][self.variant]
+        for side in ("left", "right"):
+            self.pubs[f"{side}_hand_state"] = self.create_publisher(
+                self.real_msgs["hand_state"], hand_cfg[side]["state"], 10
+            )
+            self.create_subscription(
+                self.real_msgs["hand_command"],
+                hand_cfg[side]["command"],
+                lambda msg, s=side: self.hand_command_cb(s, msg),
+                10,
+            )
+        self._publish_status = self._publish_real_status
+
     # ---------------------------------------------------------------- ROS -> ZMQ
-    def command_cb(self, msg: JointState) -> None:
+    def group_command_cb(self, group: str, msg) -> None:
+        """真机 ArmCtrl / HeadCtrl：``ctrl[].name`` 是关节 ID，``pos`` 是绝对角度。"""
+        mode = int(getattr(msg, "mode", CONTROL_MODE_POSITION))
+        if mode != CONTROL_MODE_POSITION and f"mode:{group}" not in self._warned:
+            self._warned.add(f"mode:{group}")
+            self.get_logger().warn(
+                f"/{group}/cmd 下发了 mode={mode}（非位置模式）；仿真只有位置控制，按 pos 执行"
+            )
         action: dict[str, float] = {}
-        for name, position in zip(msg.name, msg.position):
-            sim_name = normalize_joint_name(name)
-            if sim_name is not None:
-                action[sim_name] = float(position)
+        for ctrl in msg.ctrl:
+            joint_id = int(ctrl.name)
+            sim_name = JOINT_ID_TO_SIM.get(joint_id)
+            if sim_name is None:
+                if f"id:{joint_id}" not in self._warned:
+                    self._warned.add(f"id:{joint_id}")
+                    self.get_logger().warn(f"/{group}/cmd 收到未知关节 ID {joint_id}，已忽略")
+                continue
+            action[sim_name] = float(ctrl.pos)
+        if action:
+            self.cmd_socket.send_json(action)
+
+    def hand_command_cb(self, side: str, msg) -> None:
+        """真机灵巧手指令 -> 仿真关节弧度。
+
+        强脑 6 电机：1~1000 按闭合度乘关节行程；
+        因时 13 通道：单位 0.1° 的绝对角码，(code - 零位码) × 方向 × 0.1° 即关节角
+        （屈曲通道码越大越伸直，通道定义见 ``constants.INSPIRE_CHANNELS``）。
+        """
+        if self.variant == "brainco":
+            codes = list(msg.positions)
+        else:
+            codes = list(msg.joint_values)
+        action: dict[str, float] = {}
+        table = hand_channel_joints(self.variant, side)
+        for channel, joints in enumerate(table):
+            if not joints or channel >= len(codes):
+                continue
+            joint = joints[0]
+            action[joint] = hand_code_to_rad(self.variant, channel, codes[channel], joint)
         if action:
             self.cmd_socket.send_json(action)
 
@@ -130,32 +254,59 @@ class TienkungDexRosBridge(Node):
             except Exception as exc:  # 序列化异常不应打死线程
                 self.get_logger().warn(f"status recv failed: {exc}")
                 continue
-            self.publish_status(status)
+            self._publish_status(status)
 
-    def publish_status(self, status: dict) -> None:
-        joint_names = status.get("joint_names") or []
-        joint_pos = status.get("joint_pos") or []
-        joint_vel = status.get("joint_vel") or []
-        groups = split_status(joint_names, joint_pos, self.variant)
-        vel_map = dict(zip(joint_names, joint_vel))
+    def _publish_real_status(self, status: dict) -> None:
         stamp = self.get_clock().now().to_msg()
+        self._publish_robot_state(status, stamp)
+        self._publish_hand_state(status, stamp)
 
-        for key, names in (
-            ("body_state", BODY_JOINTS),
-            ("left_hand_state", self.left_hand_joints),
-            ("right_hand_state", self.right_hand_joints),
-        ):
-            group = "body" if key == "body_state" else ("left_hand" if key == "left_hand_state" else "right_hand")
-            values = groups[group]
-            if not values or key not in self.pubs:
-                continue
-            msg = JointState()
-            msg.header.stamp = stamp
-            msg.name = [name for name in names if name in values]
-            msg.position = [float(values[name]) for name in msg.name]
-            msg.velocity = [float(vel_map.get(name, 0.0)) for name in msg.name]
-            msg.effort = [0.0] * len(msg.name)
-            self.pubs[key].publish(msg)
+    def _publish_robot_state(self, status: dict, stamp) -> None:
+        pos_map = dict(zip(status.get("joint_names") or [], status.get("joint_pos") or []))
+        vel_map = dict(zip(status.get("joint_names") or [], status.get("joint_vel") or []))
+        if not pos_map:
+            return
+
+        state = self.real_msgs["RobotState"]()
+        state.header.stamp = stamp
+        for group in ("head", "waist", "leg", "arm"):
+            container = getattr(state, group)
+            container.header.stamp = stamp
+            for joint_id in GROUP_JOINT_IDS[group]:
+                sim_name = JOINT_ID_TO_SIM[joint_id]
+                if sim_name not in pos_map:
+                    continue
+                motor = self.real_msgs["MotorStatus"]()
+                motor.name = joint_id
+                motor.pos = float(pos_map[sim_name])
+                motor.speed = float(vel_map.get(sim_name, 0.0))
+                container.status.append(motor)
+        self.pubs["robot_state"].publish(state)
+
+    def _publish_hand_state(self, status: dict, stamp) -> None:
+        pos_map = dict(zip(status.get("joint_names") or [], status.get("joint_pos") or []))
+        if not pos_map:
+            return
+
+        for side in ("left", "right"):
+            table = hand_channel_joints(self.variant, side)
+            codes = []
+            for channel, joints in enumerate(table):
+                if not joints:
+                    codes.append(0)
+                    continue
+                joint = joints[0]
+                codes.append(
+                    hand_rad_to_code(self.variant, channel, pos_map.get(joint, 0.0), joint)
+                )
+            msg = self.real_msgs["hand_state"]()
+            if self.variant == "brainco":
+                msg.positions = codes
+            else:
+                msg.joint_names = [joints[0] if joints else f"{side}_unused_{i}"
+                                   for i, joints in enumerate(table)]
+                msg.joint_values = codes
+            self.pubs[f"{side}_hand_state"].publish(msg)
 
     # ------------------------------------------------------------- C++ 图像桥
     def start_cpp_bridge(self) -> None:
@@ -215,7 +366,12 @@ def main() -> int:
     args, ros_args = parser.parse_known_args()
 
     rclpy.init(args=ros_args)
-    node = TienkungDexRosBridge(args.config, args.variant)
+    try:
+        node = TienkungDexRosBridge(args.config, args.variant)
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        rclpy.shutdown()
+        return 1
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):

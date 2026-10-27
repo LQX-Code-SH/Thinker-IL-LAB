@@ -15,7 +15,15 @@ else
     exit 1
 fi
 
-export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
+# 真机同款消息包（仿真机上由 run.sh init 编译；真机上用厂商自带的）
+if [ -f /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash ]; then
+    set +u
+    source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash
+    set -u
+fi
+
+# 仿真 146 / 真机 0：采集代码本身完全一样
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-146}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"

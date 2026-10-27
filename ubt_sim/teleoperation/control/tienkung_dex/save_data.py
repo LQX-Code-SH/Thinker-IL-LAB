@@ -3,11 +3,13 @@
 """TienKung Dex 仿真数据采集入口（HDF5 单集录制）。
 
 前置条件：仿真已通过 ``scripts/start_sim.sh`` 启动（含 ROS2-ZMQ 桥接），
-且遥操作端在发布 ``/tienkung_dex/*_command``。
+且遥操作端在发布与真机一致的关节指令（``/arm|head|waist|leg/cmd`` + 灵巧手）。
+仿真 146 / 真机 0，靠 ``ROS_DOMAIN_ID`` 区分。
 
 用法（容器内）::
 
     source /opt/ros/humble/setup.bash
+    export ROS_DOMAIN_ID=146          # 真机改成 0
     /usr/bin/python3 teleoperation/control/tienkung_dex/save_data.py \
         --output-dir /ubt_sim/dataset/tienkung_dex --capture-hz 15
 
@@ -51,10 +53,16 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _stdin_listener(commands: queue.Queue) -> None:
+def _stdin_listener(commands: queue.Queue, quit_on_eof: bool) -> None:
+    """把 stdin 的每行转成命令；EOF 时按需退出。
+
+    非交互运行（``docker exec`` 不带 ``-t``、nohup、stdin 重定向）会立刻 EOF，
+    如果无条件当作 ``q``，无人值守采集会在第一集刚开录时就被停掉。
+    """
     for line in sys.stdin:
         commands.put(line.strip().lower())
-    commands.put("q")
+    if quit_on_eof:
+        commands.put("q")
 
 
 def main() -> int:
@@ -73,7 +81,10 @@ def main() -> int:
     spin_thread.start()
 
     commands: queue.Queue = queue.Queue()
-    threading.Thread(target=_stdin_listener, args=(commands,), daemon=True).start()
+    # --auto-start = 无人值守：结束条件交给 --duration / --episodes，EOF 不算退出
+    threading.Thread(
+        target=_stdin_listener, args=(commands, not args.auto_start), daemon=True
+    ).start()
 
     episode_index = 1
     saved = 0
@@ -87,6 +98,7 @@ def main() -> int:
             return
         path = output_dir / f"episode_{episode_index:04d}.hdf5"
         node.save_episode(str(path), attrs={"task_name": args.task_name, "episode_index": episode_index})
+        node.recorder.clear()   # 保存后清缓存，否则退出时 finally 会把上一集再存一遍
         episode_index += 1
         saved += 1
 
@@ -105,7 +117,9 @@ def main() -> int:
             try:
                 command = commands.get(timeout=0.1)
             except queue.Empty:
-                command = ""
+                # None = 这一拍没有键盘输入；不能和 ""（用户按了 Enter）混为一谈，
+                # 否则空闲时会把录制每 100ms 开/关一次
+                command = None
 
             if command in ("q", "quit", "exit"):
                 if node.recorder.recording:

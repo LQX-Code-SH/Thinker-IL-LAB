@@ -4,6 +4,8 @@
 场景/站位/仿真参数由 ``config/tienkung_dex/brainco_parlor.yaml`` 提供。
 """
 
+from functools import partial
+
 import isaaclab.envs.mdp as mdp
 import isaaclab.sim as sim_utils
 from isaaclab.assets import AssetBaseCfg, ArticulationCfg
@@ -29,15 +31,25 @@ from ubt_sim.devices.tienkung_dex.config_brainco import (
 )
 from ubt_sim.env.digital_twin_env_cfg import ManagerBasedRLDigitalTwinEnvCfg
 from ubt_sim.utils.config_loader import load_config, resolve_asset_path
+from ubt_sim.utils.scene_overrides import spawn_scene_with_table_lift
 
 _TASK_CFG = load_config("tienkung_dex/brainco_parlor.yaml")
-_SCENE_USD_PATH = resolve_asset_path(_TASK_CFG["scene"]["usd_path"])
+_SCENE_CFG = _TASK_CFG["scene"]
+_SCENE_USD_PATH = resolve_asset_path(_SCENE_CFG["usd_path"])
 _ROBOT_INIT_STATE = _TASK_CFG["robot"]["init_state"]
 _CAMERAS_CFG = _TASK_CFG["cameras"]
 _CAMERA_NAMES = list(_CAMERAS_CFG.keys())
 
 PARLOR_SCENE_CFG = AssetBaseCfg(
-    spawn=sim_utils.UsdFileCfg(usd_path=_SCENE_USD_PATH),
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=_SCENE_USD_PATH,
+        # 桌面高度覆盖，与 inspire 变体一致（见 ubt_sim/utils/scene_overrides.py）
+        func=partial(
+            spawn_scene_with_table_lift,
+            table_z_scale=float(_SCENE_CFG.get("table_z_scale", 1.0)),
+            lifted_prims=tuple(_SCENE_CFG.get("table_top_prims", ())),
+        ),
+    ),
 )
 
 
@@ -89,17 +101,26 @@ class TienkungDexBraincoParlorSceneCfg(InteractiveSceneCfg):
 
 @configclass
 class ActionsCfg:
-    """Action 分组：身体与 inspire 变体一致，手部按 Revo2 的 11 关节分组。"""
+    """Action 分组：身体与 inspire 变体一致，手部按 Revo2 的 11 关节分组。
+
+    所有通道统一 ``use_default_offset=False``：action 就是关节目标绝对角度。
+    Isaac Lab 默认 ``use_default_offset=True``，会把 action 解释成
+    ``default_joint_pos + action`` 的偏移量——本机型站立姿态非零
+    （``TIENKUNG_DEX_BRAINCO_HOME_POSE``），带偏移的话真机下发的绝对角度到
+    仿真里就会整体平移一个站姿量，同一份控制脚本无法同时驱真机和仿真。
+    """
 
     left_arm_action = mdp.JointPositionActionCfg(
         asset_name="robot",
         joint_names=TIENKUNG_DEX_LEFT_ARM_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
     right_arm_action = mdp.JointPositionActionCfg(
         asset_name="robot",
         joint_names=TIENKUNG_DEX_RIGHT_ARM_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
     left_hand_action = mdp.JointPositionActionCfg(
         asset_name="robot",
@@ -117,21 +138,25 @@ class ActionsCfg:
         asset_name="robot",
         joint_names=TIENKUNG_DEX_HEAD_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
     waist_action = mdp.JointPositionActionCfg(
         asset_name="robot",
         joint_names=TIENKUNG_DEX_WAIST_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
     left_leg_action = mdp.JointPositionActionCfg(
         asset_name="robot",
         joint_names=TIENKUNG_DEX_LEFT_LEG_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
     right_leg_action = mdp.JointPositionActionCfg(
         asset_name="robot",
         joint_names=TIENKUNG_DEX_RIGHT_LEG_JOINTS,
         scale=1.0,
+        use_default_offset=False,
     )
 
 

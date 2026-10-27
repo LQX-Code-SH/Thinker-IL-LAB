@@ -8,12 +8,18 @@
 scene:
   usd_path: "scenes/parlor/scene_v2.usd"
   prim_path: "{ENV_REGEX_NS}/Scene"
+  # 桌面抬高，与 inspire 变体一致：table 沿 z 轴缩放到 1.1（桌面 0.897 →
+  # 0.987 m），apple / plate 按同一 Δz 上移；scene_v2.usd 本身不动。
+  table_z_scale: 1.1
+  table_top_prims: ["apple", "plate"]
 
 robot:
   name: "tienkung_dex_brainco"
   usd_path: "robots/tienkung_dex/usd/tienkung_dex_brainco.usd"
   init_state:
-    pos: [7.80, 6.08257, 0.998]  # x, y 沿用 parlor 站位；z = pelvis 离地高度
+    # x 取 7.85（而非天工 pro 的 7.80）：该站位是抓取苹果标定过的，
+    # 7.80 时苹果心到右肩 0.681 m，超出本臂 0.573 m 的腕可达半径，够不到。
+    pos: [7.85, 6.08257, 0.998]  # y 沿用 parlor 站位；z = pelvis 离地高度
     rot: [1.0, 0.0, 0.0, 0.0]    # (w, x, y, z)，水平朝 +X
 
 cameras:
@@ -22,6 +28,9 @@ cameras:
     data_types: ["rgb"]
     resolution: [640, 360]
     pos: [0.0, 0.0, 0.0]
+    # 相机与 head_pitch_link 前向对齐：URDF 的 camera_head_joint（rpy -90/0/-90）
+    # 已把 camera_head_link 摆成 ROS 光学系（+z 朝前），这里不再叠加安装俯角。
+    # 视角完全由 head_pitch 关节决定：低头多少，画面就低多少。
     rot: [1.0, 0.0, 0.0, 0.0]
     focal_length: 24.0
     horizontal_aperture: 44.76
@@ -31,6 +40,9 @@ cameras:
     data_types: ["depth"]
     resolution: [640, 360]
     pos: [0.0, 0.0, 0.0]
+    # 相机与 head_pitch_link 前向对齐：URDF 的 camera_head_joint（rpy -90/0/-90）
+    # 已把 camera_head_link 摆成 ROS 光学系（+z 朝前），这里不再叠加安装俯角。
+    # 视角完全由 head_pitch 关节决定：低头多少，画面就低多少。
     rot: [1.0, 0.0, 0.0, 0.0]
     focal_length: 24.0
     horizontal_aperture: 44.76
