@@ -4,14 +4,13 @@
 
 用法（容器内，/usr/bin/python3）：
 
-    # 预览（Rerun 查看相机 + 关节曲线）
-    python3 teleoperation/tools/playback_tienkung_dex.py \
-        --episode dataset/tienkung_dex/episode_0001.hdf5 --mode preview
+    # 预览（Rerun 查看相机 + 关节曲线）；不给 --episode 就用最新的时间戳目录
+    python3 teleoperation/tools/playback_tienkung_dex.py --mode preview
 
     # 控制（向 /tienkung_dex/*_command 回放录制动作）
     source /opt/ros/humble/setup.bash
     python3 teleoperation/tools/playback_tienkung_dex.py \
-        --episode dataset/tienkung_dex/episode_0001.hdf5 --mode control
+        --episode dataset/tienkung_dex/<epoch秒>/trajectory.hdf5 --mode control
 """
 import os
 import sys

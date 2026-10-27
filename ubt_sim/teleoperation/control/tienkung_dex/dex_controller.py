@@ -606,10 +606,11 @@ class DexController(Node):
     ) -> bool:
         """按 ``{关节名: 目标角}`` 移动；未指定的关节保持当前值。
 
-        ``settle_tolerance`` 默认放到 0.08 rad：仿真的手臂执行器是隐式 PD
-        （``stiffness=80``），重力下肩部稳态误差约 0.06 rad，用 0.05 会在仿真里
-        稳定地误报"未收敛"。真机是驱动器闭环，实际误差远小于此；需要严格判定
-        时显式传更小的值。
+        ``settle_tolerance`` 默认放到 0.08 rad：仿真的手臂执行器是隐式 PD，加
+        重力前馈后稳态误差已经很小（预备位 7 mrad 量级，ζ≈0.7 下 10 s 墙钟内就
+        停稳），但 RTF≈0.11 意味着墙钟上的收敛本来就慢，容差再收紧容易把"还在
+        慢慢收敛"误报成失败。真机是驱动器闭环，实际误差远小于此；需要严格判定
+        时显式传更小的值，并把等待时间一起放宽。
 
         ``ramp_from_commanded``：从**本进程上次下发的关节目标**起步，而不是从
         实测起步。这是 ``tienkung_pro`` 的 ``move_arm`` 的做法——那段代码的命令
@@ -808,12 +809,23 @@ class DexController(Node):
     # ==================================================================
     def move_to_ready_pose(
         self,
-        duration_sec: float = 10.0,
+        duration_sec: float | None = None,
         wait: bool = True,
         staged: bool = True,
         hands: bool = True,
+        final_pose: dict[str, float] | None = None,
+        stage_durations: Sequence[float] | None = None,
     ) -> bool:
         """移动到预备抓取位（``constants.READY_POSE`` + 预备位手型）。
+
+        ``final_pose`` 默认为 ``READY_POSE`` 叠上 ``READY_POSE_TARGET``——后者由
+        **加仿真重力前馈之前**命令 READY_POSE 的实测稳态读数（``READY_POSE_PRE_GRAV_COMP``）
+        扣掉前馈残差得到，物理姿态与旧版一致（前馈只保证"指令 = 实际"，不改姿态本身）。
+        真机要回到设计姿态时显式传 ``dict(C.READY_POSE)``。
+
+        时长取值优先级：``stage_durations`` > ``duration_sec``（四段均分）>
+        ``constants.READY_STAGE_DURATIONS``（默认每段 5 s）。
+        每段仍会被 ``_min_duration`` 托底，不会低于速度检查允许的下限。
 
         正前方有桌面（本任务抬高到 0.987 m，见 constants.TABLETOP_WORLD_Z），
         一步到位时手要贴着桌面从体侧扫过去，会被顶住、肘收不到位。因此照
@@ -823,6 +835,9 @@ class DexController(Node):
         ``hands=True`` 时最后再把双手摆成预备位手型（``constants.ready_hand_pose``：
         拇指侧摆内收到 850 = 90°，其余手指伸直）。手型放在手臂和头都到位之后，
         是整个预备动作的最后一步。
+
+        节奏上算五段：5/5/5/5 s 的四段手臂轨迹（``READY_STAGE_DURATIONS``）+
+        3 s 收尾（头部追平 + 手型，``READY_TAIL_DURATION``），合计 23 s。
         """
         # (标签, 目标, 容差, 是否必须到位)：中间航点只求"大致经过"。
         # 大臂外展时肩膀要扛住整条手臂的重力，隐式 PD 会稳定差 0.2 rad，
@@ -830,6 +845,10 @@ class DexController(Node):
         # 预备位自身稳态误差实测 0.17 rad（抬臂后力臂变长，比站立位的
         # 0.06 大；肩 pitch 在手臂前伸时被重力拖下去），所以最终容差取 0.20：
         # 仍能抓住顶到桌面这类 0.3 rad 级的失败。
+        ready_target = dict(C.READY_POSE)
+        ready_target.update(
+            C.READY_POSE_TARGET if final_pose is None else final_pose
+        )
         stages = (
             [
                 # 满外展时手臂水平伸出，肩 roll 稳态实测差 0.34-0.48 rad（隐式 PD
@@ -838,16 +857,21 @@ class DexController(Node):
                 ("1/4 肩外展抬臂过桌面", dict(C.READY_CLEARANCE_POSE), 0.55, False),
                 ("2/4 高位折前臂", dict(C.READY_FOREARM_POSE), 0.30, False),
                 ("3/4 大臂转回近垂直", dict(C.READY_UPPER_VERTICAL_POSE), 0.30, False),
-                ("4/4 前臂落到预备位", dict(C.READY_POSE), 0.20, True),
+                ("4/4 前臂落到预备位", dict(ready_target), 0.20, True),
             ]
             if staged
-            else [("预备位", dict(C.READY_POSE), 0.20, True)]
+            else [("预备位", dict(ready_target), 0.20, True)]
         )
-        self.get_logger().info(f"移动到预备位（{duration_sec:.1f}s，{'分段' if staged else '一步'}）")
-        base_duration = max(1.2, float(duration_sec) / len(stages))
+        durations = self._resolve_stage_durations(stages, duration_sec, stage_durations)
+        self.get_logger().info(
+            "移动到预备位（{}，{}）".format(
+                " / ".join(f"{d:.1f}s" for d in durations),
+                "分段" if staged else "一步",
+            )
+        )
         prev = self._stage_start(stages)
-        for label, pose, tolerance, required in stages:
-            stage_duration = max(base_duration, self._min_duration(prev, pose))
+        for (label, pose, tolerance, required), want_duration in zip(stages, durations):
+            stage_duration = max(float(want_duration), self._min_duration(prev, pose))
             self.get_logger().info(f"预备位阶段 {label}（{stage_duration:.1f}s）")
             if not self.move_to_pose(
                 pose, duration_sec=stage_duration, wait=True, settle_tolerance=tolerance
@@ -860,20 +884,36 @@ class DexController(Node):
                 )
             prev.update({name: float(value) for name, value in pose.items()})
         # 头单独再等一次：仿真主循环只有 ~11 Hz（`--perf_stats` 实测 Phys 30 ms +
-        # Render 40 ms，RTF≈0.11），2.5 s 墙钟的轨迹换算成仿真时间要 5 rad/s，
-        # 远超 velocity_limit_sim=1.27 rad/s，头在最后一段结束时还差 ~0.2 rad
-        # （正好落在 0.20 的段容差里，所以 move_to_pose 直接就返回了）。
-        # 这里用 0.01 rad 的紧容差等它追上，保证返回时低头角就是 READY_POSE 的 45°。
-        # 真机上头跟得上轨迹，这一步几乎立即返回。
+        # Render 40 ms，RTF≈0.11），远超 velocity_limit_sim=1.27 rad/s 能跟上的
+        # 速度，头在最后一段结束时还差 ~0.2 rad（正好落在 0.20 的段容差里，所以
+        # move_to_pose 直接就返回了）。这里用 0.01 rad 的紧容差等它追上，保证返回
+        # 时低头角就是 READY_POSE 的 45°。超时按 READY_TAIL_DURATION 给，不算短：
+        # 头部只在最后一段才被下发，5 s 内基本已经走完，剩下的零点几秒就够。
         head_targets = {name: C.READY_POSE[name] for name in C.HEAD_JOINTS if name in C.READY_POSE}
+        if hands:
+            self.get_logger().info(f"预备位收尾 5/5 头部 + 手型（{C.READY_TAIL_DURATION:.1f}s）")
+        elif wait and head_targets:
+            # hands=False（比如 pick_apple 收尾：手已经是预备位手型）时不摆手指，
+            # 但仍然要等头追上，否则返回时低头角还没到 READY_POSE 的 45°。
+            self.get_logger().info(f"预备位收尾：等头部对齐（≤{C.READY_TAIL_DURATION:.1f}s）")
+        # 手型与头部**并行**收尾：跟在四段手臂之后（手腕已经停住，手指不会追着
+        # 转动的腕走），但它不依赖头，没必要串行。实测串行时头部要多等 ~1 s，
+        # 合起来 4 s；并行就是 3 s 整。
+        tail_t0 = time.monotonic()
+        if hands:
+            self.apply_ready_hand_pose(duration_sec=C.READY_TAIL_DURATION, wait=False)
         if wait and head_targets:
-            arrived, misses = self.wait_until_position(head_targets, timeout=15.0, tolerance=0.01)
+            arrived, misses = self.wait_until_position(
+                head_targets, timeout=C.READY_TAIL_DURATION, tolerance=0.01
+            )
             if not arrived:
                 self.get_logger().warning(f"头部未在容差内到位: {misses}")
-        # 手型是整个预备动作的最后一步：手臂和头都到位后才动手，手指不会
-        # 在手腕还在转的时候就去够目标。
-        if hands:
-            self.apply_ready_hand_pose(wait=wait)
+        if hands and wait:
+            # move_hand 的等待上限口径：两倍轨迹时长（正常走完立即返回）
+            deadline = tail_t0 + max(C.READY_TAIL_DURATION * 2.0, 3.0)
+            for side in ("left", "right"):
+                if not self._wait_hand_traj(side, deadline - time.monotonic()):
+                    self.get_logger().warning(f"{side} 手型未在预算内走完")
         return True
 
     def apply_ready_hand_pose(
@@ -889,10 +929,17 @@ class DexController(Node):
             return False
         pose = C.ready_hand_pose(self.variant)
         ok = True
-        for s in ("left", "right") if side is None else (side,):
+        sides = ("left", "right") if side is None else (side,)
+        for i, s in enumerate(sides):
             names = self.hand_joint_names(s)
+            # 双手并行：左右手各有独立的轨迹状态（_hand_traj[side]），先起左手
+            # 的轨迹不阻塞，再用右手等，整步耗时就是 duration_sec 而不是两倍。
+            last = i == len(sides) - 1
             ok = self.move_hand(
-                s, {name: pose[name] for name in names if name in pose}, duration_sec, wait
+                s,
+                {name: pose[name] for name in names if name in pose},
+                duration_sec,
+                wait and last,
             ) and ok
         return ok
 
@@ -904,6 +951,31 @@ class DexController(Node):
             for _, pose, _, _ in stages
             for name in pose
         }
+
+    def _resolve_stage_durations(
+        self,
+        stages,
+        duration_sec: float | None,
+        stage_durations: Sequence[float] | None,
+    ) -> list[float]:
+        """定出每一段的轨迹时长：``stage_durations`` > ``duration_sec`` 均分 > 常量表。"""
+        if stage_durations is not None:
+            durations = [float(d) for d in stage_durations]
+        elif duration_sec is None:
+            durations = [float(d) for d in C.READY_STAGE_DURATIONS]
+        else:
+            base = max(1.2, float(duration_sec) / len(stages))
+            return [base] * len(stages)
+
+        if len(durations) == len(stages):
+            return durations
+        if len(stages) == 1:  # 不分段：把四段的时长合起来当整段时长
+            return [sum(durations)]
+        fallback = max(1.2, sum(durations) / len(stages))
+        self.get_logger().warning(
+            f"分段时长 {durations} 与段数 {len(stages)} 不符，回退到每段 {fallback:.1f}s"
+        )
+        return [fallback] * len(stages)
 
     def _min_duration(self, start: dict[str, float], target: dict[str, float]) -> float:
         """让本段不触发速度检查所需的最短时长。
@@ -1013,13 +1085,24 @@ class DexController(Node):
         self.get_logger().info(f"{side} 手目标: {targets}")
         if wait:
             duration = points.shape[0] / self.control_hz
-            deadline = time.monotonic() + max(duration * 2.0, 3.0)
-            while time.monotonic() < deadline:
-                with self._traj_lock:
-                    if self._hand_traj[side]["index"] >= points.shape[0]:
-                        break
-                time.sleep(0.01)
+            self._wait_hand_traj(side, max(duration * 2.0, 3.0))
         return True
+
+    def _wait_hand_traj(self, side: str, timeout: float) -> bool:
+        """等 ``side`` 这只手把当前轨迹走完，超时返回 ``False``。
+
+        双手可以并行（左右手各有独立的 ``_hand_traj[side]``），所以等待也要能
+        分开做——预备动作收尾就是先起两只手的轨迹，再一起等它们走完。
+        """
+        deadline = time.monotonic() + max(float(timeout), 0.0)
+        while time.monotonic() < deadline:
+            with self._traj_lock:
+                state = self._hand_traj[side]
+                done = state["index"] >= state["points"].shape[0]
+            if done:
+                return True
+            time.sleep(0.01)
+        return False
 
     def open_hand(self, side: str, duration_sec: float = 1.0, wait: bool = False) -> bool:
         names = self.hand_joint_names(side)
@@ -1189,10 +1272,15 @@ class DexController(Node):
         """按给定关节角做正运动学，返回基座系 ``[x,y,z,roll,pitch,yaw]``。
 
         ``get_ee_pose`` 永远用**实测**关节角；这里用调用方给的**命令**关节角，
-        回答"这条命令下发后末端应该在哪"。两者在预备位相差 0.13 m：仿真手臂是
-        隐式 PD、无重力补偿，稳态坐在 ``q_cmd − τ_g/kp`` 上。遥操作的目标变量
-        要用后者，否则目标一上来就被钉在下垂后的位置，操作者每次累加都先要
-        把这段下垂"还"回去。
+        回答"这条命令下发后末端应该在哪"。隐式 PD 没有重力前馈时，两者稳态差
+        ``τ_g/kp``（预备位 0.13 m）；2026-10-27 加了仿真侧前馈后，一般姿态只剩
+        十几毫米的 URDF↔USD 力矩差异（2 号路径点实测 72 mm → 5.9 mm）。
+
+        预备位是个例外：它的目标是刻意保留的旧版下垂姿态 ``READY_POSE_TARGET``
+        （见 constants），所以传**设计**姿态 ``READY_POSE`` 进来仍会差 0.13 m，
+        传 ``READY_POSE_TARGET`` 只差 15 mm。遥操作的目标变量就用
+        ``READY_POSE_TARGET`` 播种（``keyboard_ee_control._seed_target_from_ready``），
+        与实际姿态只差毫米级，第一次按键不会跳。
 
         未出现在 ``joint_positions`` 里的关节保持求解器当前的 ``q``（通常已同步
         过实测）；算完恢复，不污染 IK 热启动。
@@ -1599,11 +1687,19 @@ def _resolve_sides(value: str) -> list[str]:
     return ["left", "right"] if value == "both" else [value]
 
 
-def _shutdown(controller: DexController, executor, spin_thread: threading.Thread) -> None:
+def _shutdown(
+    controller: DexController,
+    executor,
+    spin_thread: threading.Thread,
+    extra_nodes: list | None = None,
+) -> None:
     """按 walker_s2 的顺序收尾：停下发 → 停 executor → 等 spin 线程 → 销毁节点。
 
     顺序错了（先 destroy_node 再等线程）会让仍在 spin 的线程访问已销毁的节点，
     DDS 层直接 ``terminate called without an active exception`` 并 core dump。
+
+    ``extra_nodes`` 是同一个 executor 上的附加节点（如采集用的 recorder），
+    与 controller 一起按同样的顺序收尾。
     """
     controller.stop()
     time.sleep(0.1)
@@ -1614,6 +1710,12 @@ def _shutdown(controller: DexController, executor, spin_thread: threading.Thread
     spin_thread.join(timeout=2.0)
     if spin_thread.is_alive():
         controller.get_logger().warning("Executor spin 线程未在超时内退出")
+    for node in extra_nodes or []:
+        try:
+            executor.remove_node(node)
+        except Exception:
+            pass
+        node.destroy_node()
     try:
         executor.remove_node(controller)
     except Exception:
@@ -1640,7 +1742,7 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--home", action="store_true", help="分段回站立位 + 张开双手")
     parser.add_argument(
         "--duration", type=float, default=C.DEFAULT_MOVE_DURATION,
-        help="运动时长（秒）；--init / --home 最少 10 s",
+        help="运动时长（秒）；--home 最少 10 s，--init 不给则按每段 5 s 分段",
     )
     parser.add_argument("--move-joint", action="store_true", help="移动单个身体关节")
     parser.add_argument("--joint", default=None, help="--move-joint / --shift-joint 的关节名")
@@ -1682,10 +1784,16 @@ def main(args: Sequence[str] | None = None) -> None:
             print_joint_states(controller)  # 什么都没指定：默认打印状态
 
         if cli.init or cli.ready:
-            # 四段共 10 s（≈ tiangong2dex 的 3.0+2.5+2.5+2.5），比单段默认 3 s 慢，
-            # 肩外展 1.6 rad 的摆动不宜过快
+            # --duration 保持默认值（C.DEFAULT_MOVE_DURATION）时视为"没指定"，
+            # 走 constants.READY_STAGE_DURATIONS 的分段节奏（每段 5 s，合计 20 s）；
+            # 显式给了才按均分覆盖。
+            ready_duration = (
+                None
+                if cli.duration == C.DEFAULT_MOVE_DURATION
+                else max(cli.duration, 10.0)
+            )
             ok = controller.move_to_ready_pose(
-                duration_sec=max(cli.duration, 10.0), wait=True, staged=not cli.no_staged
+                duration_sec=ready_duration, wait=True, staged=not cli.no_staged
             )
             print("✓ 已到预备位" if ok else "✗ 预备位未到位")
         if cli.home:

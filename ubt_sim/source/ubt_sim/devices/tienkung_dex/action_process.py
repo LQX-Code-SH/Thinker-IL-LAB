@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+import math
+import os
 from typing import Any
 
 import torch
@@ -34,6 +36,16 @@ from .config_brainco import (
 )
 
 DEFAULT_VARIANT = "inspire"
+
+# 重力补偿开关：TIENKUNG_DEX_GRAVITY_COMP=0 可禁用，方便 A/B 对比。
+# 偏移加在 action 上而不是写进指令，所以遥操作/回放脚本和录制下来的 target
+# 都还是「期望值」，真机（伺服自带重力前馈）不受影响。
+_enable_gravity_comp = os.environ.get("TIENKUNG_DEX_GRAVITY_COMP", "1") == "1"
+
+if _enable_gravity_comp:
+    from .gravity_compensation import compute_gravity_offsets
+else:
+    compute_gravity_offsets = None  # type: ignore[assignment]
 
 _VARIANTS: dict[str, dict[str, Any]] = {
     "inspire": {
@@ -106,12 +118,40 @@ def to_controller_data(joint_pos_dict: dict[str, Any], env, variant: str = DEFAU
     limits = spec["joint_limits"]
     mimic = spec["mimic"]
     home_pose = spec["home_pose"]
+    joint_names = _action_joint_names[variant]
     results = [
         _resolve_value(name, joint_pos_dict, limits, mimic, home_pose)
-        for name in _action_joint_names[variant]
+        for name in joint_names
     ]
+
+    # 重力前馈：偏移必须用**实测**关节角算（不能用上面刚组装出来的指令角），
+    # 每帧现算、不缓存，否则会逐帧累加成漂移。
+    if _enable_gravity_comp and compute_gravity_offsets is not None:
+        offsets = compute_gravity_offsets(_current_joint_map(env), variant)
+        if offsets:
+            results = [value + offsets.get(name, 0.0) for name, value in zip(joint_names, results)]
+
+    # NaN/inf 守卫：非有限值进 PhysX ImplicitActuator 会让整个 articulation 爆
+    # NaN 并永久污染仿真。检测到就用当前仿真位姿兜底（hold current），绝不放行。
+    if not all(math.isfinite(value) for value in results):
+        current = _current_joint_map(env)
+        results = [
+            current.get(name, 0.0) if not math.isfinite(value) else value
+            for name, value in zip(joint_names, results)
+        ]
+        print("[WARN] tienkung_dex action_process: non-finite target detected; "
+              "holding current pose for affected joints")
+
     actions = torch.tensor(results, dtype=torch.float32, device=env.device)
     return actions.unsqueeze(0).repeat(env.num_envs, 1)
+
+
+def _current_joint_map(env) -> dict[str, float]:
+    """``{关节名: 实测角度}``，重力补偿和 NaN 兜底都用它。"""
+    robot = env.unwrapped.scene["robot"]
+    joint_names = list(robot.data.joint_names)
+    joint_pos = robot.data.joint_pos[0].detach().cpu().tolist()
+    return dict(zip(joint_names, joint_pos))
 
 
 def to_ros_data(env, variant: str = DEFAULT_VARIANT) -> dict[str, Any]:

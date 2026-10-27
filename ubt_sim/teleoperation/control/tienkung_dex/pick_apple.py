@@ -3,34 +3,40 @@
 """tienkung_dex 右臂抓取 parlor 苹果：回放遥操作示教的路径点。
 
 路径真值在 ``grasp_path.json``（2026-10-27 用 ``keyboard_ee_control.py`` 示教，
-``side=right``，位姿都是 pelvis 系 ``[x, y, z, roll, pitch, yaw]``）：
+``side=right``，位姿都是 pelvis 系 ``[x, y, z, roll, pitch, yaw]``）。
+**只示教两个点**，后三步由规则推出来（:func:`derive_waypoints`）：
 
-====  ========  ============================================================
-点    role      动作
-====  ========  ============================================================
-1     approach  接近（手张开）—— 已删除，见下
-2     approach  继续接近，压到苹果前方（现在直接从预备位走这一点）
-3     grasp     抓取位；到位后 **合手**
-4     lift      从 3 号点竖直抬起 0.204 m（姿态不变）
-5     place     转到放置位；到位后 **张手** 把苹果丢下
-====  ========  ============================================================
+====  ============  =========================================================
+点    role          动作
+====  ============  =========================================================
+1     pre_approach  接近位（手张开）
+2     grasp         抓取位，压到苹果上；到位后 **合手**
+3     lift          2 号点沿 world z 抬升 ``LIFT_HEIGHT_M``（0.20 m），姿态不变
+5     place         放置位，示教；到位后 **张手**
+—     ready         关节一步回预备位（``RETURN_READY_SEC`` = 5 s），抓取结束
+====  ============  =========================================================
 
-接近点（1、2）是可选的：执行序列按文件里实际存在的点生成（:func:`build_steps`），
-所以少采/删掉 1 号点就自动少走一步，不会去补一个没有的目标。3/4/5 是必需的
-（:data:`STOP_REQUIRES`），缺了对应档位直接报错、不发任何动作。
+示教三个点就够：**1、2、5**，3 由 2 推出来。编号跳过 4 是历史原因（原先有一个
+"放置位正上方"的过渡点，后来省掉了）；抬升高度改 :data:`LIFT_HEIGHT_M` 一个数就行。
+
+1 号点是可选的：执行序列按文件里实际存在的点生成（:func:`build_steps`），
+删掉 1 号点就自动少走一步（预备位 → 抓取位一条直线）。2 号点是必需的
+（:data:`STOP_REQUIRES`），缺了直接报错、不发任何动作。
 
 两条约定：
 
 1. **回放的位姿是示教时记录的「期望目标变量」（``target``），不是实测读数。**
    遥操作里目标变量是唯一事实源：按键改它、发送器照它下发。回放照抄这个语义——
    ``_goto`` 解一次 IK 就把 ``target`` 下发，**不做在线补偿**，和
-   ``keyboard_ee_control`` 一样是开环。仿真手臂是隐式 PD、无重力补偿，实际会稳在
-   指令下方（预备位就差 13 cm）——这是执行器的稳态下垂，与遥操作时操作者看到的
-   现象一致，不属于要"修正"的部分。
+   ``keyboard_ee_control`` 一样是开环。执行器（隐式 PD）的稳态下垂由**仿真侧**
+   的重力前馈消掉（``ubt_sim/devices/tienkung_dex/gravity_compensation.py``，
+   2026-10-27 起默认开启），所以开环下发就能到位；用 ``TIENKUNG_DEX_GRAVITY_COMP=0``
+   关掉它，手臂会稳在指令下方（2 号点 72 mm、预备位 133 mm），与旧版现象一致。
+   （前馈吃掉 85~92%，剩下的十几毫米残差在预备位已扣进 ``constants.READY_POSE_TARGET``。）
    ``--pose-source measured`` 只给带实测读数的旧路径文件用；旧文件里缺实测值的
    点按"上一个已解析点 + 记录里的目标增量"外推。
-2. **4、5 号点是纯绝对位姿，不参考苹果**——苹果这时候已经在手里，跟着手走。
-   日志里这两个点也不再报"距苹果心"。
+2. **3、5 号点是纯绝对位姿，不参考苹果**——苹果这时候已经在手里，跟着手走。
+   日志里这三个点也不再报"距苹果心"。
 
 合手/张手沿用示教时的同一套手型：合手传 ``base_pose=ready_hand_pose``（拇指
 侧摆留在 850 = 90°，不随 ``grip`` 缩放），张手回预备位手型——与遥操作里按空格
@@ -41,17 +47,23 @@
 残差（73 mm / 17° 量级）叠加到指令后重发，最多 3 次。它的响应太慢——每一次都要
 走完一条 ≥3 s 的轨迹再等手臂停稳，一次接近要摆 4 个回合、40 s；而且每段都是
 "指令跳到新位置→手臂落后→停稳时再量"的过冲过程，看上去就是手臂上下晃。回放
-应当和遥操作一样开环，补偿（若要做）留给更合适的方案，例如标定一次的重力前馈。
+应当和遥操作一样开环，补偿留给更合适的方案——已经落地为**仿真侧一次标定的重力
+前馈**（RNEA 算 τ_g 再折算成位置偏移，见 ``devices/tienkung_dex/gravity_compensation.py``）：
+2 号点的末端稳态误差从 72.1 mm 降到 5.9 mm（k=80 时），手臂刚度提到 200/150、
+kd 按 ζ≈0.7 配之后是 3.4 mm——已经落在 IK 默认 5 mm 容差（``utils/ik.py`` 的
+``pos_tol``，实测贡献 4.7 mm）之内，再往下就得先收紧 IK 容差。
 
 用法::
 
     export ROS_DOMAIN_ID=146                      # 仿真；真机为 0
     /usr/bin/python3 pick_apple.py --dry-run       # 只解算 5 个点，不动机器人
-    /usr/bin/python3 pick_apple.py                 # 先回预备位再回放
-    /usr/bin/python3 pick_apple.py --skip-ready    # 已就位，直接回放
-    /usr/bin/python3 pick_apple.py --stop-after 3  # 停在抓取位（未合手）
+    /usr/bin/python3 pick_apple.py                 # 回预备位 → 抓 → 放 → 回预备位
+    /usr/bin/python3 pick_apple.py --skip-ready    # 已就位，直接开始
+    /usr/bin/python3 pick_apple.py --stop-after 2  # 停在抓取位（未合手）
     /usr/bin/python3 pick_apple.py --stop-after grasp   # 只练到合手
     /usr/bin/python3 pick_apple.py --stop-after 5  # 到放置位但先不张手
+    /usr/bin/python3 pick_apple.py --no-return-ready    # 放完停在原地
+    /usr/bin/python3 pick_apple.py --save          # 顺手录一集抓取段（批量走 save_data.sh --batch）
 
 仿真与真机跑同一份代码，只有 ``ROS_DOMAIN_ID`` 不同。
 """
@@ -65,6 +77,8 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import pinocchio as pin
@@ -77,56 +91,74 @@ if _CONTROL_DIR not in sys.path:
 
 import constants as C  # noqa: E402
 from dex_controller import DexController, _shutdown  # noqa: E402
+from utils.recorder import (  # noqa: E402
+    DEFAULT_CAPTURE_HZ,
+    HDF5_REL_PATH,
+    TienkungDexDataRecorder,
+    episode_path,
+    prepare_episode_file,
+)
 
 DEFAULT_PATH_FILE = os.path.join(_CONTROL_DIR, "grasp_path.json")
+# --save 的默认落点，与 save_data.py 相同：ubt_sim/dataset/tienkung_dex
+DEFAULT_SAVE_DIR = Path(_CONTROL_DIR).parents[2] / "dataset" / "tienkung_dex"
+DEFAULT_TASK_NAME = "pick_apple"
 
 # 路径点编号的固定含义（见模块 docstring 的表）；JSON 里也写了同名键，这里对一遍。
-GRASP_INDEX = 3
-LIFT_INDEX = 4
-PLACE_INDEX = 5
+GRASP_INDEX = 2
+LIFT_INDEX = 3
+PLACE_INDEX = 5          # 跳号：4 号点（放置位正上方）2026-10-27 已省掉
+
+# 3 号点的推导量：抬多高。2 号点的 z 已经是苹果上方 8.8 cm（见 grasp_path.json
+# 的 relative_to_apple），所以抬 0.20 m 后末端离桌面约 0.33 m，再直接去 5 号点。
+LIFT_HEIGHT_M = 0.20
+
+# 收尾回预备位：关节一步走完的时长（staged=False）。这是**期望**时长，
+# ``DexController._min_duration`` 会按单关节 1.5 rad/s 的速度上限托底，
+# 实际可能略长（见运行日志的"预备位阶段 预备位（X.Xs）"）。
+# 5 号点 → 预备位最大关节跨度 1.056 rad（wrist_pitch_r），速度托底只要 1.55 s，
+# 5 s 远在托底之上；原来是 3 s，实测 3.01 s 太快，2026-10-27 放到 5 s。
+RETURN_READY_SEC = 5.0
 
 DEFAULT_GRIP = 1.0          # 合手闭合度 0~1
 DEFAULT_CLOSE_SPEED = 0.35  # rad/s
-DEFAULT_SETTLE_SEC = 1.5
-DEFAULT_SPEED = 0.05        # m/s，1~3 号点（接近段）
-DEFAULT_LIFT_SPEED = 0.03   # m/s，4 号点（抬升段）
-DEFAULT_PLACE_SPEED = 0.03  # m/s，5 号点（放置段）
-DEFAULT_ROT_SPEED = 0.30    # rad/s，姿态变化的速度上限（5 号点要转 74.7°）
-DEFAULT_SETTLE_TIME = 0.3   # 每段轨迹发完后的最短静置时间 s（之后还要等 TCP 不再动）
-MIN_DURATION = 3.0          # s，每段最短时长
-SETTLE_WINDOW = 0.3         # s，判定"不再动"的观察窗
-SETTLE_THRESH = 0.0008      # m，窗口内 TCP 位移小于此值才算稳定
-SETTLE_MAX = 6.0            # s，等待稳定的上限
+DEFAULT_SETTLE_SEC = 0.8    # 合手后保持秒数（原 1.5，2026-10-27 缩短）
+DEFAULT_SPEED = 0.05        # m/s，1~2 号点（接近段）
+DEFAULT_LIFT_SPEED = 0.03   # m/s，3 号点（抬升，手里有苹果）
+DEFAULT_PLACE_SPEED = 0.03  # m/s，5 号点（下落段）
+DEFAULT_ROT_SPEED = 0.30    # rad/s，姿态变化的速度上限；3 沿用抓取姿态，3→5 转一次腕
+DEFAULT_SETTLE_TIME = 0.15  # 每段轨迹发完后的最短静置时间 s（之后还要等 TCP 不再动）
+MIN_DURATION = 1.5          # s，每段最短时长
+SETTLE_WINDOW = 0.15        # s，判定"不再动"的观察窗
+SETTLE_THRESH = 0.0008      # m，窗口内 TCP 位移小于此值才算稳定（0.8mm/0.15s ≈ 5.3mm/s）
+SETTLE_MAX = 1.0            # s，等待稳定的上限（仿真手臂下沉慢，2 s 也到不了更严的判据）
 
 # --stop-after 名称 -> 在该步之后停下
 STOP_AFTER_STEP = {
     "1": ("goto", 1),
-    "2": ("goto", 2),
-    "3": ("goto", GRASP_INDEX),
+    "2": ("goto", GRASP_INDEX),
     "grasp": ("close", None),
-    "4": ("goto", LIFT_INDEX),
+    "3": ("goto", LIFT_INDEX),
     "5": ("goto", PLACE_INDEX),
 }
 STOP_STAGES = tuple(STOP_AFTER_STEP)
-# 该档位**必不可少**的点：接近点（1、2）可以整段不采（脚本直接跳过、
-# 少走一步），但抓取/抬升/放置点在语义上不能缺。
+# 该档位**必不可少**的、需要示教的点。3 由 2 号点推出来，所以一切都从
+# 2 号点起；1 号点（接近位）可以整段不采，脚本直接跳过、少走一步。
 STOP_REQUIRES = {
     "1": (1,),
-    "2": (2,),
-    "3": (GRASP_INDEX,),
+    "2": (GRASP_INDEX,),
     "grasp": (GRASP_INDEX,),
-    "4": (GRASP_INDEX, LIFT_INDEX),
-    "5": (GRASP_INDEX, LIFT_INDEX, PLACE_INDEX),
-    None: (GRASP_INDEX, LIFT_INDEX, PLACE_INDEX),
+    "3": (GRASP_INDEX,),
+    "5": (GRASP_INDEX,),
+    None: (GRASP_INDEX,),
 }
 STOP_TITLES = {
-    None: "放置完成（已张手）",
+    None: "抓取完成（已张手并回预备位）",
     "1": "停在 1 号点（接近段）",
-    "2": "停在 2 号点（接近段）",
-    "3": "停在 3 号点（未合手）",
+    "2": "停在 2 号点（抓取位，未合手）",
     "grasp": "合手完成（未抬升）",
-    "4": "停在 4 号点（未张手）",
-    "5": "停在 5 号点（未张手）",
+    "3": "停在 3 号点（已抬升 20 cm）",
+    "5": "停在 5 号点（放置位，未张手）",
 }
 POSE_SOURCES = ("target", "measured")
 
@@ -134,10 +166,10 @@ POSE_SOURCES = ("target", "measured")
 def build_steps(indices) -> tuple[tuple[str, int | None], ...]:
     """按路径文件里**实际存在**的点生成执行序列。
 
-    顺序固定为：接近点（<3，升序）→ 3 → 合手 → 抬升/放置点（>3，升序）→ 张手。
+    顺序固定为：接近点（<2，升序）→ 2 → 合手 → 抬升/放置点（>2，升序）→ 张手。
     少采的接近点直接不进序列——1 号点删掉后就只剩 ``open → goto 2``，不再有
-    "第一段总要经过 1" 的假设。缺 3/4/5 的点由 :data:`STOP_REQUIRES` 判，
-    这里只负责把已经采到的点排成一条可执行的链。
+    "第一段总要经过 1" 的假设。3 号点是 :func:`derive_waypoints` 补的，
+    缺 2 号点的报错由 :data:`STOP_REQUIRES` 判，这里只负责把点排成一条可执行的链。
     """
     present = {int(i) for i in indices}
     steps: list[tuple[str, int | None]] = [
@@ -148,7 +180,7 @@ def build_steps(indices) -> tuple[tuple[str, int | None], ...]:
         steps.append(("close", None))
     after = sorted(i for i in present if i > GRASP_INDEX)
     steps.extend(("goto", i) for i in after)
-    if after:  # 走完放置段才张手；只练到 3/4 号点时手保持合上
+    if PLACE_INDEX in present:  # 走到放置位才张手；只练到 3 号点时手保持合上
         steps.append(("open", None))
     return tuple(steps)
 
@@ -208,11 +240,14 @@ def load_grasp_path(path: str) -> dict:
 
 
 def resolve_waypoints(data: dict, pose_source: str = "target") -> list[Waypoint]:
-    """把 JSON 解析成回放目标，按编号排序。
+    """把 JSON 解析成回放目标，按编号排序，再补上推出的 3 号点。
 
     ``pose_source=target``（默认）：直接回放记录的期望目标变量，不做外推。
     ``pose_source=measured``：只给带实测读数的旧路径文件用——有实测值的点用实测值，
     没有的点沿用上一个已解析点 + 记录里的目标增量外推。
+
+    **文件里只认 1、2、5 号点**：3 一律由 :func:`derive_waypoints` 重算，
+    文件里若还留着这两个点的示教值会被忽略。
     """
     if pose_source not in POSE_SOURCES:
         raise ValueError(f"未知 pose_source: {pose_source}")
@@ -220,8 +255,12 @@ def resolve_waypoints(data: dict, pose_source: str = "target") -> list[Waypoint]
     resolved: list[Waypoint] = []
     prev_target: np.ndarray | None = None
     prev_pose: np.ndarray | None = None
+    ignored: list[int] = []
     for item in sorted(data["waypoints"], key=lambda entry: int(entry["index"])):
         index = int(item["index"])
+        if index > GRASP_INDEX and index != PLACE_INDEX:
+            ignored.append(index)
+            continue
         target = np.asarray(item["target"]["xyzrpy"], dtype=float)
         measured = item.get("measured")
 
@@ -236,7 +275,28 @@ def resolve_waypoints(data: dict, pose_source: str = "target") -> list[Waypoint]
 
         resolved.append(Waypoint(index, str(item.get("role", "")), pose, source))
         prev_target, prev_pose = target, pose
-    return resolved
+
+    if ignored:
+        print(
+            f"注意: 路径文件里的 {ignored} 号点是旧格式的示教值，已被推导规则取代（忽略）",
+            file=sys.stderr,
+        )
+    return derive_waypoints(resolved)
+
+
+def derive_waypoints(taught: list[Waypoint]) -> list[Waypoint]:
+    """补出 3 号点：2 号点（抓取位）沿 world z 抬升 :data:`LIFT_HEIGHT_M`，姿态不变。
+
+    抬起来以后直接去示教的 5 号点（放置位），中间不再有"放置位正上方"的过渡点——
+    3→5 是一段带姿态变化的直线，抓着苹果走弧比先摆到正上方再垂直下落更省事。
+    """
+    grasp = next((wp for wp in taught if wp.index == GRASP_INDEX), None)
+    if grasp is None:
+        return list(taught)
+
+    lift = grasp.pose.copy()
+    lift[2] += LIFT_HEIGHT_M
+    return list(taught) + [Waypoint(LIFT_INDEX, "lift", lift, "derived")]
 
 
 def _rotation(pose) -> np.ndarray:
@@ -250,7 +310,7 @@ def _rotation_angle(pose_a, pose_b) -> float:
 
 
 class ApplePicker:
-    """按示教路径回放：1 → 2 → 3（合手）→ 4（抬升）→ 5（张手放下）。"""
+    """按示教路径回放：1 → 2（合手）→ 3（抬升）→ 4（盘子正上方）→ 5（张手）→ 回预备位。"""
 
     def __init__(
         self,
@@ -265,6 +325,7 @@ class ApplePicker:
         close_speed: float = DEFAULT_CLOSE_SPEED,
         settle_sec: float = DEFAULT_SETTLE_SEC,
         settle_time: float = DEFAULT_SETTLE_TIME,
+        return_ready: bool = True,
     ):
         self.ctrl = ctrl
         self.side = side
@@ -277,9 +338,15 @@ class ApplePicker:
         self.close_speed = float(close_speed)
         self.settle_sec = float(settle_sec)
         self.settle_time = float(settle_time)
+        self.return_ready = bool(return_ready)
 
         self.apple = np.asarray(C.APPLE_WORLD_POS) - np.asarray(C.ROBOT_WORLD_POS)
+        self.plate = np.asarray(C.PLATE_WORLD_POS) - np.asarray(C.ROBOT_WORLD_POS)
         self.table_z = C.TABLETOP_WORLD_Z - C.ROBOT_WORLD_POS[2]
+
+        # 录制钩子：张手放到盘上那一刻回调（参数 = 本集是否成功）。回预备位是
+        # 空手离场，不算抓取段，所以钩子在 return_ready 之前触发（--save 用）。
+        self.on_place_done: Callable[[bool], None] | None = None
 
     # ------------------------------------------------------------------ 报告
     def _tcp(self) -> np.ndarray | None:
@@ -297,7 +364,10 @@ class ApplePicker:
         self.ctrl.get_logger().info(f"[{name}] " + self._target_text(xyz, reference_apple))
 
     def log_path(self) -> None:
-        self.ctrl.get_logger().info("示教路径（pelvis 系，回放目标）:")
+        self.ctrl.get_logger().info(
+            f"路径（pelvis 系，回放目标）：苹果 {np.round(self.apple, 3).tolist()}，"
+            f"盘心 {np.round(self.plate, 3).tolist()}"
+        )
         for wp in self.waypoints:
             pose = wp.pose
             extra = ""
@@ -305,8 +375,10 @@ class ApplePicker:
                 extra = f"  距苹果心 {np.linalg.norm(pose[:3] - self.apple):.3f} m"
             elif wp.index == GRASP_INDEX:
                 extra = f"  距苹果心 {np.linalg.norm(pose[:3] - self.apple):.3f} m（合手）"
+            elif wp.index == PLACE_INDEX:
+                extra = f"  距盘心 {np.linalg.norm(pose[:3] - self.plate):.3f} m"
             self.ctrl.get_logger().info(
-                f"  {wp.index} [{wp.role:<8}] {wp.source:<8} "
+                f"  {wp.index} [{wp.role:<11}] {wp.source:<8} "
                 f"xyz=({pose[0]:+.3f}, {pose[1]:+.3f}, {pose[2]:+.3f}) "
                 f"rpy=({pose[3]:+.3f}, {pose[4]:+.3f}, {pose[5]:+.3f})"
                 f"  离桌面 {pose[2] - self.table_z:+.3f} m" + extra
@@ -476,17 +548,19 @@ class ApplePicker:
         if not self._open():
             return False
 
-        # 1~3 参考苹果（"够到苹果"）；4~5 苹果已经在手里，是纯绝对位姿。
+        # 1、2 参考苹果（"够到苹果"）；3~5 苹果已经在手里，是纯绝对位姿。
         for kind, index in steps:
             if kind == "goto":
                 wp = self._waypoint(int(index))
-                if index < GRASP_INDEX:
+                if index <= GRASP_INDEX:
                     speed = self.speed
                 elif index == LIFT_INDEX:
                     speed = self.lift_speed
                 else:
                     speed = self.place_speed
-                if not self._goto(f"wp{index}", wp.pose, speed, reference_apple=index < GRASP_INDEX):
+                if not self._goto(
+                    f"wp{index}", wp.pose, speed, reference_apple=index <= GRASP_INDEX
+                ):
                     return False
             elif kind == "close":
                 if not self._close(self.grip):
@@ -495,7 +569,27 @@ class ApplePicker:
                 if not self._open():
                     return False
 
-        return self._finish(STOP_TITLES[stop_after])
+        # 先把终止位姿记进日志——回预备位之后 TCP 就变了，那串数就没法对照了。
+        ok = self._finish(STOP_TITLES[stop_after])
+
+        # 录制的收尾点：张手放到盘上的这一刻。放在 return_ready 之前，
+        # 免得把"空手回预备位"那 5 s 也录进抓取段（见 --save）。
+        if self.on_place_done is not None:
+            self.on_place_done(bool(ok))
+
+        # 放完直接回预备位收工；--stop-after 是"停在这儿看"，不回。
+        # 走**一步到底**（staged=False，5 s）：四段式的分段轨迹是给"从站立位出发、
+        # 手要贴着桌面从体侧扫过去"的场景准备的，收尾时手臂本来就在桌面上方、
+        # 一路空旷，没必要再摆 23 s。hands=False——手在 _open() 时已经是预备位手型，
+        # 头这一趟从来没动过，都不用再走一遍。
+        if stop_after is None and self.return_ready:
+            self.ctrl.get_logger().info(f"放置完成，回预备位（一步 {RETURN_READY_SEC:.1f}s）")
+            if not self.ctrl.move_to_ready_pose(
+                duration_sec=RETURN_READY_SEC, staged=False, hands=False
+            ):
+                self.ctrl.get_logger().error("回预备位失败")
+                return False
+        return ok
 
     def _finish(self, title: str) -> bool:
         cur = self._tcp()
@@ -545,9 +639,9 @@ class ApplePicker:
             margin = float(np.min(np.minimum(qa - low, high - qa)))
             ok_all &= ok
             self.ctrl.get_logger().info(
-                f"  {wp.index} [{wp.role:<8}] {wp.source:<8} {'可达' if ok else '不可达'}"
+                f"  {wp.index} [{wp.role:<11}] {wp.source:<8} {'可达' if ok else '不可达'}"
                 f"（{err * 1000:.1f} mm / {rot:.3f} rad，关节余量 {margin:+.3f} rad）  "
-                + self._target_text(wp.pose[:3], wp.index < GRASP_INDEX)
+                + self._target_text(wp.pose[:3], wp.index <= GRASP_INDEX)
             )
         self.ctrl.get_logger().info("干跑结束：" + ("全部可达" if ok_all else "有目标到不了"))
         return ok_all
@@ -575,8 +669,17 @@ def parse_args(argv=None):
                         help="每段轨迹发完后的静置时间 s")
     parser.add_argument("--stop-after", choices=STOP_STAGES, help="执行到该段后停止")
     parser.add_argument("--skip-ready", action="store_true", help="不先回预备位")
-    parser.add_argument("--ready-duration", type=float, default=10.0, help="回预备位时长 s")
+    parser.add_argument("--no-return-ready", action="store_true",
+                        help="放完不回预备位（默认回；--stop-after 时本来就不回）")
+    parser.add_argument("--ready-duration", type=float, default=None,
+                        help="回预备位总时长 s；不给则按 READY_STAGE_DURATIONS 分段（每段 5 s）")
     parser.add_argument("--dry-run", action="store_true", help="只解算路径点，不发运动指令")
+    parser.add_argument("--save", action="store_true",
+                        help="录制抓取段到 dataset/tienkung_dex/<epoch秒>/trajectory.hdf5"
+                             "（从 ready 后开始，到张手放置那一刻停）")
+    parser.add_argument("--save-dir", default=None, help="录制输出根目录（默认 dataset/tienkung_dex）")
+    parser.add_argument("--capture-hz", type=float, default=None, help="录制频率 Hz（默认 15）")
+    parser.add_argument("--no-depth", action="store_true", help="--save 时不录深度")
     return parser.parse_args(argv)
 
 
@@ -591,7 +694,7 @@ def main(argv=None) -> int:
         return 2
 
     # 示教文件可能只采到一半：先判"这次要跑到的点齐不齐"，免得机器人先回预备位
-    # 再中途报错。接近点可以缺（序列自动跳过），3/4/5 缺了对应档位就跑不了。
+    # 再中途报错。1 号点可以缺（序列自动跳过），2 号点缺了就一步都跑不了。
     present = {wp.index for wp in waypoints}
     missing = sorted(set(required_indices(args.stop_after)) - present)
     if missing:
@@ -612,10 +715,30 @@ def main(argv=None) -> int:
             file=sys.stderr,
         )
 
+    if args.save and args.stop_after is not None:
+        print(
+            "--save 只在完整抓取（张手放到盘上）时录制；--stop-after 是调试开关，"
+            "两者不能同时给",
+            file=sys.stderr,
+        )
+        return 2
+
     rclpy.init()
     ctrl = DexController(variant=variant)
     executor = MultiThreadedExecutor(num_threads=3)
     executor.add_node(ctrl)
+
+    recorder = None
+    if args.save:
+        # 录制节点和控制器放同一个 executor：单进程一集，边界由 on_place_done
+        # 精确给出，不靠 sleep 掐时间（批量采集时这点最要紧）
+        recorder = TienkungDexDataRecorder(
+            capture_hz=args.capture_hz or DEFAULT_CAPTURE_HZ,
+            record_depth=not args.no_depth,
+            variant=variant,
+        )
+        executor.add_node(recorder)
+
     spin_thread = threading.Thread(target=executor.spin, daemon=True)
     spin_thread.start()
     try:
@@ -635,6 +758,7 @@ def main(argv=None) -> int:
             close_speed=args.close_speed,
             settle_sec=args.settle,
             settle_time=args.settle_time,
+            return_ready=not args.no_return_ready,
         )
         ctrl.get_logger().info(
             f"路径 {args.path_file}（{side} 臂，{variant} 手，回放源 {args.pose_source}）"
@@ -644,19 +768,54 @@ def main(argv=None) -> int:
 
         if not args.skip_ready:
             ctrl.get_logger().info("先回预备位")
-            if not ctrl.move_to_ready_pose(duration_sec=max(args.ready_duration, 10.0)):
+            ready_duration = (
+                None if args.ready_duration is None else max(args.ready_duration, 10.0)
+            )
+            if not ctrl.move_to_ready_pose(duration_sec=ready_duration):
                 ctrl.get_logger().error("预备位未到位，中止")
                 return 1
             time.sleep(0.5)
 
+        if recorder is not None:
+            def _save_episode(success: bool) -> None:
+                """张手放置那一刻的回调：成功才落盘，失败/空缓存直接丢。"""
+                if not success:
+                    recorder.stop_episode()
+                    recorder.get_logger().warning("抓取未完成，丢弃本集")
+                    recorder.recorder.clear()
+                    return
+                recorder.stop_episode()
+                if recorder.recorder.num_frames == 0:
+                    recorder.get_logger().warning("一帧都没收到，跳过保存")
+                    return
+                out_dir = Path(args.save_dir) if args.save_dir else DEFAULT_SAVE_DIR
+                epoch = recorder.get_clock().now().seconds_nanoseconds()[0]
+                path = prepare_episode_file(episode_path(out_dir, epoch))
+                recorder.save_episode(
+                    str(path), attrs={"task": DEFAULT_TASK_NAME, "episode_index": 1}
+                )
+                recorder.recorder.clear()
+
+            picker.on_place_done = _save_episode
+            recorder.start_episode()
+            ctrl.get_logger().info(
+                f"开始录制抓取段（{recorder.capture_hz:g} Hz）→ "
+                f"{args.save_dir or DEFAULT_SAVE_DIR}/<epoch秒>/{HDF5_REL_PATH}"
+            )
+
         ok = picker.run(stop_after=args.stop_after)
+        if recorder is not None and recorder.recorder.recording:
+            # 走到了这里说明 run() 没跑完就退出了（中途报错），别把半集留下来
+            recorder.stop_episode()
+            recorder.recorder.clear()
+            ctrl.get_logger().warning("流程未走到放置，丢弃本集")
         ctrl.get_logger().info("抓取完成" if ok else "抓取失败")
         return 0 if ok else 2
     except KeyboardInterrupt:
         ctrl.get_logger().warning("用户中断")
         return 130
     finally:
-        _shutdown(ctrl, executor, spin_thread)
+        _shutdown(ctrl, executor, spin_thread, extra_nodes=[recorder] if recorder else None)
 
 
 if __name__ == "__main__":

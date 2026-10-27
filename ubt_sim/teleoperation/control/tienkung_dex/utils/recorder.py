@@ -14,10 +14,12 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -51,6 +53,35 @@ except ImportError:  # pragma: no cover
 
 DEFAULT_CAPTURE_HZ = 15.0
 GROUP_TOPICS = tuple(f"/{group}/cmd" for group in ("arm", "head", "waist", "leg"))
+# 头部相机在 HDF5 里的名字：camera_observations/{color_images,depth_images}/camera_head，
+# 与 walker_s2 / tienkung_pro 的 <camera_name> 命名一致（话题 /ob_camera_head/*）
+CAMERA_NAME = "camera_head"
+HDF5_REL_PATH = "trajectory.hdf5"
+
+
+def episode_path(output_dir: str | Path, epoch_seconds: int) -> Path:
+    """与 tienkung_pro / walker_s2 一致的落盘位置：``<output_dir>/<epoch秒>/trajectory.hdf5``。
+
+    同一秒内连续存两集时给目录名加 ``-2`` / ``-3`` 后缀，避免静默覆盖上一集
+    （``--duration`` 设得很短、或手动连按 ``s`` 时会撞上）。
+    """
+    output_dir = Path(output_dir)
+    stem = str(int(epoch_seconds))
+    candidate = output_dir / stem
+    suffix = 1
+    while (candidate / HDF5_REL_PATH).exists():
+        suffix += 1
+        candidate = output_dir / f"{stem}-{suffix}"
+    return candidate / HDF5_REL_PATH
+
+
+def prepare_episode_file(path: str | Path) -> Path:
+    """建好 episode 目录并放权，返回 HDF5 路径（目录 0777，文件由 ``EpisodeRecorder.save`` 置 0666）。"""
+    path = Path(path)
+    # mkdir 的 mode 会被 umask 削掉，必须再 chmod 一次
+    os.makedirs(path.parent, mode=0o777, exist_ok=True)
+    os.chmod(path.parent, 0o777)
+    return path
 
 
 class TienkungDexDataRecorder(Node):
@@ -246,9 +277,11 @@ class TienkungDexDataRecorder(Node):
                 "action_hand_left_position": cmd_left,
                 "action_hand_right_position": cmd_right,
             }
-            payload["png:head_rgb"] = self._rgb.copy()
+            # 相机名与 walker_s2 / tienkung_pro 对齐：color_images/camera_head、
+            # depth_images/camera_head（话题 /ob_camera_head/*）
+            payload[f"png:{CAMERA_NAME}"] = self._rgb.copy()
             if self.record_depth:
-                payload["depth:head_depth"] = self._depth.copy()
+                payload[f"depth:{CAMERA_NAME}"] = self._depth.copy()
 
         self.recorder.add_frame(payload)
 
@@ -263,8 +296,14 @@ class TienkungDexDataRecorder(Node):
 
     def save_episode(self, path: str, attrs: dict[str, Any] | None = None) -> str:
         attrs = {
+            # robot_type 是 playback/robots.detect_robot_type 的首选字段（与 walker_s2 同名），
+            # robot 是旧字段，保留给历史脚本
+            "robot_type": "tienkung_dex",
             "robot": "tienkung_dex",
             "hand_variant": self.variant,
+            "fps": float(self.capture_hz),
+            "camera_names": json.dumps([CAMERA_NAME]),
+            "created_at": self.get_clock().now().nanoseconds / 1e9,
             "body_joint_names": BODY_JOINTS,
             "left_hand_joint_names": self.left_hand_joints,
             "right_hand_joint_names": self.right_hand_joints,

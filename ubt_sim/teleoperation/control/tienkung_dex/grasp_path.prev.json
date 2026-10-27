@@ -2,7 +2,7 @@
   "robot": "tienkung_dex",
   "hand_variant": "inspire",
   "side": "right",
-  "frame": "pelvis（URDF base，x=前 y=左 z=上）；rpy = Rz(yaw)·Ry(pitch)·Rx(roll)",
+  "frame": "位置：pelvis（URDF base，x=前 y=左 z=上）；旋转 rpy = Rz(yaw)·Ry(pitch)·Rx(roll)，基座系绝对姿态",
   "apple": {
     "xyz_pelvis": [
       0.494,
@@ -15,436 +15,296 @@
       1.0312
     ],
     "source": "constants.APPLE_WORLD_POS - constants.ROBOT_WORLD_POS（出生位中心）",
-    "verified": "2026-10-27 头部 RGB+D 反投影复核：世界系 (8.332, 5.843, 1.054)，表面点与球心差 29 mm（含约 2 cm 半径方向的表面偏移），未发生位移"
+    "verified": "2026-10-27 场景重置后头部 RGB+D 反投影复核：世界系 (8.332, 5.843, 1.053)，与出生位差 28.6 mm（表面点偏移），苹果未位移"
   },
-  "recorded_at": "2026-10-27T10:41:39+00:00",
-  "grasp_waypoint": 3,
-  "lift_waypoint": 4,
-  "place_waypoint": 5,
-  "sequence": "1 → 2 → 3（合手）→ 4（抬起）→ 5（张手放下）",
+  "recorded_at": "2026-10-27T11:06:55+00:00",
+  "updated_at": "2026-10-27T14:17:36+00:00",
+  "sequence": "1、2 示教 → 3（z+0.20）→ 4（盘子正上方）→ 5（z−0.10，张手）→ 回预备位",
+  "removed_waypoints": [
+    {
+      "index": 2,
+      "removed_at": "2026-10-27T14:17:36+00:00",
+      "reason": "抓取流程简化为两个示教点：原 2 号（接近）与原 3 号（抓取）合并成新的 2 号 = 当前示教抓取位",
+      "target_xyzrpy": [
+        0.362,
+        -0.31,
+        0.272,
+        1.647,
+        0.688,
+        1.713
+      ]
+    },
+    {
+      "index": 1,
+      "removed_at": "2026-10-27T11:30:00+00:00",
+      "reason": "从预备位直接到 2 号点已能走通（无需先绕 1 号点），删掉减少一步",
+      "target_xyzrpy": [
+        0.254,
+        -0.43,
+        0.32,
+        1.309,
+        0.52,
+        1.142
+      ]
+    }
+  ],
   "waypoints": [
     {
       "index": 1,
       "name": "grasp_path_1",
-      "role": "approach",
+      "role": "pre_approach",
       "target": {
         "xyz": [
-          0.29,
-          -0.442,
-          0.212
+          0.323,
+          -0.327,
+          0.229
         ],
         "rpy": [
-          1.023,
-          0.478,
-          1.172
+          1.796,
+          0.52,
+          1.69
         ],
         "rpy_deg": [
-          58.61,
-          27.39,
-          67.15
+          102.9,
+          29.79,
+          96.83
         ],
         "xyzrpy": [
-          0.29,
-          -0.442,
-          0.212,
-          1.023,
-          0.478,
-          1.172
-        ]
-      },
-      "measured": {
-        "xyz": [
-          0.2796,
-          -0.4327,
-          0.1429
+          0.323,
+          -0.327,
+          0.229,
+          1.796,
+          0.52,
+          1.69
         ],
-        "rpy": [
-          1.2542,
-          0.4554,
-          1.2538
-        ],
-        "rpy_deg": [
-          71.86,
-          26.09,
-          71.84
-        ],
-        "xyzrpy": [
-          0.2796,
-          -0.4327,
-          0.1429,
-          1.2542,
-          0.4554,
-          1.2538
-        ]
+        "note": "期望目标变量（遥操作 _target_pose），自 14:05:18 冻结；与实测只差 2 mm / 0.3°",
+        "rotation_frame": "pelvis（= world，无旋转偏移）"
       },
       "relative_to_apple": {
         "xyz": [
-          -0.204,
-          -0.1879,
-          0.1788
+          -0.171,
+          -0.0729,
+          0.1958
         ],
-        "distance_m": 0.33,
+        "distance_m": 0.27,
         "rpy": [
-          1.023,
-          0.478,
-          1.172
+          1.796,
+          0.52,
+          1.69
         ],
         "rpy_deg": [
-          58.61,
-          27.39,
-          67.15
+          102.9,
+          29.79,
+          96.83
         ],
-        "note": "offset 是 EE 相对苹果中心的位移；苹果无固有朝向，旋转以基座系轴为参考"
+        "rotation_frame": "world（= pelvis，ROBOT_WORLD_ROT_WXYZ 为单位四元数，轴向相同）",
+        "note": "位置 offset = 目标末端 − 苹果中心；旋转 rpy 是 world 系绝对姿态"
+      },
+      "measured_at_pause": {
+        "xyzrpy": [
+          0.3228,
+          -0.327,
+          0.2271,
+          1.8018,
+          0.5181,
+          1.6921
+        ],
+        "delta_from_target": [
+          -0.0002,
+          0.0,
+          -0.0019,
+          0.0058,
+          -0.0019,
+          0.0021
+        ],
+        "note": "14:07:46 暂停状态下读取，仅作对照；回放仍用 target"
       },
       "hand_on_arrival": "open",
       "hand_action_at_arrival": null,
-      "recorded_at": "2026-10-27T10:18:35+00:00",
-      "recorded_while": "遥操作暂停（T），目标自 10:14:24 冻结"
+      "recorded_at": "2026-10-27T14:07:46+00:00",
+      "recorded_while": "遥操作暂停（T）；右臂目标变量自 14:05:18 冻结",
+      "note": "旧 1 号点已于 11:30 删除（见 removed_waypoints），这是 14:08 重新示教的点位"
     },
     {
       "index": 2,
       "name": "grasp_path_2",
-      "role": "approach",
-      "target": {
-        "xyz": [
-          0.314,
-          -0.286,
-          0.092
-        ],
-        "rpy": [
-          1.047,
-          0.392,
-          1.228
-        ],
-        "rpy_deg": [
-          59.99,
-          22.46,
-          70.36
-        ],
-        "xyzrpy": [
-          0.314,
-          -0.286,
-          0.092,
-          1.047,
-          0.392,
-          1.228
-        ]
-      },
-      "measured": {
-        "xyz": [
-          0.2884,
-          -0.2794,
-          0.0398
-        ],
-        "rpy": [
-          1.2446,
-          0.4215,
-          1.2903
-        ],
-        "rpy_deg": [
-          71.31,
-          24.15,
-          73.93
-        ],
-        "xyzrpy": [
-          0.2884,
-          -0.2794,
-          0.0398,
-          1.2446,
-          0.4215,
-          1.2903
-        ]
-      },
-      "relative_to_apple": {
-        "xyz": [
-          -0.18,
-          -0.0319,
-          0.0588
-        ],
-        "distance_m": 0.192,
-        "rpy": [
-          1.047,
-          0.392,
-          1.228
-        ],
-        "rpy_deg": [
-          59.99,
-          22.46,
-          70.36
-        ],
-        "note": "offset 是 EE 相对苹果中心的位移；苹果无固有朝向，旋转以基座系轴为参考"
-      },
-      "hand_on_arrival": "open",
-      "hand_action_at_arrival": null,
-      "recorded_at": "2026-10-27T10:21:36+00:00",
-      "recorded_while": "控制启用",
-      "delta_from_prev": {
-        "xyz": [
-          0.024,
-          0.156,
-          -0.12
-        ],
-        "distance_m": 0.1983,
-        "rotation_vector_base": [
-          0.0004,
-          -0.0002,
-          0.0999
-        ],
-        "angle_deg": 5.72
-      }
-    },
-    {
-      "index": 3,
-      "name": "grasp_path_3",
       "role": "grasp",
       "target": {
         "xyz": [
-          0.386,
-          -0.238,
-          0.128
+          0.347,
+          -0.303,
+          0.121
         ],
         "rpy": [
-          1.254,
-          0.645,
-          1.042
+          1.796,
+          0.52,
+          1.69
         ],
         "rpy_deg": [
-          71.85,
-          36.96,
-          59.7
+          102.9,
+          29.79,
+          96.83
         ],
         "xyzrpy": [
-          0.386,
-          -0.238,
-          0.128,
-          1.254,
-          0.645,
-          1.042
-        ]
-      },
-      "measured": {
-        "xyz": [
-          0.3589,
-          -0.2388,
-          0.0669
+          0.347,
+          -0.303,
+          0.121,
+          1.796,
+          0.52,
+          1.69
         ],
-        "rpy": [
-          1.4946,
-          0.6857,
-          1.1766
-        ],
-        "rpy_deg": [
-          85.63,
-          39.29,
-          67.41
-        ],
-        "xyzrpy": [
-          0.3589,
-          -0.2388,
-          0.0669,
-          1.4946,
-          0.6857,
-          1.1766
-        ]
+        "note": "期望目标变量（遥操作 _target_pose），自 14:09:23 冻结；到点后合手",
+        "rotation_frame": "pelvis（= world，无旋转偏移）"
       },
       "relative_to_apple": {
         "xyz": [
-          -0.108,
-          0.0161,
-          0.0948
+          -0.147,
+          -0.0489,
+          0.0878
         ],
-        "distance_m": 0.1446,
+        "distance_m": 0.1781,
         "rpy": [
-          1.254,
-          0.645,
-          1.042
+          1.796,
+          0.52,
+          1.69
         ],
         "rpy_deg": [
-          71.85,
-          36.96,
-          59.7
+          102.9,
+          29.79,
+          96.83
         ],
-        "note": "offset 是 EE 相对苹果中心的位移；苹果无固有朝向，旋转以基座系轴为参考"
+        "rotation_frame": "world（= pelvis，ROBOT_WORLD_ROT_WXYZ 为单位四元数，轴向相同）",
+        "note": "位置 offset = 目标末端 − 苹果中心；旋转 rpy 是 world 系绝对姿态"
+      },
+      "measured_on_replay": {
+        "xyzrpy": [
+          0.346,
+          -0.302,
+          0.121,
+          1.799,
+          0.52,
+          1.692
+        ],
+        "delta_from_target": [
+          -0.001,
+          0.001,
+          0.0,
+          0.003,
+          0.0,
+          0.002
+        ],
+        "note": "2026-10-27T14:36 重启仿真后 pick_apple --stop-after grasp 回放到位实测：1.6 mm / 0.3°，确认目标变量就是落点"
       },
       "hand_on_arrival": "open",
       "hand_action_at_arrival": "close",
-      "recorded_at": "2026-10-27T10:34:07+00:00",
-      "recorded_while": "右臂命令流自 10:33:24 冻结；随后 3 切到左臂",
-      "delta_from_prev": {
-        "xyz": [
-          0.072,
-          0.048,
-          0.036
-        ],
-        "distance_m": 0.0937,
-        "rotation_vector_base": [
-          0.2979,
-          -0.0451,
-          -0.2974
-        ],
-        "angle_deg": 24.26
-      }
-    },
-    {
-      "index": 4,
-      "name": "grasp_path_4",
-      "role": "lift",
-      "target": {
-        "xyz": [
-          0.386,
-          -0.238,
-          0.332
-        ],
-        "rpy": [
-          1.254,
-          0.645,
-          1.042
-        ],
-        "rpy_deg": [
-          71.85,
-          36.96,
-          59.7
-        ],
-        "xyzrpy": [
-          0.386,
-          -0.238,
-          0.332,
-          1.254,
-          0.645,
-          1.042
-        ]
-      },
-      "measured": null,
-      "relative_to_apple": {
-        "xyz": [
-          -0.108,
-          0.0161,
-          0.2988
-        ],
-        "distance_m": 0.3181,
-        "rpy": [
-          1.254,
-          0.645,
-          1.042
-        ],
-        "rpy_deg": [
-          71.85,
-          36.96,
-          59.7
-        ],
-        "note": "offset 是 EE 相对苹果中心的位移；苹果无固有朝向，旋转以基座系轴为参考"
-      },
-      "hand_on_arrival": "closed",
-      "hand_action_at_arrival": null,
-      "recorded_at": "2026-10-27T10:37:37+00:00",
-      "recorded_while": "定义：沿用 3 的 x/y 与姿态，只把 z 抬到 0.332（当前目标高度）",
-      "delta_from_prev": {
-        "xyz": [
-          0.0,
-          0.0,
-          0.204
-        ],
-        "distance_m": 0.204,
-        "rotation_vector_base": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "angle_deg": 0.0
-      }
-    },
-    {
-      "index": 5,
-      "name": "grasp_path_5",
-      "role": "place",
-      "target": {
-        "xyz": [
-          0.434,
-          -0.154,
-          0.224
-        ],
-        "rpy": [
-          1.508,
-          0.959,
-          2.488
-        ],
-        "rpy_deg": [
-          86.4,
-          54.95,
-          142.55
-        ],
-        "xyzrpy": [
-          0.434,
-          -0.154,
-          0.224,
-          1.508,
-          0.959,
-          2.488
-        ]
-      },
-      "measured": {
-        "xyz": [
-          0.4102,
-          -0.1546,
-          0.1355
-        ],
-        "rpy": [
-          1.8105,
-          0.8226,
-          2.7105
-        ],
-        "rpy_deg": [
-          103.73,
-          47.13,
-          155.3
-        ],
-        "xyzrpy": [
-          0.4102,
-          -0.1546,
-          0.1355,
-          1.8105,
-          0.8226,
-          2.7105
-        ]
-      },
-      "relative_to_apple": {
-        "xyz": [
-          -0.06,
-          0.1001,
-          0.1908
-        ],
-        "distance_m": 0.2236,
-        "rpy": [
-          1.508,
-          0.959,
-          2.488
-        ],
-        "rpy_deg": [
-          86.4,
-          54.95,
-          142.55
-        ],
-        "note": "offset 是 EE 相对苹果中心的位移；苹果无固有朝向，旋转以基座系轴为参考"
-      },
-      "hand_on_arrival": "closed",
-      "hand_action_at_arrival": "open",
-      "recorded_at": "2026-10-27T10:41:39+00:00",
-      "recorded_while": "右臂命令流自 10:40:01 冻结；右手随后张开",
-      "distance_to_plate_m": 0.2621,
-      "delta_from_prev": {
-        "xyz": [
-          0.048,
-          0.084,
-          -0.108
-        ],
-        "distance_m": 0.145,
-        "rotation_vector_base": [
-          -0.8122,
-          1.0184,
-          -0.0609
-        ],
-        "angle_deg": 74.71
-      }
+      "recorded_at": "2026-10-27T14:17:36+00:00",
+      "recorded_while": "遥操作暂停（T）；右臂目标变量自 14:09:23 冻结（当时仿真已卡死，只拿到目标变量；14:36 回放已实测复核）"
     }
-  ]
+  ],
+  "rotation_frame": "pelvis = world 轴向（constants.ROBOT_WORLD_ROT_WXYZ = (1,0,0,0)，出生无旋转，仅原点相差 ROBOT_WORLD_POS），所以 rpy 在机器人坐标系和世界坐标系下数值相同；不是相对苹果、也不是相对掌根系的量",
+  "position_frame": "路径点位置以「相对苹果中心的 offset」记录（offset = 目标末端 − 苹果中心）；pelvis 系绝对 xyz 同时保留在 target.xyz 里，pick_apple.py 回放用绝对量",
+  "recorded_field": "target（期望目标变量 / 遥操作 _target_pose），不记录实测读数",
+  "plate": {
+    "xyz_pelvis": [
+      0.524,
+      -0.03657,
+      0.0077
+    ],
+    "xyz_world": [
+      8.374,
+      6.046,
+      1.0057
+    ],
+    "source": "constants.PLATE_WORLD_POS - constants.ROBOT_WORLD_POS（原始场景盘心 0.916 + 台面抬高 0.0897）"
+  },
+  "derived_waypoints": {
+    "rule": "3/4/5 号点不再示教，由 2 号点和盘子中心算出来（pick_apple.py:derive_waypoints）",
+    "LIFT_HEIGHT_M": 0.2,
+    "PLACE_DROP_M": 0.1,
+    "steps": [
+      "3 = 2 沿 world z 抬升 LIFT_HEIGHT_M，姿态不变",
+      "4 = 盘子正上方：x/y 取盘子中心，z 与 3 相同（纯水平平移）",
+      "5 = 4 沿 world z 下降 PLACE_DROP_M，姿态不变；到点张手"
+    ],
+    "waypoints": [
+      {
+        "index": 3,
+        "name": "grasp_path_3",
+        "role": "lift",
+        "pose": [
+          0.347,
+          -0.303,
+          0.321,
+          1.796,
+          0.52,
+          1.69
+        ],
+        "derived_from": "脚本按规则推出，JSON 里只留作对照，pick_apple.py 不读这一段"
+      },
+      {
+        "index": 4,
+        "name": "grasp_path_4",
+        "role": "above_plate",
+        "pose": [
+          0.524,
+          -0.0366,
+          0.321,
+          1.796,
+          0.52,
+          1.69
+        ],
+        "derived_from": "脚本按规则推出，JSON 里只留作对照，pick_apple.py 不读这一段"
+      },
+      {
+        "index": 5,
+        "name": "grasp_path_5",
+        "role": "place",
+        "pose": [
+          0.524,
+          -0.0366,
+          0.221,
+          1.796,
+          0.52,
+          1.69
+        ],
+        "derived_from": "脚本按规则推出，JSON 里只留作对照，pick_apple.py 不读这一段"
+      }
+    ],
+    "pose_preview_note": "以下 pose 是写入时算出来的样子，仅供人看；回放时按上面三步重新算",
+    "pose_preview": [
+      {
+        "index": 3,
+        "xyzrpy": [
+          0.347,
+          -0.303,
+          0.321,
+          1.796,
+          0.52,
+          1.69
+        ]
+      },
+      {
+        "index": 4,
+        "xyzrpy": [
+          0.524,
+          -0.0366,
+          0.321,
+          1.796,
+          0.52,
+          1.69
+        ]
+      },
+      {
+        "index": 5,
+        "xyzrpy": [
+          0.524,
+          -0.0366,
+          0.221,
+          1.796,
+          0.52,
+          1.69
+        ]
+      }
+    ]
+  }
 }

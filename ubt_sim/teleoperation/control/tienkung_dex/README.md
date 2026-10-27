@@ -144,7 +144,7 @@ from dex_controller import DexController
 ctrl = DexController(variant="inspire")        # 同一套 API，仿真/真机都一样
 ctrl.wait_for_state()
 
-ctrl.move_to_ready_pose(duration_sec=10.0)     # READY_POSE（四段：外展抬臂→折前臂→转垂直→落到预备位）
+ctrl.move_to_ready_pose()                      # READY_POSE（四段：外展抬臂→折前臂→转垂直→落到预备位，每段 5 s + 3 s 收尾）
 ctrl.move_joint("head_yaw_joint", 0.3)         # 单关节
 ctrl.open_hand("right", wait=True)             # 灵巧手
 ctrl.move_arm_ee_delta("right", delta_xyz=(0.05, 0, 0))          # 末端相对位移
@@ -171,6 +171,12 @@ ctrl.home()                                    # 分段回站立位
   就会碰桌面；倒放路径该段指尖最低 1.26 m。外展段容差 0.55 是刻意放宽的：
   仿真隐式 PD 扛不住水平伸直的手臂，肩 roll 稳态差 0.34-0.48 rad，此时手仍有
   1.17 m，属正常下垂而非被挡住。
+- **预备动作节奏**：四段轨迹时长见 `constants.READY_STAGE_DURATIONS`（现在每段
+  5 s，墙钟），再加 3 s 收尾（`READY_TAIL_DURATION`，头部追平 + 双手预备位手型），
+  合计 23 s。收尾里**头和手并行**、**左右手也并行**——头只在最后一段才被下发，
+  串行的话要多等约 1 s；左右手各有独立轨迹状态 `_hand_traj[side]`，串行要 6 s。
+  传 `move_to_ready_pose(duration_sec=…)` 仍按总时长四段均分覆盖这张表；
+  `--ready-duration` / `--duration` 不给时用默认表。
 - **位姿都在 URDF 基座系（pelvis 原点）**，`[x, y, z, roll, pitch, yaw]`，单位 m/rad；
   世界系换算用 `world_xyzrpy_to_base` / `base_xyzrpy_to_world`
   （机器人世界位姿见 `constants.ROBOT_WORLD_POS`，与 `config/tienkung_dex/parlor.yaml` 一致）。
@@ -220,25 +226,38 @@ ctrl.home()                                    # 分段回站立位
 ```bash
 bash teleoperation/control/tienkung_dex/save_data.sh                      # Enter 开始/停止，s 保存，q 退出
 bash teleoperation/control/tienkung_dex/save_data.sh --variant brainco    # BrainCo 双手
+bash teleoperation/control/tienkung_dex/save_data.sh --batch 20           # 批量采 20 集（自动抓放）
 ```
+
+**批量采集**（`--batch N`）：每集「复位场景 → 回预备位 → 抓 → 放到盘上」，
+由 `pick_apple.py --save` 在**同一个进程**里跑动作 + 录制，录制区间自动掐在
+"预备位收尾完成 → 张手放到盘上"（不含空手回预备位那 5 s），失败集不落盘。
+单集失败不中断整批，`MAX_CONSECUTIVE_FAIL`（默认 3，0 = 关闭熔断）次连续失败才
+中止；`RESET_WAIT`（默认 3 s）控制复位后等场景稳定的时间。剩余参数原样透传给
+`pick_apple.py`，例如 `--batch 20 --variant brainco --speed 0.04`。
 
 `utils/recorder.py` 订阅的就是上面这套统一话题（`/robot_state` + 厂商手部状态 +
 `/ob_camera_head/*`），action 取 `/arm|head|waist|leg/cmd` 与灵巧手指令，
 所以**仿真和真机用同一个采集脚本**。
 
-产物：
+产物（路径与格式对齐 `tienkung_pro` / `walker_s2`：一集一个时间戳目录，
+目录 0777、文件 0666）：
 
 ```
-dataset/tienkung_dex/episode_0001.hdf5
+dataset/tienkung_dex/<epoch秒>/trajectory.hdf5
 ├── joint_observations/{joint_position, joint_velocity, joint_effort}    # 31
 ├── hand_observations/{hand_left_*, hand_right_*}                        # Inspire 18+18 / BrainCo 11+11
 ├── action_observations/{joint_position, hand_left_position, hand_right_position}
-├── camera_observations/images/head_rgb                                  # PNG 字节流
-├── camera_observations/depth_images/head_depth                          # uint16 mm
+├── camera_observations/color_images/camera_head                         # PNG 字节流
+├── camera_observations/depth_images/camera_head                         # uint16 mm
 └── timestamp
 ```
 
-`attrs` 内含 `robot / hand_variant / body_joint_names / left_hand_joint_names / right_hand_joint_names / capture_hz / task_name`。
+`attrs` 内含 `robot_type / robot / hand_variant / fps / camera_names / created_at /
+body_joint_names / left_hand_joint_names / right_hand_joint_names / capture_hz /
+task / task_name / episode_index / num_frames / dropped_frames`。
+
+同一秒内连续保存两集时目录名加 `-2` / `-3` 后缀，不会互相覆盖。
 
 回放用 `teleoperation/tools/playback/`，适配层同样发这套话题。
 
@@ -256,9 +275,28 @@ dataset/tienkung_dex/episode_0001.hdf5
   - **强脑**：6 电机 1-1000 闭合度，步长约 1/1000 量程。
   - 换算入口统一是 `constants.hand_code_to_rad` / `hand_rad_to_code`；真机若改
     协议只需改这两个函数与 `INSPIRE_CHANNELS`。
-- 仿真的手臂执行器是隐式 PD（`stiffness=80`，无重力补偿），重力载荷下肩/肘稳态
-  误差可达 0.02–0.06 rad；真机是驱动器闭环，不会有这个偏差。`move_to_pose` 的
-  `settle_tolerance` 默认因此放宽到 0.08 rad。
+- 执行器增益 2026-10-27 按真机站立配置（`kps_stand`，与 ONNX 策略同源）对齐，逐关节
+  给在 `config.py` 的 `TIENKUNG_DEX_*_KP/_KD`：肩 200（kp）/14/14/8（kd）、其余手臂
+  150（肘 pitch 7、肘 yaw 5、腕 3/2.2）、腰 400 / 43/49/36、腿 600/600/350/650/60/35。
+  **kd 没有照抄真机**：真机靠减速器摩擦和驱动器速度环补阻尼，仿真里理想 PD 用真机
+  kd（5/2.5/10）时 ζ 只有 0.14~0.26，动作后要晃几十秒墙钟；按 ζ=kd/(2√(kp·I))≈0.7
+  反算后 10 s 内停稳。肘 yaw 惯量只有 0.005 kg·m²，kd=5 已是过阻尼，保持不动。
+- 仿真的手臂执行器是隐式 PD，本身没有重力前馈，重力载荷下肩/肘
+  稳态误差可达 0.02–0.06 rad，末端累积下垂 7–11 cm。**仿真侧已补一次标定的重力
+  前馈**：`source/ubt_sim/devices/tienkung_dex/gravity_compensation.py` 用
+  pinocchio RNEA 把 τ_g 折算成位置偏移叠加到 action 上，补偿 14 个手臂关节 + 3 个
+  腰关节，对所有上层（遥操作、回放、以后的主策略）透明。实测 2 号点末端稳态误差
+  72.1 mm → 5.9 mm（k=80 时；刚度提到 200/150、kd 按 ζ≈0.7 配后是 3.4 mm，已落在
+  IK 默认 5 mm 容差内）；预备位在补偿
+  前比设计位低 133 mm，补偿后剩十几毫米，已经把这段残差从目标里扣掉
+  （`constants.READY_POSE_TARGET`），物理姿态与旧版差 0.6 mm。
+  `TIENKUNG_DEX_GRAVITY_COMP=0` 关闭，`TIENKUNG_DEX_GRAVITY_SCALE` 调比例
+  （默认 1.0）。真机是驱动器闭环，不受影响。
+  `move_to_pose` 的 `settle_tolerance` 仍保留 0.08 rad 的放宽值。
+- **不要给前馈加全局 scale。** 2026-10-27 六姿态标定发现「真值重力矩 / URDF 模型
+  重力矩」随姿态漂（肩 pitch 0.98~1.38、elbow_yaw 2.6~6.5），根因是 URDF 与 USD 的
+  臂/手惯量分布不一致；固定增益在一个姿态调准、换个姿态就过补。要再提精度只能逐
+  姿态实测残差（预备位就是这么做的）。
 - 相机外参取 `camera_head_link` 原点，`rot` 是单位四元数：URDF 的
   `camera_head_joint`（rpy −90/0/−90）已经把该 link 摆成 ROS 光学系，相机与
   `head_pitch_link` 同向。**视角由 `head_pitch_joint` 决定**（正值为低头，

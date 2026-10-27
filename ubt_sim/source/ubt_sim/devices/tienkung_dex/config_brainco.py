@@ -16,13 +16,20 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
 from .config import (
+    TIENKUNG_DEX_ARM_KD,
+    TIENKUNG_DEX_ARM_KP,
     TIENKUNG_DEX_HEAD_JOINTS,
     TIENKUNG_DEX_LEFT_ARM_JOINTS,
     TIENKUNG_DEX_LEFT_LEG_JOINTS,
+    TIENKUNG_DEX_LEG_KD,
+    TIENKUNG_DEX_LEG_KP,
     TIENKUNG_DEX_RIGHT_ARM_JOINTS,
     TIENKUNG_DEX_RIGHT_LEG_JOINTS,
     TIENKUNG_DEX_ROOT,
     TIENKUNG_DEX_WAIST_JOINTS,
+    TIENKUNG_DEX_WAIST_KD,
+    TIENKUNG_DEX_WAIST_KP,
+    _gains,
 )
 from .urdf_utils import joint_limits as _joint_limits
 from .urdf_utils import mimic_joints as _mimic_joints
@@ -142,15 +149,15 @@ TIENKUNG_DEX_BRAINCO_CFG = ArticulationCfg(
             joint_names_expr=TIENKUNG_DEX_LEFT_ARM_JOINTS,
             effort_limit_sim=50.0,
             velocity_limit_sim=10.0,
-            stiffness=80.0,
-            damping=20.0,
+            stiffness=_gains(TIENKUNG_DEX_LEFT_ARM_JOINTS, TIENKUNG_DEX_ARM_KP),
+            damping=_gains(TIENKUNG_DEX_LEFT_ARM_JOINTS, TIENKUNG_DEX_ARM_KD),
         ),
         "right_arm": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_RIGHT_ARM_JOINTS,
             effort_limit_sim=50.0,
             velocity_limit_sim=10.0,
-            stiffness=80.0,
-            damping=20.0,
+            stiffness=_gains(TIENKUNG_DEX_RIGHT_ARM_JOINTS, TIENKUNG_DEX_ARM_KP),
+            damping=_gains(TIENKUNG_DEX_RIGHT_ARM_JOINTS, TIENKUNG_DEX_ARM_KD),
         ),
         "left_hand": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_BRAINCO_LEFT_HAND_JOINTS,
@@ -175,27 +182,27 @@ TIENKUNG_DEX_BRAINCO_CFG = ArticulationCfg(
             stiffness=600.0,
             damping=10.0,
         ),
-        # 腰刚度与阻尼说明见 config.py（同为 600/35，压住预备位的重力下垂）
+        # 腰/腿增益与 config.py 共用同一组常量，说明见那里
         "waist": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_WAIST_JOINTS,
             effort_limit_sim=200.0,
             velocity_limit_sim=10.0,
-            stiffness=600.0,
-            damping=35.0,
+            stiffness=_gains(TIENKUNG_DEX_WAIST_JOINTS, TIENKUNG_DEX_WAIST_KP),
+            damping=_gains(TIENKUNG_DEX_WAIST_JOINTS, TIENKUNG_DEX_WAIST_KD),
         ),
         "left_leg": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_LEFT_LEG_JOINTS,
             effort_limit_sim=235.0,
             velocity_limit_sim=16.0,
-            stiffness=200.0,
-            damping=20.0,
+            stiffness=_gains(TIENKUNG_DEX_LEFT_LEG_JOINTS, TIENKUNG_DEX_LEG_KP),
+            damping=_gains(TIENKUNG_DEX_LEFT_LEG_JOINTS, TIENKUNG_DEX_LEG_KD),
         ),
         "right_leg": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_RIGHT_LEG_JOINTS,
             effort_limit_sim=235.0,
             velocity_limit_sim=16.0,
-            stiffness=200.0,
-            damping=20.0,
+            stiffness=_gains(TIENKUNG_DEX_RIGHT_LEG_JOINTS, TIENKUNG_DEX_LEG_KP),
+            damping=_gains(TIENKUNG_DEX_RIGHT_LEG_JOINTS, TIENKUNG_DEX_LEG_KD),
         ),
     },
     soft_joint_pos_limit_factor=1.0,

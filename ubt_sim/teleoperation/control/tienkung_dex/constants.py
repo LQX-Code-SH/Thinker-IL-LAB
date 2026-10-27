@@ -455,6 +455,91 @@ READY_POSE.update(
     }
 )
 
+# 2026-10-27：仿真侧加了手臂/腰部重力前馈（devices/tienkung_dex/gravity_compensation.py）
+# 之前，命令 READY_POSE 时手臂实际稳住的关节角（实测，2026-10-27 场景重置后按四段
+# 预备动作走到位、再等 10 s 停稳读数）。那时末端比设计位低 133 mm。
+#
+# 加补偿后，物理姿态会真的落到 READY_POSE 上，比原来高 13 cm——之前照着旧姿态调过的
+# 桌面间隙、相机画幅、示教位姿都会跟着变。所以把**旧版实际姿态**作为新目标：
+# 补偿只负责让「指令 = 实际」，姿态本身沿用旧版，视觉和可达性都不用重调。
+#
+# 注意：真机上驱动器闭环、本来就没有这段下垂，用这份角度会站成旧版仿真的姿态。
+# 真机恢复设计姿态时把 move_to_ready_pose 的 final_pose 换回 READY_POSE 即可。
+READY_POSE_PRE_GRAV_COMP = {
+    "shoulder_pitch_l_joint": -0.5389,
+    "shoulder_roll_l_joint": 0.5122,
+    "shoulder_yaw_l_joint": -0.0402,
+    "elbow_pitch_l_joint": -1.0236,
+    "elbow_yaw_l_joint": -0.0311,
+    "wrist_pitch_l_joint": -0.3338,
+    "wrist_roll_l_joint": -0.0096,
+    "shoulder_pitch_r_joint": -0.5366,
+    "shoulder_roll_r_joint": -0.5133,
+    "shoulder_yaw_r_joint": 0.0343,
+    "elbow_pitch_r_joint": -1.0241,
+    "elbow_yaw_r_joint": 0.0213,
+    "wrist_pitch_r_joint": -0.1818,
+    "wrist_roll_r_joint": 0.0087,
+    "waist_yaw_joint": 0.0019,
+    "waist_roll_joint": 0.0078,
+    "waist_pitch_joint": 0.0404,
+}
+
+# 直接拿上表当目标时，前馈吃不干净：k=80 时末端仍比旧版低 15 mm（肩 pitch 残差
+# 0.027 rad），把手臂刚度提到 200/150 后只剩 2~3 mrad（末端 1 mm 级）。根因是
+# URDF 与 USD 的臂/手惯量不一致——实测「真值重力矩 / URDF 模型
+# 重力矩」的比值随姿态在 0.98~1.38 之间漂（2026-10-27 六组姿态标定），不是固定增益
+# 能修好的，所以不往补偿模块里塞增益。这里只把这个**局部**残差从目标里扣掉，
+# 让物理姿态精确落回旧版；补偿本身仍按模型走，不引入随姿态变化的偏差。
+#
+# 数据：目标 = 上表、前馈开启、到位后连续采样到相邻两次差 <0.1 mrad 的稳态读数。
+# **改任何执行器增益都要重标**：kp 直接进 τ_g/k，kd 也会挪平衡点（kd 5 → 14 时
+# 肩 pitch 残差从 2.6 变 7.4 mrad，约 1 N·m，来源是关节摩擦这类速率相关项），
+# 而两个增益下各自都复现得很好，所以不能按比例推算，只能实测。
+_READY_RESIDUAL_AT_COMP = {
+    "shoulder_pitch_l_joint": 0.00684,
+    "shoulder_roll_l_joint": -0.00072,
+    "shoulder_yaw_l_joint": -0.00026,
+    "elbow_pitch_l_joint": 0.00232,
+    "elbow_yaw_l_joint": -0.00352,
+    "wrist_pitch_l_joint": 0.00017,
+    "wrist_roll_l_joint": -0.00025,
+    "shoulder_pitch_r_joint": 0.00741,
+    "shoulder_roll_r_joint": 0.00047,
+    "shoulder_yaw_r_joint": -0.00045,
+    "elbow_pitch_r_joint": 0.00196,
+    "elbow_yaw_r_joint": 0.00240,
+    "wrist_pitch_r_joint": 0.00027,
+    "wrist_roll_r_joint": 0.00023,
+    "waist_yaw_joint": 0.00000,
+    "waist_roll_joint": 0.00000,
+    "waist_pitch_joint": 0.00118,
+}
+
+# 预备位真正下发的关节目标（真机没有这段下垂，用 READY_POSE 本身即可）。
+READY_POSE_TARGET = {
+    name: value - _READY_RESIDUAL_AT_COMP.get(name, 0.0)
+    for name, value in READY_POSE_PRE_GRAV_COMP.items()
+}
+
+# 预备动作四段各自的**轨迹时长**（墙钟秒），对应 READY_CLEARANCE_POSE →
+# READY_FOREARM_POSE → READY_UPPER_VERTICAL_POSE → READY_POSE_TARGET。
+#
+# 2026-10-27 实测"3 s 一段看着还是偏快"，统一拉到 5.0 s。速度下限
+# （_min_duration 最大那段 2.94 s，肘 0 → -2.00 rad）早就不是约束了，这里纯粹是
+# 观感/柔顺度：轨迹越长，仿真时间里的关节角速度越低，对 velocity_limit_sim 也更宽松。
+#
+# 合计 20.0 s。传 move_to_ready_pose(duration_sec=…) 时仍按均分覆盖这张表。
+READY_STAGE_DURATIONS = (5.0, 5.0, 5.0, 5.0)
+
+# 收尾一步（头部追平 + 预备位手型）的时长，算作预备动作的第 5 段。
+# 头部只在最后一段（READY_POSE 才带 head_pitch = 45°）被下发，且受
+# velocity_limit_sim=1.27 rad/s 与 RTF≈0.11 限制，墙钟上要走 ~1.5 s 才追上；
+# 手型（拇指内收到 90°）原来是 1.5 s，这里统一成 3.0 s。
+# 这一步内部是并行的：头部等待和双手轨迹同时进行、左右手也同时进行，
+# 所以整步就是 3.0 s 而不是"头 1.5 + 左手 3 + 右手 3"。
+READY_TAIL_DURATION = 3.0
+
 # 仿真世界坐标系中的机器人基座位姿（config/tienkung_dex/parlor.yaml 的 init_state）
 # x=7.85 与 tiangong2dex 抓取标定站位一致；7.80 时苹果心到右肩 0.681 m，
 # 超出本臂 0.573 m 的腕可达半径，抓取点够不到。
@@ -469,6 +554,9 @@ ROBOT_WORLD_ROT_WXYZ = (1.0, 0.0, 0.0, 0.0)
 APPLE_WORLD_POS = (8.344, 5.8285, 1.0312)
 APPLE_DIAMETER_M = 0.084
 TABLETOP_WORLD_Z = 0.987
+# 盘子中心。原始场景量得 (8.374, 6.046, 0.916)——比原台面 0.897 高 1.9 cm，
+# 即盘心落在盘体中间而不是盘口；台面沿 z 放大 1.1 后同步上移 0.0897 m。
+PLATE_WORLD_POS = (8.374, 6.046, 1.0057)
 
 # 右肩（shoulder_pitch_r_joint 原点）在 pelvis 系的位置，量自 URDF FK（两种手型相同）。
 # 抓取时手末端沿「肩→苹果」方向摆位，这条线能让手臂在 0.573 m 腕可达半径内

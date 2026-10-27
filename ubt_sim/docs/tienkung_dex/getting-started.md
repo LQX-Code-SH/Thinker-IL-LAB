@@ -121,21 +121,24 @@ bash teleoperation/control/tienkung_dex/save_data.sh --auto-start --duration 30 
 
 # BrainCo 变体需显式指定（影响手部列数与 attrs）
 bash teleoperation/control/tienkung_dex/save_data.sh --variant brainco
+
+# 批量采集：每集自动「复位 → 预备位 → 抓 → 放到盘上」并落盘，失败集不保存
+bash teleoperation/control/tienkung_dex/save_data.sh --batch 20
 ```
 
-产物：`dataset/tienkung_dex/episode_000N.hdf5`，字段见
+产物：一集一个时间戳目录 `dataset/tienkung_dex/<epoch秒>/trajectory.hdf5`
+（与 `tienkung_pro` / `walker_s2` 同布局，目录 0777、文件 0666），字段见
 [control/tienkung_dex/README.md](../../teleoperation/control/tienkung_dex/README.md)。
 
 ## 6. 回放
 
 ```bash
-# 预览（Rerun）
-/usr/bin/python3 teleoperation/tools/playback_tienkung_dex.py \
-    --episode dataset/tienkung_dex/episode_0001.hdf5 --mode preview
+# 预览（Rerun）；不给 --episode 就取 dataset/tienkung_dex 下最新的时间戳目录
+/usr/bin/python3 teleoperation/tools/playback_tienkung_dex.py --mode preview
 
 # 控制（向桥接话题回放）
 /usr/bin/python3 teleoperation/tools/playback_tienkung_dex.py \
-    --episode dataset/tienkung_dex/episode_0001.hdf5 --mode control
+    --episode dataset/tienkung_dex/<epoch秒>/trajectory.hdf5 --mode control
 ```
 
 ## 7. 关键参数

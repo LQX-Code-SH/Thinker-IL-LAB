@@ -6,7 +6,8 @@
 * ``joint_observations/*``：31 个身体关节
 * ``hand_observations/*``：左右手各 18 关节
 * ``action_observations/*``：下发目标（回放使用）
-* ``camera_observations/{images,depth_images}/head_*``：PNG 字节流 / uint16 毫米
+* ``camera_observations/{color_images,depth_images}/camera_head``：PNG 字节流 / uint16 毫米
+  （目录与相机名与 walker_s2 / tienkung_pro 一致）
 
 回放直接向真机同款话题发布（``/arm|head|waist|leg/cmd`` + 灵巧手指令），
 仿真与真机只差 ``ROS_DOMAIN_ID``（仿真 146 / 真机 0）。
@@ -78,8 +79,8 @@ class TienkungDexAdapter:
 
             cameras = {}
             try:
-                color = f["camera_observations/images"]["head_rgb"][()]
-                depth = f["camera_observations/depth_images"]["head_depth"][()]
+                color = f["camera_observations/color_images"]["camera_head"][()]
+                depth = f["camera_observations/depth_images"]["camera_head"][()]
                 cameras["head"] = CameraStream(color=color, depth=depth)
             except KeyError:
                 pass

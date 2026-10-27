@@ -15,6 +15,12 @@
 
 交互：``Enter`` 开始/停止，``s`` 保存并进入下一集，``q`` 退出（自动保存当前集）。
 也可以用 ``--auto-start`` + ``--duration`` 做无人值守采集。
+
+落盘位置与 tienkung_pro / walker_s2 一致，一集一个时间戳目录::
+
+    dataset/tienkung_dex/<epoch秒>/trajectory.hdf5
+
+目录 0777、文件 0666（容器内 root 采集、宿主用户也能读）。
 """
 
 from __future__ import annotations
@@ -34,7 +40,13 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 if _DIR not in sys.path:
     sys.path.insert(0, _DIR)
 
-from utils.recorder import DEFAULT_CAPTURE_HZ, TienkungDexDataRecorder  # noqa: E402
+from utils.recorder import (  # noqa: E402
+    DEFAULT_CAPTURE_HZ,
+    HDF5_REL_PATH,
+    TienkungDexDataRecorder,
+    episode_path,
+    prepare_episode_file,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "dataset" / "tienkung_dex"
@@ -96,8 +108,17 @@ def main() -> int:
         if node.recorder.num_frames == 0:
             print("[WARN] 没有收到任何帧，跳过保存")
             return
-        path = output_dir / f"episode_{episode_index:04d}.hdf5"
-        node.save_episode(str(path), attrs={"task_name": args.task_name, "episode_index": episode_index})
+        # 时间戳目录名取 ROS 时钟（与 tienkung_pro / walker_s2 同源）
+        epoch_seconds = node.get_clock().now().seconds_nanoseconds()[0]
+        path = prepare_episode_file(episode_path(output_dir, epoch_seconds))
+        node.save_episode(
+            str(path),
+            attrs={
+                "task": args.task_name,
+                "task_name": args.task_name,
+                "episode_index": episode_index,
+            },
+        )
         node.recorder.clear()   # 保存后清缓存，否则退出时 finally 会把上一集再存一遍
         episode_index += 1
         saved += 1
@@ -164,7 +185,7 @@ def main() -> int:
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
-        print(f"[INFO] 结束，共保存 {saved} 集到 {output_dir}")
+        print(f"[INFO] 结束，共保存 {saved} 集到 {output_dir}/<时间戳>/{HDF5_REL_PATH}")
 
     return 0
 

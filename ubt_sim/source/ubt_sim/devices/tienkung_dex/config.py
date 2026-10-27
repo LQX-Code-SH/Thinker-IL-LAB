@@ -195,6 +195,36 @@ TIENKUNG_DEX_INDEPENDENT_HAND_JOINTS = [
 ]
 
 
+# 执行器增益：2026-10-27 按真机站立配置（kps_stand / kds_stand，与 ONNX 策略一致）
+# 对齐。手臂在真机值基础上抬高——真机是 150/50/50/150/150/200/200，这里肩 3 个
+# 自由度统一给 200、其余手臂关节 150，kd 沿用真机值。腰从原来的 600/35 换成
+# 400/10，腿从统一 200/20 换成逐关节的真机值。
+#
+# 手臂变硬（80 → 200/150）后，同样的重力矩下开环下垂只有原来的 40%~53%，重力
+# 前馈会自动跟着走（gravity_compensation 直接读这里的 cfg），但**预备位的残差
+# 标定是按旧刚度做的**，换刚度后要重新标 constants._READY_RESIDUAL_AT_COMP。
+#
+# 阻尼没有照抄真机 kds_stand：真机靠减速器摩擦、齿槽转矩和驱动器速度环补足阻尼，
+# 仿真里是理想无摩擦 PD，真机那套 kd 换到仿真里 ζ 只有 0.14~0.26（腰 0.14、肩
+# 0.24），每次动作后要晃 5~6 个周期、按 RTF≈0.11 折算墙钟上要几十秒。这里按
+# ζ = kd/(2√(kp·I)) ≈ 0.7 反算，等效惯量取自 URDF 在预备位的 CRBA：
+#   肩 pitch/roll I≈0.52/0.47 → kd 14；肩 yaw I≈0.16 → kd 8
+#   肘 pitch I≈0.17 → kd 7；肘 yaw I≈0.005 本来就过阻尼（ζ≈2.6），保持 5
+#   腕 pitch/roll I≈0.031/0.014 → kd 3 / 2.2
+#   腰 yaw/roll/pitch I≈2.33/3.02/1.68 → kd 43 / 49 / 36
+TIENKUNG_DEX_LEG_KP = [600.0, 600.0, 350.0, 650.0, 60.0, 35.0]  # 髋p 髋r 髋y 膝 踝p 踝r
+TIENKUNG_DEX_LEG_KD = [15.0, 15.0, 10.0, 14.0, 7.0, 3.0]
+TIENKUNG_DEX_WAIST_KP = [400.0, 400.0, 400.0]  # yaw roll pitch
+TIENKUNG_DEX_WAIST_KD = [43.0, 49.0, 36.0]
+TIENKUNG_DEX_ARM_KP = [200.0, 200.0, 200.0, 150.0, 150.0, 150.0, 150.0]
+TIENKUNG_DEX_ARM_KD = [14.0, 14.0, 8.0, 7.0, 5.0, 3.0, 2.2]
+
+
+def _gains(joint_names: list[str], values: list[float]) -> dict[str, float]:
+    """逐关节增益表（ImplicitActuatorCfg 的 stiffness / damping 支持 dict）。"""
+    return dict(zip(joint_names, values))
+
+
 TIENKUNG_DEX_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path=str(TIENKUNG_DEX_USD_PATH.resolve()),
@@ -216,15 +246,15 @@ TIENKUNG_DEX_CFG = ArticulationCfg(
             joint_names_expr=TIENKUNG_DEX_LEFT_ARM_JOINTS,
             effort_limit_sim=50.0,
             velocity_limit_sim=10.0,
-            stiffness=80.0,
-            damping=20.0,
+            stiffness=_gains(TIENKUNG_DEX_LEFT_ARM_JOINTS, TIENKUNG_DEX_ARM_KP),
+            damping=_gains(TIENKUNG_DEX_LEFT_ARM_JOINTS, TIENKUNG_DEX_ARM_KD),
         ),
         "right_arm": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_RIGHT_ARM_JOINTS,
             effort_limit_sim=50.0,
             velocity_limit_sim=10.0,
-            stiffness=80.0,
-            damping=20.0,
+            stiffness=_gains(TIENKUNG_DEX_RIGHT_ARM_JOINTS, TIENKUNG_DEX_ARM_KP),
+            damping=_gains(TIENKUNG_DEX_RIGHT_ARM_JOINTS, TIENKUNG_DEX_ARM_KD),
         ),
         "left_hand": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_LEFT_HAND_JOINTS,
@@ -254,30 +284,31 @@ TIENKUNG_DEX_CFG = ArticulationCfg(
             stiffness=600.0,
             damping=10.0,
         ),
-        # 腰比手臂（stiffness=80）需要硬得多：它要托住整条上半身，手臂前伸时
-        # 力矩约 30 N·m。200 时预备位实测下垂 0.149 rad（8.5°），视觉上整个人
-        # 前倾；600 把下垂压到约 0.05 rad（3°）。damping 按 sqrt(k) 同比放大，
-        # 保持原阻尼比（仿真 dt=0.01 s，ω_n≈20 rad/s，隐式积分稳定）。
+        # 腰要托住整条上半身，手臂前伸时力矩约 30 N·m。历史数据：200 时预备位
+        # 下垂 0.149 rad（8.5°，视觉上前倾），600 压到约 0.05 rad（3°）。现在按
+        # 真机取 400，剩下的下垂由重力前馈补掉。
+        # （注：基线固定 fix_root_link=True，腿的增益只影响腿自身姿态，不会通过
+        #  骨盆传到上半身。）
         "waist": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_WAIST_JOINTS,
             effort_limit_sim=200.0,
             velocity_limit_sim=10.0,
-            stiffness=600.0,
-            damping=35.0,
+            stiffness=_gains(TIENKUNG_DEX_WAIST_JOINTS, TIENKUNG_DEX_WAIST_KP),
+            damping=_gains(TIENKUNG_DEX_WAIST_JOINTS, TIENKUNG_DEX_WAIST_KD),
         ),
         "left_leg": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_LEFT_LEG_JOINTS,
             effort_limit_sim=235.0,
             velocity_limit_sim=16.0,
-            stiffness=200.0,
-            damping=20.0,
+            stiffness=_gains(TIENKUNG_DEX_LEFT_LEG_JOINTS, TIENKUNG_DEX_LEG_KP),
+            damping=_gains(TIENKUNG_DEX_LEFT_LEG_JOINTS, TIENKUNG_DEX_LEG_KD),
         ),
         "right_leg": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_RIGHT_LEG_JOINTS,
             effort_limit_sim=235.0,
             velocity_limit_sim=16.0,
-            stiffness=200.0,
-            damping=20.0,
+            stiffness=_gains(TIENKUNG_DEX_RIGHT_LEG_JOINTS, TIENKUNG_DEX_LEG_KP),
+            damping=_gains(TIENKUNG_DEX_RIGHT_LEG_JOINTS, TIENKUNG_DEX_LEG_KD),
         ),
     },
     soft_joint_pos_limit_factor=1.0,

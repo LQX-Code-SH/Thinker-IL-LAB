@@ -7,7 +7,7 @@
 joint_observations/{joint_position, joint_velocity, joint_effort}
 hand_observations/{hand_left_position, ..., hand_right_effort}
 action_observations/{joint_position, hand_left_position, hand_right_position}
-camera_observations/images/<camera_name>          # PNG 编码字节流（vlen uint8）
+camera_observations/color_images/<camera_name>    # PNG 编码字节流（vlen uint8）
 camera_observations/depth_images/<camera_name>    # uint16 毫米，65535 无效
 timestamp
 ```
@@ -24,6 +24,7 @@ timestamp
 
 from __future__ import annotations
 
+import os
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
@@ -124,13 +125,16 @@ class EpisodeRecorder:
             f.attrs["num_frames"] = self.num_frames
             f.attrs["dropped_frames"] = self._dropped
 
+        # 与 walker_s2 / tienkung_pro 一致：数据文件对所有用户可读写，
+        # 避免容器内 root 采集、宿主用户读不了
+        os.chmod(path, 0o666)
         return path
 
 
 def _write_key(handle: h5py.File, key: str, values: list[Any]) -> None:
     """按 key 约定写入对应 HDF5 分组。"""
     if key.startswith("png:"):
-        group = handle.require_group("camera_observations/images")
+        group = handle.require_group("camera_observations/color_images")
         dataset = group.create_dataset(key[4:], shape=(len(values),), dtype=h5py.vlen_dtype(np.uint8))
         for i, value in enumerate(values):
             dataset[i] = value

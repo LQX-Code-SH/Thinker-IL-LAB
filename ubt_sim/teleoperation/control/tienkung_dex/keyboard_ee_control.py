@@ -298,7 +298,14 @@ class KeyboardEEController:
         print(line)
 
     def _seed_target_from_ready(self, why: str = "", pose=None) -> bool:
-        """把目标变量重置为**预备位期望**（READY_POSE 的正运动学），不用实测位姿。
+        """把目标变量重置为**预备位目标的期望末端**（``READY_POSE_TARGET`` 的
+        正运动学），不用实测位姿。
+
+        目标是 ``READY_POSE_TARGET`` 而不是设计姿态 ``READY_POSE``：加仿真重力前馈
+        之后手臂真的停在"下发的那个目标"上，而预备位刻意下发的是旧版下垂姿态
+        （见 constants）。用设计姿态播种会高出 0.13 m，第一次按键目标就得先补这
+        13 cm——2026-10-27 实测就是 [0.4338,-0.4415,0.3082] vs 实测
+        [0.4301,-0.4232,0.1766]。
 
         目标变量是纯命令流：一旦给出就只被键盘增量修改，实测永远不回写它。
         ``pose`` 给定时改用该位姿作初值（``--seed``，重启遥操作时接着上次的目标走）；
@@ -306,7 +313,7 @@ class KeyboardEEController:
         """
         ee_ready = (
             np.array(pose, dtype=float) if pose is not None
-            else self._controller.fk_ee_pose(self.side, C.READY_POSE)
+            else self._controller.fk_ee_pose(self.side, C.READY_POSE_TARGET)
         )
         if ee_ready is None:
             print(f"[{self.side}] 目标重置失败（无法计算预备位末端）{why}")
@@ -345,11 +352,12 @@ class KeyboardEEController:
 
         print(f"读取 {self.side} 臂预备位的期望末端姿态...")
         # 目标变量 = 单一事实源：键盘只改它，发送器只读它，实测只进 _actual_pose。
-        # 初值取**预备位的期望末端**（READY_POSE 的正运动学），不是实测末端：
-        # 仿真隐式 PD 在预备位有 τ_g/kp ≈ 0.13 m 的静态下垂，若拿实测做初值，
-        # 目标变量就落在下垂后的位置上，操作者每次累加都要先把这段下垂"还"掉，
-        # 目标也就不在任务坐标系里了。发送器的 _sent_pose 同源——指令流从这个
-        # 期望位姿开始累进（tienkung_pro 的 move_arm 同样从命令值起步）。
+        # 初值取**预备位目标的期望末端**（READY_POSE_TARGET 的正运动学），不是实测：
+        # 目标变量是纯命令流，拿实测会在有残差时把目标钉在实测那个点上。而
+        # READY_POSE_TARGET 正是此刻下发的命令，加了重力前馈后两者只差毫米级
+        # （一般姿态 ≤15 mm，预备位 0.1 mm 级），所以既不会一上来就跳，也不用
+        # 操作者先"还"掉下垂。发送器的 _sent_pose 同源——指令流从这个期望位姿
+        # 开始累进（tienkung_pro 的 move_arm 同样从命令值起步）。
         if not self._seed_target_from_ready(pose=self.seed_xyzrpy):
             print("ERROR: 无法计算预备位末端姿态，请检查 IK 初始化与机器人状态")
             self._running = False

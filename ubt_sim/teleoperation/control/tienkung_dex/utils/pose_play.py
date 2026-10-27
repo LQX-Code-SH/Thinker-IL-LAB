@@ -95,13 +95,17 @@ def _print_worst_errors(controller: DexController, pose: dict[str, float], top: 
 
 
 def _play_once(
-    controller: DexController, pose: str, duration_sec: float, include_legs: bool
+    controller: DexController, pose: str, duration_sec: float | None, include_legs: bool
 ) -> tuple[bool, float]:
     t0 = time.time()
     if pose == "ready":
+        # duration_sec=None 时走 constants.READY_STAGE_DURATIONS（每段 5 s）
         ok = controller.move_to_ready_pose(duration_sec=duration_sec)
     else:
-        ok = controller.home(duration_sec=duration_sec, include_legs=include_legs)
+        ok = controller.home(
+            duration_sec=10.0 if duration_sec is None else duration_sec,
+            include_legs=include_legs,
+        )
     return ok, time.time() - t0
 
 
@@ -112,7 +116,10 @@ def main(args=None) -> None:
         help="ready=四段预备动作（默认），home=四段倒放回站立位",
     )
     _add_common_args(parser)
-    parser.add_argument("--duration", type=float, default=10.0, help="整段总时长（秒）")
+    parser.add_argument(
+        "--duration", type=float, default=None,
+        help="整段总时长（秒）；ready 不给则按 READY_STAGE_DURATIONS 分段（每段 5 s），home 不给则 10 s",
+    )
     parser.add_argument(
         "--from-home", action="store_true",
         help="ready 之前先分段回站立位（默认直接从当前位置播）",
@@ -147,7 +154,13 @@ def main(args=None) -> None:
             return
         if cli.pose == "ready" and cli.from_home:
             print("=== 先回站立位 ===")
-            print("home 返回", controller.home(duration_sec=cli.duration, include_legs=cli.include_legs))
+            print(
+                "home 返回",
+                controller.home(
+                    duration_sec=10.0 if cli.duration is None else cli.duration,
+                    include_legs=cli.include_legs,
+                ),
+            )
             time.sleep(1.0)
 
         if cam is not None:
@@ -165,7 +178,8 @@ def main(args=None) -> None:
 
         for i in range(rounds):
             print(
-                f"=== 播放{POSE_LABELS[cli.pose]}（{cli.duration:.0f}s 分段）"
+                f"=== 播放{POSE_LABELS[cli.pose]}"
+                f"（{'默认分段' if cli.duration is None else f'{cli.duration:.0f}s'}）"
                 f"第 {i + 1}/{rounds} 遍 ==="
             )
             ok, elapsed = _play_once(controller, cli.pose, cli.duration, cli.include_legs)
