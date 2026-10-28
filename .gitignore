@@ -81,8 +81,11 @@ docs/*
 site/*
 mkdocs.yml
 
-# TienKung Dex 的 USD 由 import_tienkung_dex_usd.py 现场生成，不入库
-ubt_sim/assets/robots/tienkung_dex/usd/
+# TienKung Dex：inspire / brainco USD 已入库；base 变体与转换元数据不入库
+ubt_sim/assets/robots/tienkung_dex/usd/tienkung_dex_base.usd
+ubt_sim/assets/robots/tienkung_dex/usd/configuration/tienkung_dex_base_*.usd
+ubt_sim/assets/robots/tienkung_dex/usd/config.yaml
+ubt_sim/assets/robots/tienkung_dex/usd/.asset_hash
 
 # 调试图/深度落盘（camera_snapshot.py 等脚本的输出目录）
 ubt_sim/teleoperation/control/tienkung_dex/camera_frames/
