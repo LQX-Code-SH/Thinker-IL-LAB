@@ -29,7 +29,7 @@ tienkung_dex/
 │   ├── rh5dg2_l/{meshes,urdf,config}
 │   ├── rh5dg2_r/{meshes,urdf,config}
 │   └── revo2/{left,right}/meshes
-├── usd/                            # URDF→USD 转换产物（由脚本生成）
+├── usd/                            # URDF→USD 转换产物（inspire / brainco 已入库，改 URDF 后重新生成）
 │   └── configuration/              # Isaac Lab 生成的 base/physics/robot/sensor 分层 USD
 ├── textures/                       # logo 贴图（从 tienkung_pro 克隆，避免跨机型依赖）
 └── 关键参数/                        # URDF关键参数表（质量/质心/惯量/关节轴向/限位/速度/力矩）
@@ -49,7 +49,10 @@ tienkung_dex/
 
 ## USD 转换
 
-需要 Isaac Sim 容器（`ubt_sim/docker`）与 GPU。容器内项目挂载在 `/ubt_sim`：
+`usd/` 下的 **Inspire / BrainCo 两套 USD 已随仓库入库**（Git LFS），正常仿真无需执行本节；
+只有修改 URDF/网格、或需要换配色重新生成时才需要重跑。
+
+转换需要 Isaac Sim 容器（`ubt_sim/docker`）与 GPU。容器内项目挂载在 `/ubt_sim`：
 
 ```bash
 bash docker/run.sh start                       # 首次需先 build / init

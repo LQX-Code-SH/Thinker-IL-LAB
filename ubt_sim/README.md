@@ -12,8 +12,8 @@ Thinker 机器人仿真平台，基于 NVIDIA Isaac Sim 5.0 + Isaac Lab 2.2 支�
 |--------|-----|------|------|----------|
 | Walker TienKung Pro | 50 | — | 12×2 (五指灵巧手) | `assets/robots/tienkung_pro/tienkung_pro_v2.usd` |
 | Walker S2 EDU 探索者 | 34 | 2×2 (PGC 两指) | — | `assets/robots/walker_s2/s2_v1.usd` |
-| TienKung Dex（天工行者 Dex V3） | 67 | — | 18×2 (Inspire RH5DG2) | `assets/robots/tienkung_dex/usd/tienkung_dex_inspire.usd`（由 URDF 现场转换） |
-| TienKung Dex（BrainCo Revo2 双手） | 53 | — | 11×2 (BrainCo Revo2) | `assets/robots/tienkung_dex/usd/tienkung_dex_brainco.usd`（由 URDF 现场转换） |
+| TienKung Dex（天工行者 Dex V3） | 67 | — | 18×2 (Inspire RH5DG2) | `assets/robots/tienkung_dex/usd/tienkung_dex_inspire.usd` |
+| TienKung Dex（BrainCo Revo2 双手） | 53 | — | 11×2 (BrainCo Revo2) | `assets/robots/tienkung_dex/usd/tienkung_dex_brainco.usd` |
 
 ## 当前支持的任务
 
@@ -57,6 +57,7 @@ git lfs pull                             # 补全未下载的 LFS 文件
 请根据目标机器人查看对应快速使用文档（含环境搭建、仿真启动、数据采集、相机测试、故障排查等完整步骤）：
 
 - [Walker TienKung Pro 仿真使用说明](docs/tienkung_pro/getting-started.md)
+- [TienKung Dex（天工行者 Dex）仿真使用说明](docs/tienkung_dex/getting-started.md)
 - [Walker S2 EDU 探索者 仿真使用说明](docs/walker_s2/getting-started.md)
 
 一句话流程：构建启动容器 → 容器内动仿真→ 运行对应采集脚本录制 HDF5 数据。
