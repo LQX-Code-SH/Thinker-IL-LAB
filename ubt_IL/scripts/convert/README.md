@@ -6,6 +6,7 @@
 |------|------|------|
 | `tienkung_pro` | [tienkung_pro/](tienkung_pro/)(`convert.sh`、`convert_grasp_bottle.sh`) | [tienkung_pro/configs/](tienkung_pro/configs/) |
 | `walker_s2` | [walker_s2/](walker_s2/)(`convert.sh`、`convert_real_to_lerobot_v3.py`) | [walker_s2/configs/](walker_s2/configs/) |
+| `tienkung_dex` | [tienkung_dex/](tienkung_dex/)(`convert.sh`、`inspect_hdf5.py`) | [tienkung_dex/configs/](tienkung_dex/configs/) |
 
 通用转换器(非机型专属)在 [common/](common/):
 
