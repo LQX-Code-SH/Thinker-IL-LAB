@@ -63,7 +63,7 @@ kd 按 ζ≈0.7 配之后是 3.4 mm——已经落在 IK 默认 5 mm 容差（``
     /usr/bin/python3 pick_apple.py --stop-after grasp   # 只练到合手
     /usr/bin/python3 pick_apple.py --stop-after 5  # 到放置位但先不张手
     /usr/bin/python3 pick_apple.py --no-return-ready    # 放完停在原地
-    /usr/bin/python3 pick_apple.py --save          # 顺手录一集抓取段（批量走 save_data.sh --batch）
+    /usr/bin/python3 pick_apple.py --save          # 顺手录一集（批量走 save_data.sh --batch）
     /usr/bin/python3 pick_apple.py --randomize-apple   # 先把苹果随机挪开，再按新位置抓
 
 仿真与真机跑同一份代码，只有 ``ROS_DOMAIN_ID`` 不同。
@@ -74,6 +74,11 @@ kd 按 ζ≈0.7 配之后是 3.4 mm——已经落在 IK 默认 5 mm 容差（``
 ``/scene/apple/offset`` 让仿真把苹果摆过去，同时把路径的 1、2 号点（以及由
 2 号点推出来的 3 号点）平移同样的量——苹果挪到哪，手就抓到哪。5 号点（盘子）
 不动。只对仿真有效；真机上发这个偏移没有副作用，但苹果也不会动。
+
+**--save 的录制区间**：从预备位收尾完成（``move_to_ready_pose`` 返回）开始，
+到放手后**回预备位**走完为止——数据集首尾都是预备位，回放（仿真/真机）结束时
+机器人正好停在 ready，不必再手动 home。``--no-return-ready`` 时收尾提前到
+张手放下的那一刻。
 
 **--save 的成功判定**与 ``tienkung_pro`` 的 ``pick_place_save_data.py`` 同一口径：
 看仿真真值 ``/sim/task_completed``（苹果中心到盘心的距离，米），小于
@@ -500,9 +505,12 @@ class ApplePicker:
         self.plate = np.asarray(C.PLATE_WORLD_POS) - np.asarray(C.ROBOT_WORLD_POS)
         self.table_z = C.TABLETOP_WORLD_Z - C.ROBOT_WORLD_POS[2]
 
-        # 录制钩子：张手放到盘上那一刻回调（参数 = 本集是否成功）。回预备位是
-        # 空手离场，不算抓取段，所以钩子在 return_ready 之前触发（--save 用）。
+        # 放置钩子：张手放到盘上那一刻回调（参数 = 本集是否成功）。--save 用它
+        # 记住"流程走到了放置"，存不存另由仿真真值判定（见 main）。
         self.on_place_done: Callable[[bool], None] | None = None
+        # 录制收尾钩子：整套流程跑完（含放手后回预备位）才回调，--save 在这里
+        # 停录。回预备位那一趟也算在录制区间内，数据集首尾都是预备位。
+        self.on_episode_end: Callable[[], None] | None = None
 
     # ------------------------------------------------------------------ 报告
     def _tcp(self) -> np.ndarray | None:
@@ -762,8 +770,8 @@ class ApplePicker:
         # 先把终止位姿记进日志——回预备位之后 TCP 就变了，那串数就没法对照了。
         ok = self._finish(STOP_TITLES[stop_after])
 
-        # 录制的收尾点：张手放到盘上的这一刻。放在 return_ready 之前，
-        # 免得把"空手回预备位"那 5 s 也录进抓取段（见 --save）。
+        # 张手放到盘上：只标记"流程走到了放置"，不在这里停录——放手后回预备位
+        # 那一趟也要录进去（见下面的 on_episode_end）。
         if self.on_place_done is not None:
             self.on_place_done(bool(ok))
 
@@ -772,14 +780,19 @@ class ApplePicker:
         # 手要贴着桌面从体侧扫过去"的场景准备的，收尾时手臂本来就在桌面上方、
         # 一路空旷，没必要再摆 23 s。hands=False——手在 _open() 时已经是预备位手型，
         # 头这一趟从来没动过，都不用再走一遍。
+        returned = True
         if stop_after is None and self.return_ready:
             self.ctrl.get_logger().info(f"放置完成，回预备位（一步 {RETURN_READY_SEC:.1f}s）")
-            if not self.ctrl.move_to_ready_pose(
+            returned = self.ctrl.move_to_ready_pose(
                 duration_sec=RETURN_READY_SEC, staged=False, hands=False
-            ):
+            )
+            if not returned:
                 self.ctrl.get_logger().error("回预备位失败")
-                return False
-        return ok
+
+        # 录制收尾：回预备位走完这一刻（--no-return-ready 时就是放手那一刻）。
+        if self.on_episode_end is not None:
+            self.on_episode_end()
+        return ok and returned
 
     def _finish(self, title: str) -> bool:
         cur = self._tcp()
@@ -855,7 +868,7 @@ def save_if_task_succeeded(
       仿真专有话题全判失败；pro 那边把 -1 当"距离很小"，反而会误存；
     * 一帧都没录到时不落盘，同样算失败。
 
-    调用前录制必须已经停掉（``_on_place_done`` 或调用方负责）。
+    调用前录制必须已经停掉（``on_episode_end`` 或调用方负责）。
     """
     if not ctrl.wait_for_task_dist(timeout=TASK_DIST_TIMEOUT):
         ctrl.get_logger().warning(
@@ -916,7 +929,7 @@ def parse_args(argv=None):
     parser.add_argument("--dry-run", action="store_true", help="只解算路径点，不发运动指令")
     parser.add_argument("--save", action="store_true",
                         help="录制抓取段到 dataset/tienkung_dex/<epoch秒>/trajectory.hdf5"
-                             "（从 ready 后开始，到张手放置那一刻停）")
+                             "（ready 后开始，放手并回到 ready 后停）")
     parser.add_argument("--save-dir", default=None, help="录制输出根目录（默认 dataset/tienkung_dex）")
     parser.add_argument("--capture-hz", type=float, default=None, help="录制频率 Hz（默认 15）")
     parser.add_argument("--no-depth", action="store_true", help="--save 时不录深度")
@@ -986,8 +999,9 @@ def main(argv=None) -> int:
 
     recorder = None
     if args.save:
-        # 录制节点和控制器放同一个 executor：单进程一集，边界由 on_place_done
-        # 精确给出，不靠 sleep 掐时间（批量采集时这点最要紧）
+        # 录制节点和控制器放同一个 executor：单进程一集，起止边界由
+        # recorder.start_episode / on_episode_end 精确给出，不靠 sleep 掐时间
+        # （批量采集时这点最要紧）
         recorder = TienkungDexDataRecorder(
             capture_hz=args.capture_hz or DEFAULT_CAPTURE_HZ,
             record_depth=not args.no_depth,
@@ -1048,15 +1062,19 @@ def main(argv=None) -> int:
         out_dir = Path(args.save_dir) if args.save_dir else DEFAULT_SAVE_DIR
         if recorder is not None:
             def _on_place_done(_finished: bool) -> None:
-                """张手放到盘上那一刻：只停录。存不存等仿真真值（见 run 之后）。"""
+                """张手放到盘上那一刻：只记"走到放置了"，不停录（回预备位也要录）。"""
                 nonlocal placed
                 placed = True
+
+            def _on_episode_end() -> None:
+                """放手并回预备位之后：停录。存不存等仿真真值（见 run 之后）。"""
                 recorder.stop_episode()
 
             picker.on_place_done = _on_place_done
+            picker.on_episode_end = _on_episode_end
             recorder.start_episode()
             ctrl.get_logger().info(
-                f"开始录制抓取段（{recorder.capture_hz:g} Hz）→ "
+                f"开始录制（预备位 → 抓放 → 回预备位，{recorder.capture_hz:g} Hz）→ "
                 f"{out_dir}/<epoch秒>/{HDF5_REL_PATH}"
             )
 

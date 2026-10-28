@@ -44,24 +44,22 @@ bash run.sh check      # 校验环境（GPU / ROS2 / 消息包 / numpy<2 等）
 ### 2. 启动仿真（容器内）
 
 ```bash
-# 只加载场景（不接 ROS，先确认位姿/相机）
-UBT_SIM_LOAD_ONLY=1 UBT_SIM_TASK=UBTSim-TienkungDex-Parlor-v0 bash scripts/start_sim.sh
+# 进入容器
+cd ubt_sim/docker/
+bash run.sh bash
 
-# 完整模式：同时拉起 ROS2-ZMQ 桥接（5755-5758）
+# 拉起仿真和 ROS2-ZMQ 桥接
 UBT_SIM_TASK=UBTSim-TienkungDex-Parlor-v0 bash scripts/start_sim.sh
-
-# 参数原样透传给 sim_runner.py：无窗口 + 性能统计
-UBT_SIM_TASK=UBTSim-TienkungDex-Parlor-v0 bash scripts/start_sim.sh --headless --perf_stats
 ```
 
-两个场景（手部变体）分别对应独立任务：
+两个场景（手部变体）分别对应不同的灵巧手：
 
 | 任务 ID | 手部 | 关节数 | 配置 |
 |---------|------|--------|------|
 | `UBTSim-TienkungDex-Parlor-v0` | Inspire RH5DG2 | 67 | `config/tienkung_dex/parlor.yaml` |
 | `UBTSim-TienkungDex-Brainco-Parlor-v0` | BrainCo Revo2 | 53 | `config/tienkung_dex/brainco_parlor.yaml` |
 
-`start_sim.sh` 会从任务名推断变体（含 `Brainco` → brainco），并把 `--variant` 传给桥接。**按 `R` 键**可复位机器人/场景；关闭仿真窗口时退出陷阱会自动停止桥接。
+`start_sim.sh` 会从任务名推断变体（含 `Brainco` → brainco），并把 `--variant` 传给桥接。**按 `R` 键**可复位机器人/场景。
 
 运行效果（桌面抓苹果）：
 
@@ -83,33 +81,10 @@ UBT_SIM_TASK=UBTSim-TienkungDex-Parlor-v0 bash scripts/start_sim.sh --headless -
 ### 3. 数据采集（容器内，使用系统 Python 3.10）
 
 ```bash
-source /opt/ros/humble/setup.bash
-source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash
-export ROS_DOMAIN_ID=146          # 真机改成 0
-
-# 键盘关节遥操作（1~6 切分组，[/] 选关节，w/s 增减，o/c 手张开/闭合，q 退出）
-/usr/bin/python3 teleoperation/control/tienkung_dex/keyboard_joint_control.py --step 0.02
-/usr/bin/python3 teleoperation/control/tienkung_dex/keyboard_joint_control.py --step 0.02 --variant brainco
-
-# 交互录制：Enter 开始/停止，s 保存并下一集，q 退出
-bash teleoperation/control/tienkung_dex/save_data.sh
-
-# 无人值守：每集 30s，共 5 集
-bash teleoperation/control/tienkung_dex/save_data.sh --auto-start --duration 30 --episodes 5 --task-name "pour water"
-
-# 批量采集：每集自动「复位 → 预备位 → 抓 → 放到盘上」并落盘，失败集不保存
+# 批量采集：每集自动「复位 → 预备位 → 抓 → 放到盘上 → 回预备位」并落盘，失败集不保存
 bash teleoperation/control/tienkung_dex/save_data.sh --batch 20
 ```
 
-- 批量模式由 `pick_apple.py --save` 在**同一个进程**里跑动作 + 录制，录制区间掐在「预备位收尾完成 → 张手放到盘上」；`--batch` 之后的参数原样透传给 `pick_apple.py`。
-- **成败按仿真真值判**：`/sim/task_completed` 给出苹果中心到盘心的距离，小于 `--task-dist-tol`（默认 0.15 m）才落盘并算成功，否则计入失败；收不到该话题（真机 / 旧桥接）时跳过判定。连续失败 10 次（`MAX_CONSECUTIVE_FAIL`）熔断整批。
-- **苹果随机化**（`--randomize-apple`）：每集把苹果随机挪 `x=0~10 cm`、`y=0~-10 cm`（世界系），抓取航点跟着平移，用于采集有位置多样性的数据。
-- BrainCo 变体给 `save_data.sh` 加 `--variant brainco`（影响手部列数与 attrs）。
-- 腿部关节默认锁定（真机由行走控制器持有），控制器/播放类子命令可加 `--include-legs` 解锁。
-- 更多控制（状态/IK/手部/相机/末端遥操作）与完整话题表见
-  [control/tienkung_dex/README.md](../../teleoperation/control/tienkung_dex/README.md)。
-
-产物：一集一个时间戳目录 `/ubt_sim/dataset/tienkung_dex/<时间戳>/trajectory.hdf5`（与 `tienkung_pro` / `walker_s2` 同布局，目录 0777、文件 0666），内含 31 维身体关节、双手关节、动作、头部 RGB+深度与时间戳；录制频率默认 15 Hz，`--capture-hz` / `--no-depth` 可调。两个手部变体靠 attrs 里的 `hand_variant` 区分。
 
 ### 4. 相机测试（容器内）
 
@@ -118,23 +93,26 @@ bash teleoperation/control/tienkung_dex/save_data.sh --batch 20
 /usr/bin/python3 teleoperation/control/tienkung_dex/tienkung_dex_controller.py camera --preview
 # 保存 5 帧
 /usr/bin/python3 teleoperation/control/tienkung_dex/tienkung_dex_controller.py camera --save --count 5
-
-# 或订阅 ROS2 图像话题，保存 3 张 JPEG
-/usr/bin/python3 /ubt_sim/teleoperation/image/test_ros_image.py
 ```
 
-相机话题为 `/ob_camera_head/color/image_raw`（rgb8）与 `/ob_camera_head/depth/image_raw`（16UC1，毫米）。画面朝向由 `head_pitch_joint` 决定（正值为低头，预备位低头 45°），不要往 `cameras.*.rot` 里加安装俯角。
+相机话题为 `/ob_camera_head/color/image_raw`（rgb8）与 `/ob_camera_head/depth/image_raw`（16UC1，毫米）。
 
 ### 5. 数据集预览与回放（容器内）
 
 ```bash
-# 预览（Rerun）；不给 --episode 就取 dataset/tienkung_dex 下最新的时间戳目录
+# 预览数据集
 /usr/bin/python3 teleoperation/tools/playback_tienkung_dex.py --mode preview --web-port 9090
 
-# 控制（向桥接话题回放，仿真/真机同话题）
+# 真机动作回放控制（向桥接话题回放，仿真/真机同话题）
+source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash
+/usr/bin/python3 teleoperation/control/tienkung_dex/tienkung_dex_controller.py play ready   # 先初始化预备动作再回放数据集
 /usr/bin/python3 teleoperation/tools/playback_tienkung_dex.py \
     --episode dataset/tienkung_dex/<时间戳>/trajectory.hdf5 --mode control
 ```
+
+预览界面（Rerun Web Viewer：相机画面、action/state 曲线与时间轴）：
+
+![TienKung Dex 数据集预览](../assets/TienKung_DEX数据集预览.png)
 
 完整参数与真机说明见 `teleoperation/tools/playback/README.md`。
 

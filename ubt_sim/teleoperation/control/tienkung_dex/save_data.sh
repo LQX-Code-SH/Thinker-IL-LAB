@@ -46,7 +46,7 @@ OUTPUT_DIR="${UBT_SIM_DEX_OUTPUT_DIR:-$PROJECT_DIR/dataset/tienkung_dex}"
 mkdir -p "$OUTPUT_DIR"
 
 # ------------------------------------------------------------------ 批量采集
-# 一集 = 复位场景 + pick_apple.py --save（同一进程里录，边界精确到"张手放到盘上"）
+# 一集 = 复位场景 + pick_apple.py --save（同一进程里录，边界精确到"回预备位走完"）
 if [ "${1:-}" = "--batch" ]; then
     COUNT="${2:?用法: save_data.sh --batch <集数> [pick_apple 参数...]}"
     shift 2

@@ -231,9 +231,10 @@ bash teleoperation/control/tienkung_dex/save_data.sh --variant brainco    # Brai
 bash teleoperation/control/tienkung_dex/save_data.sh --batch 20           # 批量采 20 集（自动抓放）
 ```
 
-**批量采集**（`--batch N`）：每集「复位场景 → 回预备位 → 抓 → 放到盘上」，
+**批量采集**（`--batch N`）：每集「复位场景 → 回预备位 → 抓 → 放到盘上 → 回预备位」，
 由 `pick_apple.py --save` 在**同一个进程**里跑动作 + 录制，录制区间自动掐在
-"预备位收尾完成 → 张手放到盘上"（不含空手回预备位那 5 s），失败集不落盘。
+"预备位收尾完成 → 放手后回预备位走完"（首尾都是预备位，回放完不用再手动 home；
+`--no-return-ready` 时提前到张手放下那一刻），失败集不落盘。
 单集失败不中断整批，`MAX_CONSECUTIVE_FAIL`（默认 10，0 = 关闭熔断）次连续失败才
 中止；`RESET_WAIT`（默认 3 s）控制复位后等场景稳定的时间。剩余参数原样透传给
 `pick_apple.py`，例如 `--batch 20 --variant brainco --speed 0.04`。
