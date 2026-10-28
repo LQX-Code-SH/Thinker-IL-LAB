@@ -146,12 +146,13 @@ class TienkungDexPublisher:
         from dex_controller import GROUP_MSG, TOPICS, load_real_msgs
 
         self.C = C
+        self.group_msg = GROUP_MSG  # publish_frame 里也要用（原先只在 _ensure 局部导入，导致 NameError）
         self.variant = "brainco" if len(left_names) == len(C.hand_joints("brainco")[0]) else "inspire"
         self._msgs = load_real_msgs(self.variant)
         self._pubs = {}
         for group in ("arm", "head", "waist", "leg"):
             self._pubs[f"{group}_command"] = self._node.create_publisher(
-                self._msgs[GROUP_MSG[group]], TOPICS[f"{group}_command"], 10
+                self._msgs[self.group_msg[group]], TOPICS[f"{group}_command"], 10
             )
         for side in ("left", "right"):
             self._pubs[f"{side}_hand_command"] = self._node.create_publisher(
@@ -172,7 +173,7 @@ class TienkungDexPublisher:
         stamp = self._node.get_clock().now().to_msg()
         lookup = dict(zip(body_names, (float(v) for v in body)))
         for group, joint_names in C.GROUP_JOINTS.items():
-            msg = self._msgs[GROUP_MSG[group]]()
+            msg = self._msgs[self.group_msg[group]]()
             msg.header.stamp = stamp
             msg.header.frame_id = group
             msg.mode = C.CONTROL_MODE_POSITION
