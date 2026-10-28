@@ -1,0 +1,101 @@
+{
+    "dataset": {
+        "repo_id": "tienkung_dex_sim_pick_apple",
+        "root": "/ubt_IL/dataset/tienkung_dex_sim_pick_apple",
+        "episodes": null,
+        "use_imagenet_stats": true,
+        "video_backend": "pyav"
+    },
+    "policy": {
+        "type": "act",
+        "push_to_hub": false,
+        "repo_id": "local/tienkung_dex_sim_pick_apple",
+        "n_obs_steps": 1,
+        "normalization_mapping": {
+            "VISUAL": "MEAN_STD",
+            "STATE": "MEAN_STD",
+            "ACTION": "MEAN_STD"
+        },
+        "input_features": {
+            "observation.images.head": {
+                "type": "VISUAL",
+                "shape": [
+                    3,
+                    360,
+                    640
+                ]
+            },
+            "observation.state": {
+                "type": "STATE",
+                "shape": [
+                    20
+                ]
+            }
+        },
+        "output_features": {
+            "action": {
+                "type": "ACTION",
+                "shape": [
+                    20
+                ]
+            }
+        },
+        "chunk_size": 50,
+        "n_action_steps": 20,
+        "vision_backbone": "resnet18",
+        "pretrained_backbone_weights": "ResNet18_Weights.IMAGENET1K_V1",
+        "replace_final_stride_with_dilation": false,
+        "pre_norm": false,
+        "dim_model": 512,
+        "n_heads": 8,
+        "dim_feedforward": 2048,
+        "feedforward_activation": "relu",
+        "n_encoder_layers": 4,
+        "n_decoder_layers": 1,
+        "use_vae": true,
+        "latent_dim": 32,
+        "n_vae_encoder_layers": 4,
+        "temporal_ensemble_coeff": null,
+        "dropout": 0.1,
+        "kl_weight": 5.0,
+        "optimizer_lr": 5e-05,
+        "optimizer_weight_decay": 0.0001,
+        "optimizer_lr_backbone": 5e-05
+    },
+    "output_dir": "/ubt_IL/model/tienkung_dex_sim_pick_apple_act",
+    "job_name": "tienkung_dex_sim_pick_apple_act",
+    "resume": false,
+    "seed": 100000,
+    "num_workers": 8,
+    "batch_size": 16,
+    "steps": 30000,
+    "eval_freq": 1000,
+    "log_freq": 200,
+    "save_checkpoint": true,
+    "save_freq": 5000,
+    "use_policy_training_preset": true,
+    "optimizer": {
+        "type": "adamw",
+        "lr": 5e-05,
+        "betas": [
+            0.9,
+            0.999
+        ],
+        "eps": 1e-08,
+        "weight_decay": 0.0001,
+        "grad_clip_norm": 3.0
+    },
+    "scheduler": null,
+    "eval": {
+        "n_episodes": 30,
+        "batch_size": 16,
+        "use_async_envs": false
+    },
+    "wandb": {
+        "enable": false,
+        "disable_artifact": true,
+        "project": "lerobot-balanced",
+        "entity": null,
+        "notes": "TienKung Dex 20D (right arm 7 + right Inspire hand 13) ACT"
+    }
+}
