@@ -1,0 +1,6 @@
+std_msgs/Header header
+ros2_bridge_msgs/HeadStatus head
+ros2_bridge_msgs/WaistStatus waist
+ros2_bridge_msgs/LegStatus leg
+ros2_bridge_msgs/ArmStatus arm
+ros2_bridge_msgs/ImuStatus imu

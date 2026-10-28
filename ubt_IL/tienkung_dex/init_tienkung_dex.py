@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""Automated installation script for the TienKung Dex robot plugin.
+
+Installs the lerobot_robot_tienkung_dex package in editable mode and verifies
+that it integrates with the LeRobot framework.
+
+Usage:
+    python tienkung_dex/init_tienkung_dex.py               # Install
+    python tienkung_dex/init_tienkung_dex.py --uninstall   # Uninstall
+"""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+PLUGIN_DIR = Path(__file__).resolve().parent / "lerobot_robot_tienkung_dex"
+
+
+def install() -> None:
+    print(f"Installing TienKung Dex plugin from: {PLUGIN_DIR}")
+    if not PLUGIN_DIR.is_dir():
+        print(f"ERROR: Plugin directory not found: {PLUGIN_DIR}")
+        sys.exit(1)
+
+    # Install in editable mode
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-e", str(PLUGIN_DIR)]
+    )
+
+    # Verify import
+    print("Verifying plugin registration...")
+    result = subprocess.run(
+        [
+            sys.executable, "-c",
+            "from lerobot_robot_tienkung_dex import ("
+            "TienKungDexRobot, TienKungDexRobotConfig, "
+            "DexCamera, DexCameraConfig); "
+            "print('Import OK'); "
+            "print(f'  Robot type: {TienKungDexRobotConfig.type}'); "
+            "print(f'  Camera type: {DexCameraConfig.type}')"
+        ],
+        capture_output=True, text=True,
+    )
+    if result.returncode == 0:
+        print(result.stdout.strip())
+        print("\nTienKung Dex plugin installed successfully!")
+        print("\nUsage:")
+        print("  lerobot-rollout --robot.type=tienkung_dex --policy.path=<model> ...")
+        print("  20-DOF（因时 13 手）:  --robot.joint_config=tienkung_dex_20")
+        print("  13-DOF（强脑 6 手）:   --robot.joint_config=tienkung_dex_brainco_13")
+    else:
+        print(f"Verification failed:\n{result.stderr}")
+        sys.exit(1)
+
+
+def uninstall() -> None:
+    print("Uninstalling TienKung Dex plugin...")
+    subprocess.call(
+        [sys.executable, "-m", "pip", "uninstall", "-y", "lerobot_robot_tienkung_dex"]
+    )
+    print("Done.")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="TienKung Dex robot plugin installer")
+    parser.add_argument(
+        "--uninstall", action="store_true", help="Uninstall the plugin"
+    )
+    args = parser.parse_args()
+
+    if args.uninstall:
+        uninstall()
+    else:
+        install()
+
+
+if __name__ == "__main__":
+    main()
