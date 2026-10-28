@@ -6,7 +6,7 @@ source "$SCRIPT_DIR/env.sh"
 # 捕获 DISPLAY（sudo 默认不传递），用于容器 X11 转发
 _HOST_DISPLAY="${DISPLAY:-}"
 
-WALKER_WS="/ubt_IL/walker/walker_sdk_ros2"
+WALKER_WS="/ubt_IL/walker_s2/walker_sdk_ros2"
 
 case "${1:-}" in
     build)
@@ -176,8 +176,8 @@ PY' >/dev/null 2>&1
         if [ "$ENABLE_WRIST_CAMERA" = "1" ]; then
             echo "[INFO] Starting RealSense wrist camera service..."
             sudo docker exec "$CONTAINER_NAME" \
-                bash /ubt_IL/walker/realsense_wrist_camera/scripts/start.sh \
-                || echo "[WARN] wrist camera did not start (相机未连接？进容器执行 'bash /ubt_IL/walker/realsense_wrist_camera/scripts/start.sh --fg' 排查)"
+                bash /ubt_IL/walker_s2/realsense_wrist_camera/scripts/start.sh \
+                || echo "[WARN] wrist camera did not start (相机未连接？进容器执行 'bash /ubt_IL/walker_s2/realsense_wrist_camera/scripts/start.sh --fg' 排查)"
         else
             echo "[INFO] Wrist camera auto-start skipped (ENABLE_WRIST_CAMERA=${ENABLE_WRIST_CAMERA})."
         fi
@@ -305,8 +305,8 @@ PY' >/dev/null 2>&1
             ERRORS=$((ERRORS + 1))
         fi
 
-        # Walker 插件导入（如果已迁移 walker/ 目录）
-        if sudo docker exec "$CONTAINER_NAME" test -d /ubt_IL/walker/lerobot_robot_walker; then
+        # Walker 插件导入（如果已迁移 walker_s2/ 目录）
+        if sudo docker exec "$CONTAINER_NAME" test -d /ubt_IL/walker_s2/lerobot_robot_walker; then
             if sudo docker exec "$CONTAINER_NAME" /lerobot/.venv/bin/python -c "from lerobot_robot_walker import WalkerRobotConfig, WalkerCameraConfig" 2>/dev/null; then
                 echo "[OK] walker plugin: installed"
             else
@@ -314,15 +314,15 @@ PY' >/dev/null 2>&1
                 ERRORS=$((ERRORS + 1))
             fi
         else
-            echo "[WARN] walker plugin: /ubt_IL/walker/lerobot_robot_walker not found"
+            echo "[WARN] walker plugin: /ubt_IL/walker_s2/lerobot_robot_walker not found"
             WARNINGS=$((WARNINGS + 1))
         fi
 
         # Walker Bridge2 脚本
-        if sudo docker exec "$CONTAINER_NAME" test -f /ubt_IL/walker/ros2_walker_bridge.py; then
+        if sudo docker exec "$CONTAINER_NAME" test -f /ubt_IL/walker_s2/ros2_walker_bridge.py; then
             echo "[OK] walker bridge: available"
         else
-            echo "[WARN] walker bridge: /ubt_IL/walker/ros2_walker_bridge.py not found"
+            echo "[WARN] walker bridge: /ubt_IL/walker_s2/ros2_walker_bridge.py not found"
             WARNINGS=$((WARNINGS + 1))
         fi
 

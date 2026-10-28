@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ARCH="${ARCH:-$(uname -m)}"
 CONTAINER_NAME="${CONTAINER_NAME:-lerobot-tienkung}"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PLUGIN_DIR="${PROJECT_ROOT}/tienkung"
+PLUGIN_DIR="${PROJECT_ROOT}/tienkung_pro"
 HF_HOME="/ubt_IL/.cache/huggingface"
 # torchvision/torch.hub 缓存目录：基镜像默认指向 /data/models/torch（容器内不存在且无权创建），
 # 改到 bind mount 路径，使 ResNet 等 pretrained 权重可下载并持久化。

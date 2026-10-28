@@ -265,7 +265,7 @@ class WalkerRobot(Robot):
         cmd = [
             "bash", "-lc",
             "source /opt/ros/humble/setup.bash 2>/dev/null || true; "
-            "source /ubt_IL/walker/walker_sdk_ros2/install/setup.bash 2>/dev/null || true; "
+            "source /ubt_IL/walker_s2/walker_sdk_ros2/install/setup.bash 2>/dev/null || true; "
             f"exec /usr/bin/python3 {shlex.quote(self.config.bridge_script)} --config {shlex.quote(config_json)}",
         ]
 
@@ -301,7 +301,7 @@ class WalkerRobot(Robot):
         cmd = [
             "bash", "-lc",
             "source /opt/ros/humble/setup.bash 2>/dev/null || true; "
-            "source /ubt_IL/walker/walker_sdk_ros2/install/setup.bash 2>/dev/null || true; "
+            "source /ubt_IL/walker_s2/walker_sdk_ros2/install/setup.bash 2>/dev/null || true; "
             f"exec /usr/bin/python3 {shlex.quote(str(script))} --config {shlex.quote(camera_config)}",
         ]
 

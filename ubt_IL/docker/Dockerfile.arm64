@@ -115,11 +115,11 @@ RUN mkdir -p /opt/jetson-wheels \
 # (.pth/CLI 入系统 site-packages,bind-mount 不覆盖);运行时 /ubt_IL 被 bind-mount 覆盖,
 # .pth 指向同一路径即解析到宿主机最新源码,保持 dev 可编辑。--no-deps:依赖已在系统 python。
 # -i 清华源:PEP 517 构建隔离需拉 setuptools>=61,基镜像默认 Jetson webredirect 索引不可达。
-COPY walker/realsense_wrist_camera /ubt_IL/walker/realsense_wrist_camera
+COPY walker_s2/realsense_wrist_camera /ubt_IL/walker_s2/realsense_wrist_camera
 RUN /usr/bin/python3 -m pip install --no-cache-dir --no-deps \
     --retries 5 --timeout 60 \
     -i https://pypi.tuna.tsinghua.edu.cn/simple \
-    -e /ubt_IL/walker/realsense_wrist_camera
+    -e /ubt_IL/walker_s2/realsense_wrist_camera
 
 # Project code is bind-mounted at /ubt_IL; entrypoint performs editable installs.
 COPY docker/entrypoint.sh /opt/entrypoint.sh

@@ -63,15 +63,15 @@ ubt_sim/dataset/
 CLAUDE.md
 
 # Walker ROS2/colcon generated artifacts
-ubt_IL/walker/walker_sdk_ros2/build/
-ubt_IL/walker/walker_sdk_ros2/install/
-ubt_IL/walker/walker_sdk_ros2/log/
-ubt_IL/walker/walker_sdk_ros2/robot_control/camera_frame_*.png
+ubt_IL/walker_s2/walker_sdk_ros2/build/
+ubt_IL/walker_s2/walker_sdk_ros2/install/
+ubt_IL/walker_s2/walker_sdk_ros2/log/
+ubt_IL/walker_s2/walker_sdk_ros2/robot_control/camera_frame_*.png
 
 # Python cache under migrated plugins
-ubt_IL/walker/**/__pycache__/
-ubt_IL/walker/**/*.pyc
-ubt_IL/walker/**/*.egg-info/
+ubt_IL/walker_s2/**/__pycache__/
+ubt_IL/walker_s2/**/*.pyc
+ubt_IL/walker_s2/**/*.egg-info/
 ubt_sim/teleoperation/control/walker/camera_*.png
 .claude/plans/
 ubt_IL/scripts/deploy/output/*

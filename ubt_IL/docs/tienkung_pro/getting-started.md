@@ -1,6 +1,6 @@
 # 天工行者无疆（Walker TienKung Pro）模仿学习快速开始
 
-> 对应代码：`ubt_IL/tienkung/`（LeRobot 插件 `lerobot_robot_tienkung`）
+> 对应代码：`ubt_IL/tienkung_pro/`（LeRobot 插件 `lerobot_robot_tienkung`）
 > 全流程：**数据准备 → 模型训练 → 策略评估 → 模型部署**
 
 本文档给出天工行者无疆 从克隆代码到真机/仿真器部署的最简路径，按需执行每一步。各步骤的完整参数说明与可复制命令见工作流专项文档：

@@ -1,6 +1,6 @@
 # Walker S2 EDU 探索者 control
 
-Walker S2 EDU 探索者 ROS2 control helpers copied and adapted from `<repo_root>/ubt_IL/walker/walker_sdk_ros2/robot_control`.
+Walker S2 EDU 探索者 ROS2 control helpers copied and adapted from `<repo_root>/ubt_IL/walker_s2/walker_sdk_ros2/robot_control`.
 
 Run these scripts with system Python and the Walker SDK ROS2 messages sourced:
 

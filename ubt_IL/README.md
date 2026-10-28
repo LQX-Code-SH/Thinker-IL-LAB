@@ -6,8 +6,8 @@
 
 | 机器人 | DOF | 夹爪 | 手部 | 插件目录 |
 |--------|-----|------|------|----------|
-| Walker TienKung Pro | 50 | - | 12×2 (五指灵巧手) | `tienkung/lerobot_robot_tienkung` |
-| Walker S2 EDU 探索者 | 34 | 2×2 (PGC 两指) | - | `walker/lerobot_robot_walker` |
+| Walker TienKung Pro | 50 | - | 12×2 (五指灵巧手) | `tienkung_pro/lerobot_robot_tienkung` |
+| Walker S2 EDU 探索者 | 34 | 2×2 (PGC 两指) | - | `walker_s2/lerobot_robot_walker` |
 
 > 技术架构、端口定义、ROS2 话题、向量格式等细节参见 [CLAUDE.md](./CLAUDE.md)。
 
@@ -50,6 +50,6 @@ ubt_IL/
 │   ├── train/             # 训练启动脚本
 │   ├── deploy/            # 部署脚本（reset / rollout / replay）
 │   └── eval/              # 离线评估
-├── tienkung/              # 天工行者无疆 lerobot 插件
-└── walker/                # Walker S2 EDU 探索者 插件 + ROS2 SDK/messages + Bridge2
+├── tienkung_pro/          # 天工行者无疆 lerobot 插件
+└── walker_s2/             # Walker S2 EDU 探索者 插件 + ROS2 SDK/messages + Bridge2
 ```

@@ -111,7 +111,7 @@
   },
   "bridge": {
     "enabled": true,
-    "script": "/ubt_IL/walker/ros2_walker_bridge.py"
+    "script": "/ubt_IL/walker_s2/ros2_walker_bridge.py"
   },
   "safety": {
     "max_relative_target": 0.2,

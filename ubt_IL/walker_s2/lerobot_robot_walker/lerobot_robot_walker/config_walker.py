@@ -97,7 +97,7 @@ class WalkerRobotConfig(RobotConfig):
     zmq_status_port: int = 5562    # Bridge2 PUB → LeRobot SUB (status)
     zmq_image_port: int = 5563     # Bridge2 PUB → LeRobot SUB (camera images)
     bridge_enabled: bool = True     # Auto-start Bridge2 subprocess
-    bridge_script: str = "/ubt_IL/walker/ros2_walker_bridge.py"
+    bridge_script: str = "/ubt_IL/walker_s2/ros2_walker_bridge.py"
 
     # ROS2 topics (real robot defaults)
     ros_namespace: str = ""

@@ -57,7 +57,7 @@ else
 fi
 
 # Walker ROS2 messages
-WALKER_WS="/ubt_IL/walker/walker_sdk_ros2"
+WALKER_WS="/ubt_IL/walker_s2/walker_sdk_ros2"
 if [ -f "${WALKER_WS}/install/setup.bash" ]; then
     source "${WALKER_WS}/install/setup.bash"
 fi

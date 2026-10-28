@@ -45,7 +45,7 @@ class TienKungRobotConfig(RobotConfig):
     zmq_cmd_port: int = 5559       # LeRobot PUB → Bridge2 SUB
     zmq_status_port: int = 5560    # Bridge2 PUB → LeRobot SUB
     bridge_enabled: bool = True     # Auto-start Bridge2 subprocess
-    bridge_script: str = "/ubt_IL/tienkung/ros2_deploy_bridge.py"  # Path to Bridge2 script (bind-mounted)
+    bridge_script: str = "/ubt_IL/tienkung_pro/ros2_deploy_bridge.py"  # Path to Bridge2 script (bind-mounted)
 
     # ROS2 topics (real robot defaults)
     ros_namespace: str = ""

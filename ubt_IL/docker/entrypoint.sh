@@ -16,7 +16,7 @@ fi
 export FASTRTPS_DEFAULT_PROFILES_FILE=/opt/fastdds_no_shm.xml
 
 build_walker_ros2_msgs() {
-    local walker_ws="/ubt_IL/walker/walker_sdk_ros2"
+    local walker_ws="/ubt_IL/walker_s2/walker_sdk_ros2"
     local walker_msgs="shm_msgs mc_state_msgs mc_task_msgs emb_task_msgs sys_task_msgs rosa_msgs ecat_task_msgs"
 
     if [ ! -d "$walker_ws" ]; then
@@ -133,15 +133,15 @@ if [ -d "/ubt_IL" ]; then
     build_walker_ros2_msgs
 
     # Install TienKung plugin (editable)
-    if [ -d "/ubt_IL/tienkung/lerobot_robot_tienkung" ]; then
+    if [ -d "/ubt_IL/tienkung_pro/lerobot_robot_tienkung" ]; then
         echo "[entrypoint] Installing lerobot-robot-tienkung plugin..."
-        uv pip install -e /ubt_IL/tienkung/lerobot_robot_tienkung || echo "[entrypoint] WARNING: tienkung plugin install failed"
+        uv pip install -e /ubt_IL/tienkung_pro/lerobot_robot_tienkung || echo "[entrypoint] WARNING: tienkung plugin install failed"
     fi
 
     # Install Walker plugin (editable)
-    if [ -d "/ubt_IL/walker/lerobot_robot_walker" ]; then
+    if [ -d "/ubt_IL/walker_s2/lerobot_robot_walker" ]; then
         echo "[entrypoint] Installing lerobot-robot-walker plugin..."
-        uv pip install -e /ubt_IL/walker/lerobot_robot_walker || echo "[entrypoint] WARNING: walker plugin install failed"
+        uv pip install -e /ubt_IL/walker_s2/lerobot_robot_walker || echo "[entrypoint] WARNING: walker plugin install failed"
     fi
 
     # RealSense D405 wrist camera service (optional, on-demand install + start).
@@ -149,9 +149,9 @@ if [ -d "/ubt_IL" ]; then
     # Set INSTALL_REALSENSE_WRIST_CAMERA=1 to auto-install at container startup.
     # Set REALSENSE_WRIST_CAMERA_CONFIG=/path/to/config.json to auto-start the service.
     if [ "${INSTALL_REALSENSE_WRIST_CAMERA:-0}" = "1" ]; then
-        if [ -f "/ubt_IL/walker/realsense_wrist_camera/scripts/install.sh" ]; then
+        if [ -f "/ubt_IL/walker_s2/realsense_wrist_camera/scripts/install.sh" ]; then
             echo "[entrypoint] Installing realsense_wrist_camera..."
-            bash /ubt_IL/walker/realsense_wrist_camera/scripts/install.sh || \
+            bash /ubt_IL/walker_s2/realsense_wrist_camera/scripts/install.sh || \
                 echo "[entrypoint] WARNING: realsense_wrist_camera install failed"
         fi
         export PATH="$HOME/.local/bin:$PATH"

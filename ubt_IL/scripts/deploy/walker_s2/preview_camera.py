@@ -99,7 +99,7 @@ def _resolve_camera_topics(args: argparse.Namespace) -> dict[str, str]:
     """Return {camera_name: ros2_topic} from --robot or --topic."""
     if args.robot:
         import importlib.util
-        _constants_path = "/ubt_IL/walker/lerobot_robot_walker/lerobot_robot_walker/constants.py"
+        _constants_path = "/ubt_IL/walker_s2/lerobot_robot_walker/lerobot_robot_walker/constants.py"
         spec = importlib.util.spec_from_file_location("_walker_constants", _constants_path)
         _mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(_mod)
@@ -184,7 +184,7 @@ def _setup_cameras(
 ) -> list[CameraEntry]:
     """Create one Camera node per topic.  Must be called after rclpy.init()."""
     import sys
-    _walker_sdk_path = "/ubt_IL/walker/walker_sdk_ros2/robot_control"
+    _walker_sdk_path = "/ubt_IL/walker_s2/walker_sdk_ros2/robot_control"
     if _walker_sdk_path not in sys.path:
         sys.path.insert(0, _walker_sdk_path)
     from camera import Camera

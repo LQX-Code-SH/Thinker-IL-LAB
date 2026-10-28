@@ -20,7 +20,7 @@ from typing import Any
 import numpy as np
 import zmq
 
-# chunk_processor 与本脚本同目录（脚本以 /ubt_IL/walker/ros2_walker_bridge.py 运行，
+# chunk_processor 与本脚本同目录（脚本以 /ubt_IL/walker_s2/ros2_walker_bridge.py 运行，
 # sys.path[0] 即该目录），提供 chunk 融合/插值/滤波算法。
 from chunk_processor import (
     BlendSchedule,
