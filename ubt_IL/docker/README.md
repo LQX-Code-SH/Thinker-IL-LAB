@@ -90,7 +90,7 @@ BASE_IMAGE=docker.io/dustynv/l4t-pytorch:r36.4.0 bash run.sh build
 
 4. **TORCH_HOME 已重定向**。基镜像默认 `TORCH_HOME=/data/models/torch`，容器内 `/data` 不存在且无权创建，已改到 bind mount 路径 `/ubt_IL/.cache/torch`，使 torchvision ResNet 等 pretrained 权重可下载并持久化。Dockerfile、`env.sh`、`entrypoint.sh` 三处协同设置。
 
-5. **entrypoint 每次启动做运行时安装**。lerobot、`lerobot_robot_tienkung`、`lerobot_robot_walker` 均以 editable 安装，源码改完重启容器即生效。entrypoint 还会：把 lerobot 依赖拉入的 `opencv-python-headless` 换成 GUI 版 `opencv-python` 并钉死 `numpy<2`（须在 lerobot 安装之后，否则被覆盖）；对 Jetson 防御性校验 `torch.cuda.get_arch_list()` 含 `8.7`，否则强制装回 sm_87 wheel。
+5. **entrypoint 每次启动做运行时安装**。lerobot、`lerobot_robot_tienkung`、`lerobot_robot_walker`、`lerobot_robot_tienkung_dex` 均以 editable 安装，源码改完重启容器即生效。Dex 还会 source `/opt/tienkung_dex_msgs_ws/install/setup.bash`（镜像里没有时由 `/ubt_IL/tienkung_dex/ros2_dex_msgs/build.sh` 兜底编译）。entrypoint 还会：把 lerobot 依赖拉入的 `opencv-python-headless` 换成 GUI 版 `opencv-python` 并钉死 `numpy<2`（须在 lerobot 安装之后，否则被覆盖）；对 Jetson 防御性校验 `torch.cuda.get_arch_list()` 含 `8.7`，否则强制装回 sm_87 wheel。
 
 6. **Jetson torch wheel 随镜像分发**。通用 `download.pytorch.org` cu128 wheel 未编译 SM_87，会报 `no kernel image is available`。本目录两个 wheel 在本机源码编译（CUDA 12.6, cuDNN 9.4, cp312，耗时约 3.5 h），版本满足 LeRobot 约束（torch `>=2.7,<2.12`；torchvision `>=0.22,<0.27`），COPY 进 `/opt/jetson-wheels` 避免每台 Jetson 重编。两文件约占本目录 99% 体积。
 

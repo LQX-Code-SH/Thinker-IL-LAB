@@ -46,6 +46,13 @@ COPY docker/ros2_msgs/ros-humble-bodyctrl-msgs_0.0.1-1_amd64.deb /tmp/
 RUN dpkg -i /tmp/ros-humble-bodyctrl-msgs_0.0.1-1_amd64.deb \
     && rm -f /tmp/ros-humble-bodyctrl-msgs_0.0.1-1_amd64.deb
 
+# tienkung_dex 消息包（ros2_bridge_msgs + inspire_hand_msgs + brainco_hand_msgs）：
+# 源码复制自 ubt_sim/teleoperation/msgs/tienkung_dex/，构建上下文是 ubt_IL/。
+# 编译脚本自己 source /opt/ros/humble 与 colcon，产物进独立工作空间 /opt/tienkung_dex_msgs_ws。
+COPY tienkung_dex/ros2_dex_msgs /opt/tienkung_dex_msgs_src
+RUN bash /opt/tienkung_dex_msgs_src/build.sh \
+    && chown -R user_lerobot:user_lerobot /opt/tienkung_dex_msgs_ws
+
 # 系统 Python 依赖 + rospython 别名
 RUN /usr/bin/python3 -m pip install --upgrade pip \
     && /usr/bin/python3 -m pip install --break-system-packages --no-cache-dir \

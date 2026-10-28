@@ -104,6 +104,7 @@ case "${1:-}" in
 import lerobot
 from lerobot_robot_tienkung import TienKungRobotConfig
 from lerobot_robot_walker import WalkerRobotConfig, WalkerCameraConfig
+from lerobot_robot_tienkung_dex import TienKungDexRobotConfig, DexCameraConfig
 PY' >/dev/null 2>&1
         }
 
@@ -315,6 +316,40 @@ PY' >/dev/null 2>&1
             fi
         else
             echo "[WARN] walker plugin: /ubt_IL/walker_s2/lerobot_robot_walker not found"
+            WARNINGS=$((WARNINGS + 1))
+        fi
+
+        # Dex 插件导入（如果已迁移 tienkung_dex/ 目录）
+        if sudo docker exec "$CONTAINER_NAME" test -d /ubt_IL/tienkung_dex/lerobot_robot_tienkung_dex; then
+            if sudo docker exec "$CONTAINER_NAME" /lerobot/.venv/bin/python -c "from lerobot_robot_tienkung_dex import TienKungDexRobotConfig, DexCameraConfig" 2>/dev/null; then
+                echo "[OK] tienkung_dex plugin: installed"
+            else
+                echo "[FAIL] tienkung_dex plugin: NOT installed"
+                ERRORS=$((ERRORS + 1))
+            fi
+        else
+            echo "[WARN] tienkung_dex plugin: /ubt_IL/tienkung_dex/lerobot_robot_tienkung_dex not found"
+            WARNINGS=$((WARNINGS + 1))
+        fi
+
+        # Dex Bridge2 脚本
+        if sudo docker exec "$CONTAINER_NAME" test -f /ubt_IL/tienkung_dex/ros2_deploy_bridge.py; then
+            echo "[OK] tienkung_dex bridge: available"
+        else
+            echo "[WARN] tienkung_dex bridge: /ubt_IL/tienkung_dex/ros2_deploy_bridge.py not found"
+            WARNINGS=$((WARNINGS + 1))
+        fi
+
+        # Dex ROS2 messages（/opt/tienkung_dex_msgs_ws，x86/arm64 均由源码编译）
+        if sudo docker exec "$CONTAINER_NAME" bash -lc \
+          "source /opt/ros/humble/setup.bash 2>/dev/null; source /opt/tienkung_dex_msgs_ws/install/setup.bash 2>/dev/null; /usr/bin/python3 - <<'PY'
+from ros2_bridge_msgs.msg import ArmCtrl, HeadCtrl, RobotState
+from inspire_hand_msgs.msg import SetAngle, GetAngleAct
+from brainco_hand_msgs.msg import SetMotorMulti, MotorStatus
+PY" 2>/dev/null; then
+            echo "[OK] tienkung_dex ROS2 msgs: installed"
+        else
+            echo "[WARN] tienkung_dex ROS2 msgs: NOT installed"
             WARNINGS=$((WARNINGS + 1))
         fi
 

@@ -11,6 +11,12 @@ if [ -f /opt/bodyctrl_msgs_ws/install/setup.bash ]; then
     source /opt/bodyctrl_msgs_ws/install/setup.bash
 fi
 
+# 天工行者 Dex 的消息包（ros2_bridge_msgs + inspire_hand_msgs + brainco_hand_msgs）
+# 镜像构建期编译，见 Dockerfile；镜像里没有时由 build_tienkung_dex_ros2_msgs 兜底。
+if [ -f /opt/tienkung_dex_msgs_ws/install/setup.bash ]; then
+    source /opt/tienkung_dex_msgs_ws/install/setup.bash
+fi
+
 # Fast-DDS: disable shared memory transport (required for Docker, even with --network=host)
 # Without this, ros2 topic list works but ros2 topic echo / subscribe fails
 export FASTRTPS_DEFAULT_PROFILES_FILE=/opt/fastdds_no_shm.xml
@@ -83,6 +89,57 @@ PY
     fi
 }
 
+build_tienkung_dex_ros2_msgs() {
+    local dex_msgs_ws="/opt/tienkung_dex_msgs_ws"
+    local dex_build_script="/ubt_IL/tienkung_dex/ros2_dex_msgs/build.sh"
+
+    [ -f "$dex_build_script" ] || return 0
+
+    # 先用系统 python3 验一遍（INSTALL/setup.bash 可能已 source 过）。
+    # 注意必须清掉 venv，否则 rosidl 生成器会拿 /lerobot/.venv 的 python3，
+    # 编出来的 demo 在 /usr/bin/python3 下 import 不了。
+    if (
+        unset VIRTUAL_ENV PYTHONHOME
+        export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        source /opt/ros/humble/setup.bash 2>/dev/null || true
+        source "$dex_msgs_ws/install/setup.bash" 2>/dev/null || true
+        /usr/bin/python3 - <<'PY'
+from ros2_bridge_msgs.msg import ArmCtrl, HeadCtrl, RobotState
+from inspire_hand_msgs.msg import SetAngle, GetAngleAct
+from brainco_hand_msgs.msg import SetMotorMulti, MotorStatus
+PY
+    ) >/dev/null 2>&1
+    then
+        echo "[entrypoint] TienKung Dex ROS2 messages already available."
+        return 0
+    fi
+
+    # 映像构建期已 mkdir + chown 好；老镜像里没有时需要可写目录才能兜底编译。
+    if ! mkdir -p "$dex_msgs_ws" 2>/dev/null || [ ! -w "$dex_msgs_ws" ]; then
+        echo "[entrypoint] WARNING: $dex_msgs_ws 不可写，跳过 Dex 消息包编译。"
+        echo "[entrypoint]          请重建镜像，或在容器内以 root 执行："
+        echo "[entrypoint]          bash $dex_build_script"
+        return 0
+    fi
+
+    echo "[entrypoint] Building TienKung Dex ROS2 message packages..."
+    (
+        unset VIRTUAL_ENV PYTHONHOME
+        export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        export AMENT_PYTHON_EXECUTABLE=/usr/bin/python3
+        export Python3_EXECUTABLE=/usr/bin/python3
+        export PYTHON_EXECUTABLE=/usr/bin/python3
+        bash "$dex_build_script"
+    ) || {
+        echo "[entrypoint] WARNING: TienKung Dex ROS2 message build failed"
+        return 0
+    }
+
+    if [ -f "$dex_msgs_ws/install/setup.bash" ]; then
+        source "$dex_msgs_ws/install/setup.bash"
+    fi
+}
+
 # 防御性安全网：确保 LeRobot venv 用的是源码编译的 Jetson sm_87 torch。
 # uv pip install -e .（lerobot/plugins）不升级已满足约束的依赖，理论上不会覆盖；
 # 但若解析意外把通用 cu128 wheel（无 sm_87）装进来，此处用镜像层 wheel 强制装回。
@@ -132,6 +189,9 @@ if [ -d "/ubt_IL" ]; then
     # Build/source Walker ROS2 messages before installing the Python plugin.
     build_walker_ros2_msgs
 
+    # Build/source TienKung Dex ROS2 messages (needed by ros2_deploy_bridge.py)
+    build_tienkung_dex_ros2_msgs
+
     # Install TienKung plugin (editable)
     if [ -d "/ubt_IL/tienkung_pro/lerobot_robot_tienkung" ]; then
         echo "[entrypoint] Installing lerobot-robot-tienkung plugin..."
@@ -142,6 +202,12 @@ if [ -d "/ubt_IL" ]; then
     if [ -d "/ubt_IL/walker_s2/lerobot_robot_walker" ]; then
         echo "[entrypoint] Installing lerobot-robot-walker plugin..."
         uv pip install -e /ubt_IL/walker_s2/lerobot_robot_walker || echo "[entrypoint] WARNING: walker plugin install failed"
+    fi
+
+    # Install TienKung Dex plugin (editable)
+    if [ -d "/ubt_IL/tienkung_dex/lerobot_robot_tienkung_dex" ]; then
+        echo "[entrypoint] Installing lerobot-robot-tienkung-dex plugin..."
+        uv pip install -e /ubt_IL/tienkung_dex/lerobot_robot_tienkung_dex || echo "[entrypoint] WARNING: tienkung_dex plugin install failed"
     fi
 
     # RealSense D405 wrist camera service (optional, on-demand install + start).
