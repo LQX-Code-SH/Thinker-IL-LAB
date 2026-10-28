@@ -25,8 +25,10 @@ export ROS_DOMAIN_ID=0      # 控真机
 ```bash
 # 0) 容器内
 cd /ubt_sim
-source /opt/ros/humble/setup.bash
-source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash   # run.sh init 编译过才有
+# ROS2 与消息工作空间已由 `docker/run.sh init` 写进 /root/.bashrc，交互式 shell 自动加载，
+# 不用再手敲 source。非交互脚本（cron / docker exec bash -c）里仍需显式：
+#   source /opt/ros/humble/setup.bash
+#   source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash
 
 # 1) 启动仿真 + ROS2-ZMQ 桥接（domain 默认 146）
 UBT_SIM_TASK=UBTSim-TienkungDex-Parlor-v0 bash scripts/start_sim.sh

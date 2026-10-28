@@ -39,6 +39,9 @@ bash run.sh check      # 校验环境（GPU / ROS2 / 消息包 / numpy<2 等）
 ```
 
 > `run.sh init` 不能跳过：Dex 桥接找不到 `/opt/ubt_sim/tienkung_dex_msgs/install/setup.bash` 会直接退出。
+> 它同时把各机型的消息工作空间写进容器 `/root/.bashrc`，之后无论 `bash run.sh bash` 还是
+> `docker exec -it ubt-sim bash`，交互式 shell 都自动 source，**不用再手敲 `source .../setup.bash`**。
+> 已有的旧容器拉取新代码后重跑一次 `run.sh init` 即可生效。
 > 纯仿真只用 `127.0.0.1`；**真机联调前**须把 `docker/fastdds_no_shm.xml` 白名单改成实机直连网卡 IP（改完重启容器生效）。
 
 ### 2. 启动仿真（容器内）
@@ -104,7 +107,7 @@ bash teleoperation/control/tienkung_dex/save_data.sh --batch 20
 /usr/bin/python3 teleoperation/tools/playback_tienkung_dex.py --mode preview --web-port 9090
 
 # 真机动作回放控制（向桥接话题回放，仿真/真机同话题）
-source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash
+# 消息工作空间已随 run.sh init 写进 /root/.bashrc，交互式 shell 自动加载，无需手敲 source
 /usr/bin/python3 teleoperation/control/tienkung_dex/tienkung_dex_controller.py play ready   # 先初始化预备动作再回放数据集
 /usr/bin/python3 teleoperation/tools/playback_tienkung_dex.py \
     --episode dataset/tienkung_dex/<时间戳>/trajectory.hdf5 --mode control

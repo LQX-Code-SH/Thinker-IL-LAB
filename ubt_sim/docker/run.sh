@@ -109,6 +109,8 @@ case "${1:-}" in
         docker exec -it "$CONTAINER_NAME" bash -c "\
             source /opt/ros/humble/setup.bash 2>/dev/null || true; \
             source /opt/ubt_sim/walker_sdk_ros2_msgs/install/setup.bash 2>/dev/null || true; \
+            source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash 2>/dev/null || true; \
+            export UBT_SIM_ROS_ENV_LOADED=1; \
             export ROS_DOMAIN_ID=$ROS_DOMAIN_ID; \
             export FASTRTPS_DEFAULT_PROFILES_FILE=$FASTRTPS_DEFAULT_PROFILES_FILE; \
             bash"
@@ -185,6 +187,39 @@ case "${1:-}" in
             echo "[INFO] 可单独重跑: bash /ubt_sim/teleoperation/msgs/<机型>/{build,install}.sh"
             exit 1
         fi
+
+        # ---- 交互式 shell 默认加载消息工作空间 ----
+        # `docker exec -it ubt-sim bash` 不经过 `run.sh bash`，同样要能 import
+        # ros2_bridge_msgs / inspire_hand_msgs，所以写进 /root/.bashrc（交互式非登录 shell 会读）。
+        # 用标记块包裹，重复执行 init 不会重复追加。
+        echo "[INFO] Configuring default ROS2 message workspaces in /root/.bashrc..."
+        docker exec "$CONTAINER_NAME" bash -c '
+            marker="# >>> ubt_sim message workspaces >>>"
+            if grep -qF "$marker" /root/.bashrc 2>/dev/null; then
+                echo "[OK] /root/.bashrc already configured"
+            else
+                cat >> /root/.bashrc <<"EOF"
+
+# >>> ubt_sim message workspaces >>>
+# 交互式 shell 默认加载 ROS2 与各机型消息工作空间（由 docker/run.sh init 写入）。
+# 经 `run.sh bash` 进入的会话已 source 过，用 UBT_SIM_ROS_ENV_LOADED 跳过，避免路径重复叠加。
+if [ -z "${UBT_SIM_ROS_ENV_LOADED:-}" ]; then
+    export UBT_SIM_ROS_ENV_LOADED=1
+    if [ -f /opt/ros/humble/setup.bash ]; then
+        . /opt/ros/humble/setup.bash
+    fi
+    for _ws in /opt/ubt_sim/tienkung_dex_msgs /opt/ubt_sim/walker_sdk_ros2_msgs; do
+        if [ -f "$_ws/install/setup.bash" ]; then
+            . "$_ws/install/setup.bash"
+        fi
+    done
+    unset _ws
+fi
+# <<< ubt_sim message workspaces <<<
+EOF
+                echo "[OK] /root/.bashrc updated"
+            fi
+        '
 
         echo "[INFO] Environment initialized."
         ;;
@@ -347,6 +382,14 @@ case "${1:-}" in
             echo "[OK] TienKung Dex real-robot message imports: available"
         else
             echo "[WARN] TienKung Dex real-robot message imports: unavailable (run: bash run.sh init)"
+            ((WARNINGS++))
+        fi
+
+        # 交互式 shell 的默认消息工作空间（/root/.bashrc）
+        if docker exec "$CONTAINER_NAME" grep -qF "# >>> ubt_sim message workspaces >>>" /root/.bashrc 2>/dev/null; then
+            echo "[OK] Shell default message workspaces: configured in /root/.bashrc"
+        else
+            echo "[WARN] Shell default message workspaces: NOT configured (run: bash run.sh init)"
             ((WARNINGS++))
         fi
 
