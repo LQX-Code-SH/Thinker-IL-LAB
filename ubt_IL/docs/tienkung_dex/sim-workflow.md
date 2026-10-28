@@ -214,6 +214,20 @@ RESUME=true bash /ubt_IL/scripts/train/tienkung_dex/train.sh
 
 `--inference-freq 1` 表示逐帧推理，最接近部署时的行为；默认值会按 `n_action_steps` 排队。
 
+评估输出示例（020000 checkpoint，第 0 集，预测 vs 真值）：
+
+![天工行者 Dex 模型离线评估曲线](../assets/tienkung_dex模型离线评估曲线.png)
+
+现有两轮 checkpoint 的横向对比（5 集 / `--inference-freq 1`）：
+
+| checkpoint | mean MSE（5 集） | 第 0 集 |
+|------------|------------------|---------|
+| 010000 | 0.003661 | 0.003219 |
+| 020000 | **0.002130** | 0.002750 |
+
+本轮仿真部署用的是 020000。离线 MSE 只在训练集上算，绝对值低不等于回注能跑通——它只用来
+在同一批 checkpoint 里横向择优，最终判据仍是回注后的 `/sim/task_completed`（见第 6 节）。
+
 检查点：20 维逐维曲线里**手部维度不应全程平直**，否则大概率是转换列切错或模型没学到手部。
 
 ## 6. 模型部署（仿真）
@@ -232,9 +246,15 @@ POLICY_PATH=/ubt_IL/model/tienkung_dex_sim_pick_apple_act/checkpoints/last/pretr
 JOINT_CONFIG=tienkung_dex_20 FPS=15 DURATION=60 \
 bash /ubt_IL/scripts/deploy/tienkung_dex/rollout.sh
 
-# ④ 复位场景，准备下一集
+# ④ 复位场景（机器人回 HOME，不是回预备位）
 ROS_DOMAIN_ID=146 /usr/bin/python3 /ubt_IL/scripts/deploy/tienkung_dex/reset.py
+
+# ⑤ 下一集前必须重跑预备位：复位后 head_pitch 回到 ~0.000，训练视角（低头 45°）就没了
+bash /ubt_IL/scripts/deploy/tienkung_dex/robot_ready.sh
 ```
+
+> `reset.py` 只是把 `/sim/cmd_reset` 发给仿真器，让场景与机器人回初始状态；它**不会**重摆预备位。
+> 连着跑多集时，②③⑤ 是一组，别只做 ④ 就直接进下一集。
 
 常驻推理服务（预热一次，之后秒级 start/stop）：
 
