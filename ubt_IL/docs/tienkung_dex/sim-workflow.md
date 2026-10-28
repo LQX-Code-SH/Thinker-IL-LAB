@@ -21,7 +21,7 @@
 ubt_sim 采集 (trajectory.hdf5)
       │  右臂 7 + 右手 13（其余维度恒定，丢弃）
       ▼
-scripts/convert/tienkung_dex/convert.sh  ──► dataset/tienkung_dex_sim_pick_apple (30 集 / 20 维 / 15 fps)
+scripts/convert/tienkung_dex/convert.sh  ──► dataset/tienkung_dex_sim_pick_apple (20 集 / 20 维 / 15 fps)
       ▼
 scripts/train/tienkung_dex/train.sh      ──► model/tienkung_dex_sim_pick_apple_act
       ▼
@@ -53,7 +53,7 @@ bash teleoperation/control/tienkung_dex/save_data.sh --batch 20         # 批量
 
 产物：`ubt_sim/dataset/tienkung_dex/<epoch>/trajectory.hdf5`，attrs 带关节名 / fps / 手型 / task。
 
-> 已有 30 集采集结果时可直接跳到第 3 节。
+> 已有 20 集采集结果时可直接跳到第 3 节。
 
 ## 2. 启动容器（ubt_IL）
 
@@ -66,6 +66,10 @@ bash run.sh bash
 ```
 
 ## 3. 数据转换（HDF5 → LeRobot）
+
+> `ubt_sim/` 由 `docker/run.sh` **只读挂载**到容器的 `/ubt_sim`，容器内直接转换即可。
+> 容器里 `ls /ubt_sim` 报不存在，说明容器是用旧挂载建的：`bash run.sh rm && bash run.sh start` 重建。
+> 不给 `SRC_ROOT` 也行——`convert.sh` 的默认路径 `ubt_IL/dataset/tienkung_dex` 不存在时会自动回退到 `/ubt_sim/dataset/tienkung_dex`。
 
 ### 3.1 转换命令
 
@@ -81,47 +85,95 @@ SRC_ROOT=/ubt_sim/dataset/tienkung_dex \
 bash /ubt_IL/scripts/convert/tienkung_dex/convert.sh --overwrite
 ```
 
-默认参数：`CONFIG=configs/tienkung_dex_20d_1RGB.json`、`REPO_ID=tienkung_dex_sim_pick_apple`、
-`FPS=15`、`HDF5_REL_PATH=trajectory.hdf5`、`ROBOT_TYPE=tienkung_dex`。
+默认参数：`CONFIG=configs/tienkung_dex_20d_1RGB_inspire.json`、
+`REPO_ID=tienkung_dex_sim_pick_apple`、`FPS=15`、`HDF5_REL_PATH=trajectory.hdf5`、
+`ROBOT_TYPE=tienkung_dex`。
+
+采集侧只落盘真机通道驱动的 13 个手部关节（URDF 里 5 个 mimic `*_dip` 不再记录），配置里
+手部 13 列原样取用，与 ROS 侧 `SetAngle` / `GetAngleAct` 的 13 通道一一对应。右手列数不是
+13 的旧版数据（18 列，含 5 个恒 0 的 dip）会被 `convert.sh` 直接拦下——那种数据要另写一份
+用 `indices` 剔除 dip 列的配置。
+
 产物在 `/ubt_IL/dataset/tienkung_dex_sim_pick_apple/`。
 
 状态 / 动作的取数：
 
 | 字段 | HDF5 来源 | 列 |
 |------|-----------|-----|
-| `observation.state` | `joint_observations/joint_position` + `hand_observations/hand_right_position`（**实测值**） | `[24..30]` + `[0,1,2,4,5,6,8,9,10,12,13,15,16]` |
+| `observation.state` | `joint_observations/joint_position` + `hand_observations/hand_right_position`（**实测值**） | `[24..30]` + 右手全部 13 列 |
 | `action` | `action_observations/joint_position` + `action_observations/hand_right_position`（**指令值**） | 同上 |
 
 > **别把两者互换**：`action_*` 是录制时的指令，`*_observations` 是实测。手部 action 领先
 > state 最多 1.31 rad，这正是部署时 `get_observation()` 的语义。
 
-剔除的 5 维是五个 `*_dip_joint`（URDF 里是 mimic，数据里恒 0）。
+新版采集不再落盘那 5 个 `*_dip_joint`（URDF 里是 mimic，真机没有独立通道），所以 HDF5
+的手部就是 13 维，与 ROS 侧 `SetAngle` / `GetAngleAct` 的 13 通道一一对应。
 
 ### 3.2 数据可视化
 
+`--episode-index` 是必填项（**一次只可视化一集**，20 集可选 `0~19`）：
+
 ```bash
-# 在容器内
-lerobot-dataset-viz --repo-id tienkung_dex_sim_pick_apple --root /ubt_IL/dataset/tienkung_dex_sim_pick_apple
+# 在容器内，直接弹 rerun 窗口（容器需能连到 X，DISPLAY 已设好）
+HF_HUB_OFFLINE=1 lerobot-dataset-viz \
+  --repo-id tienkung_dex_sim_pick_apple \
+  --episode-index 0 \
+  --root /ubt_IL/dataset/tienkung_dex_sim_pick_apple
+```
+
+没有图形界面时，两种替代：
+
+```bash
+# ① 导出 .rrd，拷到本机用 rerun 打开（单集约 63 MB）
+HF_HUB_OFFLINE=1 lerobot-dataset-viz \
+  --repo-id tienkung_dex_sim_pick_apple --episode-index 0 \
+  --root /ubt_IL/dataset/tienkung_dex_sim_pick_apple \
+  --save 1 --output-dir /tmp/viz
+rerun /tmp/viz/tienkung_dex_sim_pick_apple_episode_0.rrd
+
+# ② 服务端推流，本机 rerun 连过去
+HF_HUB_OFFLINE=1 lerobot-dataset-viz \
+  --repo-id tienkung_dex_sim_pick_apple --episode-index 0 \
+  --root /ubt_IL/dataset/tienkung_dex_sim_pick_apple \
+  --mode distant --grpc-port 9876
+# 本机：rerun rerun+http://<容器IP>:9876/proxy
 ```
 
 检查点：画面朝向是否正常、手部抓放与视频是否同步、20 维曲线里手部维度有没有全程平直（平直说明列切错了）。
+`.rrd` 单集 60 MB 上下，批量导出记得事后清 `/tmp/viz`。
 
-### 3.3 静止帧（`TRIM_STATIONARY`）
+### 3.3 静止帧裁剪（`TRIM_STATIONARY`，默认关闭）
 
-**Dex 默认不开**。实测 30 集里约 24% 相邻帧完全相同，成因是 15 Hz 录制跑在约 11 Hz 的仿真主循环上，
-重复散布在整段运动中；静止裁剪只裁「长的静止 run」，既解决不了重复帧，还会切碎连续动作。
+`convert.sh` 已接通全部 `--stationary-*` 参数。2026-10 的 20 集实测（`STATIONARY_DIAGNOSE=1`）：
 
-确实需要时：
+| 指标 | 数值 |
+|---|---|
+| 起始静止段 | 0 帧（录制从预备位直接起手） |
+| 结尾静止段 | 均值 13 帧 / 最大 14 |
+| 段内静止段 | 160 段（20 集合计），均值 23 帧、最大 56 帧，≥10 帧的有 120 段 |
+| 被判静止的帧 | 36%~39% |
+
+按默认参数（`thr=0.03`、`W=5`、`cap=8`）开裁剪的实际效果：
 
 ```bash
-STATIONARY_DIAGNOSE=1 bash /ubt_IL/scripts/convert/tienkung_dex/convert.sh   # 先看分布
 TRIM_STATIONARY=1 bash /ubt_IL/scripts/convert/tienkung_dex/convert.sh --overwrite
 ```
+
+- 10937 帧 → **8269 帧（-24.4%）**，每集 411~416 帧（原始 539~563 帧，各集长短本就来自暂停抖动）
+- **不丢动作**：20 维的 range 全部保留；逐帧最大步长与原始数据一致（手部完全相同，
+  手臂最多 +0.0056 rad，来自合并暂停两端的小漂移）
+- 合手过程不会被裁：手指在 4.5 s 内张到合，5 帧窗内位移约 0.075（阈值 0.03），判为运动
+
+默认仍关闭。**注意**：静止裁剪只处理「长的静止 run」，解决不了相邻帧完全重复的问题
+（15 Hz 录制跑在约 11 Hz 的仿真主循环上，重复散布在整段运动中）——那是采样率问题，不是暂停问题。
+
+调参顺序：先 `STATIONARY_DIAGNOSE=1` 看分布，再决定是否开；`STATIONARY_CAP` / `STATIONARY_THRESH`
+是最常改的两个。
 
 ## 4. 模型训练
 
 ```bash
-# 默认配置：30 集 / 20 维 / 30000 步 / 每 5000 存 checkpoint
+# 默认配置：20 集 / 20 维 / 60000 步 / 每 10000 存 checkpoint
 bash /ubt_IL/scripts/train/tienkung_dex/train.sh
 
 # 覆盖常用参数
@@ -137,15 +189,16 @@ RESUME=true bash /ubt_IL/scripts/train/tienkung_dex/train.sh
 |----------|------|
 | `CONFIG_PATH` | `configs/train_config_tienkung_dex_sim_pick_apple.json` |
 | `OUTPUT_DIR` | `/ubt_IL/model/tienkung_dex_sim_pick_apple_act` |
-| `STEPS` / `SAVE_FREQ` | `30000` / `5000` |
+| `STEPS` / `SAVE_FREQ` | `60000` / `10000` |
 | `BATCH_SIZE` | 配置文件里的值（16） |
 | `RESUME` | `false` |
 | `WANDB_ENABLE` | `false` |
 
 产物：`checkpoints/<step>/pretrained_model`（含 `config.json` + `model.safetensors`）+ `checkpoints/last`。
 
-> 30 集约 16k 帧，batch 16 下 3 万步 ≈ 30 epoch，已足够；再往上过拟合风险明显。
-> `save_freq` 每 5k 存一个，可用离线 MSE + 仿真回注择优。
+> 20 集约 8.3k 帧，batch 16 下 6 万步 ≈ **116 epoch** —— 远超常规训练量，这是「宁长勿短」
+> 策略：每 1 万步存一个（10k/20k/30k/40k/50k/60k 共 6 个），靠离线 MSE + 仿真回注挑最好的那个。
+> 想过拟合风险低一点，`STEPS=15000`（≈29 epoch）就够；想省时间也要先看清哪个 checkpoint 真的能用。
 
 ## 5. 策略评估（离线 MSE）
 

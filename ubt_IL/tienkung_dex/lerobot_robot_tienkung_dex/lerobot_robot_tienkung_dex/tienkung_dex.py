@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shlex
 import signal
 import subprocess
 import threading
@@ -34,6 +35,10 @@ logger = logging.getLogger(__name__)
 
 # Path where _start_bridge() writes the config JSON for external scripts to read.
 _BRIDGE_CONFIG_PATH = "/tmp/tienkung_dex_bridge_config.json"
+
+# 桥接依赖的 ROS2 消息包（ros2_bridge_msgs / inspire_hand_msgs / brainco_hand_msgs）
+# 在镜像构建期编译到这个工作空间，见 docker/Dockerfile。
+_DEX_MSGS_WS = "/opt/tienkung_dex_msgs_ws"
 
 # 只认本机型的桥接脚本名。tienkung_pro 的桥接也叫 ros2_deploy_bridge.py，
 # 按文件名后缀杀进程会把它一起带走，所以额外要求路径里带 tienkung_dex。
@@ -199,9 +204,16 @@ class TienKungDexRobot(Robot):
         _kill_orphan_bridges(self.config.bridge_script)
 
         config_json = json.dumps(self.config.to_bridge_config())
+        # 用 bash -lc 先把消息工作空间 source 进来再 exec（与 walker 同一做法）。
+        # 不能指望调用方的 shell 里有它：/opt/tienkung_dex_msgs_ws 只在 entrypoint
+        # 自己的 shell 里 source 过，而 entrypoint 的环境不会传到 `docker exec` 起的
+        # 新进程；直接 /usr/bin/python3 起会 ModuleNotFoundError: ros2_bridge_msgs。
         cmd = [
-            "/usr/bin/python3", self.config.bridge_script,
-            "--config", config_json,
+            "bash", "-lc",
+            "source /opt/ros/humble/setup.bash 2>/dev/null || true; "
+            f"source {shlex.quote(_DEX_MSGS_WS)}/install/setup.bash 2>/dev/null || true; "
+            f"exec /usr/bin/python3 {shlex.quote(self.config.bridge_script)} "
+            f"--config {shlex.quote(config_json)}",
         ]
 
         logger.info("Starting Bridge2: %s --config <json>", self.config.bridge_script)

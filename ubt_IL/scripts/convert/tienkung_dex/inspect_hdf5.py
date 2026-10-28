@@ -120,7 +120,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--config",
-        default=os.environ.get("CONFIG", str(SCRIPT_DIR / "configs" / "tienkung_dex_20d_1RGB.json")),
+        default=os.environ.get(
+            "CONFIG", str(SCRIPT_DIR / "configs" / "tienkung_dex_20d_1RGB_inspire.json")
+        ),
         help="转换配置 JSON（用于交叉核对 indices）",
     )
     parser.add_argument(
@@ -146,17 +148,28 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    # 与 convert.sh 同一套回退：默认路径（ubt_IL/dataset/tienkung_dex）不存在时去
+    # ubt_sim 的采集目录找。容器内 ubt_sim 由 docker/run.sh 只读挂载到 /ubt_sim，
+    # PROJECT_ROOT 是 /ubt_IL，于是 PROJECT_ROOT.parent / "ubt_sim" 正好是 /ubt_sim。
+    src_default = str(PROJECT_ROOT / "dataset" / "tienkung_dex")
+    if "SRC_ROOT" not in os.environ and str(args.src_root) == src_default:
+        alt = PROJECT_ROOT.parent / "ubt_sim" / "dataset" / "tienkung_dex"
+        if not Path(src_default).is_dir() and alt.is_dir():
+            print(f"[INFO] {src_default} 不存在，回退到 {alt}")
+            args.src_root = str(alt)
+
     src_root = Path(args.src_root).expanduser().resolve()
     config_path = Path(args.config).expanduser().resolve()
     if not src_root.is_dir():
         print(f"[ERROR] 源目录不存在: {src_root}", file=sys.stderr)
         print(
-            f"        采集产物默认在 ubt_sim/dataset/tienkung_dex，"
-            f"可复制/软链到 {PROJECT_ROOT / 'dataset' / 'tienkung_dex'}，"
-            "或用 SRC_ROOT=<路径> 直接指定。",
+            f"        采集产物在 ubt_sim/dataset/tienkung_dex（容器内由 docker/run.sh "
+            f"只读挂载到 /ubt_sim），默认缺省路径是 {PROJECT_ROOT / 'dataset' / 'tienkung_dex'}；"
+            "也可用 SRC_ROOT=<路径> 或 --src-root 直接指定。",
             file=sys.stderr,
         )
         return 1
+
     if not config_path.is_file():
         print(f"[ERROR] 配置文件不存在: {config_path}", file=sys.stderr)
         return 1

@@ -815,6 +815,30 @@ def hand_channel_joints(variant: str, side: str) -> tuple[tuple[str, ...], ...]:
     return tuple(tuple(f"{prefix}{joint}_joint" for joint in entry) for entry in table)
 
 
+def driven_hand_joints(variant: str = DEFAULT_VARIANT) -> tuple[list[str], list[str]]:
+    """返回该变体每只手**真机通道实际驱动**的关节，保持 URDF 顺序。
+
+    ``hand_joints()`` 给的是 URDF 全量列表，其中有些是只被动跟随的 mimic 关节：
+    inspire 的 5 个 ``*_dip``（thumb/index/middle/ring/pinky）、brainco 的 5 个
+    ``*_distal``。真机状态报文里没有这些通道，录进 HDF5 只会得到一列常数 0
+    （进数据集还会触发 QUANTILES 归一化炸裂），ROS 侧也无从下发。
+
+    采集与数据集统一用本函数，与真机保持同一组关节：
+
+    * inspire：13（18 个 URDF 关节里剔除 5 个 dip）
+    * brainco：6（11 个里只留拇指 metacarpal/proximal 与四指 proximal）
+    """
+    left, right = hand_joints(variant)
+    driven = {
+        side: {name for entry in hand_channel_joints(variant, side) for name in entry}
+        for side in ("left", "right")
+    }
+    return (
+        [name for name in left if name in driven["left"]],
+        [name for name in right if name in driven["right"]],
+    )
+
+
 def inspire_code_to_rad(channel: int, code: int) -> float:
     """因时通道码（0.1°，带零位偏置与方向）-> 仿真关节角（rad）。"""
     _, low, high, zero, direction = INSPIRE_CHANNELS[int(channel)]

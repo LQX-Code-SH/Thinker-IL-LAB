@@ -3,8 +3,9 @@
 订阅与真机完全一致的话题（``/robot_state``、厂商灵巧手状态、头部相机），
 按固定频率把一帧写入 ``control/common/hdf5_recorder.EpisodeRecorder``：
 
-* 关节列顺序固定为 ``constants.BODY_JOINTS`` + 当前变体的左右手关节清单
-  （inspire 18+18 / brainco 11+11；与训练侧 state 顺序解耦，转换脚本按 name 重排）；
+* 关节列顺序固定为 ``constants.BODY_JOINTS`` + 当前变体的左右手**驱动**关节
+  （inspire 13+13 / brainco 6+6，见 ``constants.driven_hand_joints``；只录真机
+  通道实际驱动的关节，mimic 的 5 个 ``*_dip`` 不落盘，与真机 13 通道一致）；
 * action 取最近一次下发的指令（``/arm|head|waist|leg/cmd`` 与灵巧手指令），
   未收到指令时用当前状态填充；
 * 深度按 ``16UC1`` 存储（C++ 图像桥已输出毫米），空值由核心层置 65535。
@@ -39,9 +40,9 @@ from constants import (  # noqa: E402
     BODY_JOINTS,
     DEFAULT_VARIANT,
     JOINT_ID_TO_SIM,
+    driven_hand_joints,
     hand_channel_joints,
     hand_code_to_rad,
-    hand_joints,
 )
 from dex_controller import GROUP_MSG, TOPICS, load_real_msgs  # noqa: E402
 from hdf5_recorder import EpisodeRecorder  # noqa: E402
@@ -97,7 +98,8 @@ class TienkungDexDataRecorder(Node):
         self.capture_hz = float(capture_hz)
         self.record_depth = bool(record_depth)
         self.variant = variant
-        self.left_hand_joints, self.right_hand_joints = hand_joints(variant)
+        # 只录真机通道驱动的关节（inspire 13 / brainco 6），mimic 的 dip 不落盘
+        self.left_hand_joints, self.right_hand_joints = driven_hand_joints(variant)
         self.real_msgs = load_real_msgs(variant)
 
         self._lock = threading.Lock()

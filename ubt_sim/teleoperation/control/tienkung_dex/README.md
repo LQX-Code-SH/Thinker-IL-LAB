@@ -268,7 +268,7 @@ bash teleoperation/control/tienkung_dex/save_data.sh --batch 20           # 批�
 ```
 dataset/tienkung_dex/<epoch秒>/trajectory.hdf5
 ├── joint_observations/{joint_position, joint_velocity, joint_effort}    # 31
-├── hand_observations/{hand_left_*, hand_right_*}                        # Inspire 18+18 / BrainCo 11+11
+├── hand_observations/{hand_left_*, hand_right_*}                        # Inspire 13+13 / BrainCo 6+6（只录真机通道驱动的关节）
 ├── action_observations/{joint_position, hand_left_position, hand_right_position}
 ├── camera_observations/color_images/camera_head                         # PNG 字节流
 ├── camera_observations/depth_images/camera_head                         # uint16 mm
@@ -285,8 +285,11 @@ task / task_name / episode_index / num_frames / dropped_frames`。
 
 ## 已知限制
 
-- 手部 `mimic` 关节（每手 5 个：`thumb_pip`、各指 `*_dip`）由 `action_process` 按 URDF
-  倍率展开，ROS 侧无需下发；真机话题下这些关节没有独立读数，录制里取驱动展开值。
+- 手部 `mimic` 关节（inspire 每手 5 个 `*_dip`、brainco 每手 5 个 `*_distal`）由
+  `action_process` 按 URDF 倍率展开，ROS 侧无需下发，真机话题下也没有独立读数。
+  **采集不落盘这些关节**（`constants.driven_hand_joints`）：inspire 录 13 维、
+  brainco 录 6 维，与真机通道数一致；旧数据（2026-10 之前）是 URDF 全量 18/11 维，
+  其中 mimic 列恒 0。
 - 厂商灵巧手状态只有位置，没有速度/力矩，因此 `hand_*_velocity` / `hand_*_effort`
   在真机数据里恒为 0（仿真侧同样填 0，保证两边 schema 一致）。
 - 手部下发按厂商接口换算，两个变体的语义不同：

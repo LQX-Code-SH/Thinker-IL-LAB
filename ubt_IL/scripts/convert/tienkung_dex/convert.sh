@@ -5,7 +5,7 @@
 #
 # 环境变量覆盖默认参数，例如：
 #   CONFIG=configs/tienkung_dex_20d_1RGB.json bash convert.sh
-#   SRC_ROOT=$PROJECT_ROOT/../ubt_sim/dataset/tienkung_dex bash convert.sh
+#   SRC_ROOT=/ubt_sim/dataset/tienkung_dex bash convert.sh   # 容器内（ubt_sim 只读挂载）
 #
 # 额外参数透传给 Python 转换器，例如：
 #   bash convert.sh --overwrite        # 覆盖已有输出
@@ -25,7 +25,7 @@ usage() {
     echo "环境变量（及其默认值）："
     echo "  SRC_ROOT    源数据目录 (默认: $PROJECT_ROOT/dataset/tienkung_dex)"
     echo "  TGT_PATH    输出目标目录 (默认: $PROJECT_ROOT/dataset)"
-    echo "  CONFIG      JSON 配置文件 (默认: configs/tienkung_dex_20d_1RGB.json)"
+    echo "  CONFIG      JSON 配置文件 (默认: configs/tienkung_dex_20d_1RGB_inspire.json)"
     echo "  REPO_ID     输出数据集名称 (默认: tienkung_dex_sim_pick_apple)"
     echo "  FPS         帧率 (默认: 15)"
     echo "  ROBOT_TYPE  机器人类型 (默认: tienkung_dex)"
@@ -51,8 +51,9 @@ usage() {
     echo ""
     echo "示例："
     echo "  bash convert.sh"
-    echo "  # 直接读 ubt_sim 的采集产物（跑完 save_data.sh --batch 就在那里）"
-    echo "  SRC_ROOT=$PROJECT_ROOT/../ubt_sim/dataset/tienkung_dex bash convert.sh"
+    echo "  # 容器内直接读 ubt_sim 的采集产物（跑完 save_data.sh --batch 就在那里，"
+    echo "  # ubt_sim 由 docker/run.sh 只读挂载到 /ubt_sim）；不给 SRC_ROOT 也会自动回退过去"
+    echo "  SRC_ROOT=/ubt_sim/dataset/tienkung_dex bash convert.sh"
     echo "  bash convert.sh --overwrite --save_one true"
     echo "  STATIONARY_DIAGNOSE=1 bash convert.sh   # 先看静止分布"
     echo "  TRIM_STATIONARY=1 bash convert.sh --overwrite"
@@ -65,9 +66,10 @@ done
 
 # === 配置（可环境变量覆盖）===
 SRC_ROOT_EXPLICIT="${SRC_ROOT:+1}"
+CONFIG_EXPLICIT="${CONFIG:+1}"
 SRC_ROOT="${SRC_ROOT:-$PROJECT_ROOT/dataset/tienkung_dex}"
 TGT_PATH="${TGT_PATH:-$PROJECT_ROOT/dataset}"
-CONFIG="${CONFIG:-$SCRIPT_DIR/configs/tienkung_dex_20d_1RGB.json}"
+CONFIG="${CONFIG:-$SCRIPT_DIR/configs/tienkung_dex_20d_1RGB_inspire.json}"
 REPO_ID="${REPO_ID:-tienkung_dex_sim_pick_apple}"
 FPS="${FPS:-15}"
 ROBOT_TYPE="${ROBOT_TYPE:-tienkung_dex}"
@@ -95,6 +97,39 @@ if [[ ! -d "$SRC_ROOT" && -z "$SRC_ROOT_EXPLICIT" ]]; then
         echo "[convert] 注意：$SRC_ROOT 不存在，回退到 $UBT_SIM_SRC"
         SRC_ROOT="$UBT_SIM_SRC"
     fi
+fi
+
+# 采集侧只落盘真机通道实际驱动的 13 个手部关节（URDF 里 5 个 mimic *_dip 不再记录，
+# 与 ROS 侧 SetAngle/GetAngleAct 的 13 通道一一对应），配置里手部就是 13 维原样取用。
+# 列数不是 13 说明数据来自旧版采集（18 列，含 5 个恒 0 的 dip），此时重排后的 25 维会
+# 对不上配置的 shape=[20]，直接拦下比让转换器写出坏数据集好。
+# CONFIG= 显式给出时不做探测。
+if [[ -z "$CONFIG_EXPLICIT" ]]; then
+    HAND_DIM="$(python - "$SRC_ROOT" "$HDF5_REL_PATH" <<'PY' 2>/dev/null || true
+import os
+import sys
+
+import h5py
+
+root, rel = sys.argv[1], sys.argv[2]
+for name in sorted(os.listdir(root)):
+    path = os.path.join(root, name, rel)
+    if os.path.isfile(path):
+        with h5py.File(path, "r") as f:
+            print(f["hand_observations/hand_right_position"].shape[1])
+        break
+PY
+)"
+    case "$HAND_DIM" in
+        13) echo "[convert] 检测到右手 13 维，使用配置文件 $(basename "$CONFIG")" ;;
+        "") ;;  # 探测失败（源目录为空/没有 h5py）：留给下面的校验报错
+        *)
+            echo "[convert] 错误：右手是 ${HAND_DIM} 维，本配置要求 13 维" >&2
+            echo "        旧版采集（18 列，含 5 个恒 0 的 *_dip）需要另写配置用 indices 剔除 dip 列，" >&2
+            echo "        或重新采集；确认无误时用 CONFIG=<配置> 显式绕过此检查" >&2
+            exit 1
+            ;;
+    esac
 fi
 
 # === 校验 ===

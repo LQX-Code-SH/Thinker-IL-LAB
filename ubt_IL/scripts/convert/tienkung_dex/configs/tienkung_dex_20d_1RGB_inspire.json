@@ -83,8 +83,7 @@
         "indices": [24, 25, 26, 27, 28, 29, 30]
       },
       {
-        "hdf5_key": "hand_observations/hand_right_position",
-        "indices": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 15, 16]
+        "hdf5_key": "hand_observations/hand_right_position"
       }
     ],
     "action": [
@@ -93,8 +92,7 @@
         "indices": [24, 25, 26, 27, 28, 29, 30]
       },
       {
-        "hdf5_key": "action_observations/hand_right_position",
-        "indices": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 15, 16]
+        "hdf5_key": "action_observations/hand_right_position"
       }
     ],
     "observation.images.head": {

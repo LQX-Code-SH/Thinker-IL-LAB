@@ -4,7 +4,8 @@
 数据由 ``teleoperation/control/tienkung_dex/utils/recorder.py`` 录制：
 
 * ``joint_observations/*``：31 个身体关节
-* ``hand_observations/*``：左右手各 18 关节
+* ``hand_observations/*``：左右手各 13 个驱动关节（2026-10 之前的旧数据是 18，
+  含 5 个恒 0 的 ``*_dip``；列名一律读 attrs 的 ``*_hand_joint_names``，两种都能放）
 * ``action_observations/*``：下发目标（回放使用）
 * ``camera_observations/{color_images,depth_images}/camera_head``：PNG 字节流 / uint16 毫米
   （目录与相机名与 walker_s2 / tienkung_pro 一致）

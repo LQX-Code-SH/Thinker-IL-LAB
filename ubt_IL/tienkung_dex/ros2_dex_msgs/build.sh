@@ -24,6 +24,18 @@ if [ ! -f /opt/ros/humble/setup.bash ]; then
     exit 1
 fi
 
+# 编译必须用系统 Python 3.10。基镜像把 /lerobot/.venv/bin 放在 PATH 最前面，
+# CMake 的 find_package(Python3) 会挑中 venv 里的 3.12，而 rosidl_adapter 依赖的
+# em(python3-empy) 只装在系统 python 上，症状是
+#   ModuleNotFoundError: No module named 'em'
+# 于是整批消息包 configure 阶段就失败。这里清掉 venv 环境再让 CMake 探测，
+# 与 docker/entrypoint.sh 的 build_tienkung_dex_ros2_msgs 同一套做法。
+unset VIRTUAL_ENV PYTHONHOME
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export AMENT_PYTHON_EXECUTABLE=/usr/bin/python3
+export Python3_EXECUTABLE=/usr/bin/python3
+export PYTHON_EXECUTABLE=/usr/bin/python3
+
 # ROS 的 setup.bash 会引用未定义变量，source 时临时关掉 -u
 set +u
 # shellcheck disable=SC1091

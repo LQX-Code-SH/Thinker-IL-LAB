@@ -56,6 +56,17 @@ case "${1:-}" in
             if [ -n "$DOCKER_GPU_ARGS" ]; then
                 read -r -a GPU_ARGS <<< "$DOCKER_GPU_ARGS"
             fi
+
+            # ubt_sim 只读挂载：仿真采集的 HDF5 落在 <repo>/ubt_sim/dataset/<机型>/，
+            # 数据转换在容器内跑（容器 venv 里就是 lerobot 0.5.2，宿主机 conda 是 0.5.1
+            # 且没有 lerobot.configs.video，还得另搭一套环境）。
+            # 只读挂载，避免容器侧误改仿真数据；源码目录不存在时不挂，免得 docker
+            # 在宿主机上自动建一个 root 属主的空目录。
+            SIM_MOUNT_ARGS=()
+            if [ -d "$PROJECT_ROOT/../ubt_sim" ]; then
+                SIM_MOUNT_ARGS=(-v "$(cd "$PROJECT_ROOT/.." && pwd)/ubt_sim":/ubt_sim:ro)
+            fi
+
             sudo docker run -d --init --name "$CONTAINER_NAME" \
                 "${GPU_ARGS[@]}" \
                 --network=host \
@@ -68,6 +79,7 @@ case "${1:-}" in
                 -e TORCH_HOME="$TORCH_HOME" \
                 -e UV_INDEX_URL="$UV_INDEX_URL" \
                 -v "$PROJECT_ROOT":/ubt_IL \
+                "${SIM_MOUNT_ARGS[@]}" \
                 -e DISPLAY="${_HOST_DISPLAY}" \
                 -v /tmp/.X11-unix:/tmp/.X11-unix \
                 -v "$_DOCKER_XAUTH":/home/user_lerobot/.Xauthority:ro \
@@ -246,6 +258,7 @@ PY' >/dev/null 2>&1
             export XAUTHORITY=/tmp/.xauth-docker; \
             source /opt/ros/humble/setup.bash 2>/dev/null || true; \
             source /opt/bodyctrl_msgs_ws/install/setup.bash 2>/dev/null || true; \
+            source /opt/tienkung_dex_msgs_ws/install/setup.bash 2>/dev/null || true; \
             source $WALKER_WS/install/setup.bash 2>/dev/null || true; \
             export ROS_DOMAIN_ID=$DOMAIN_ID; \
             export FASTRTPS_DEFAULT_PROFILES_FILE=/opt/fastdds_no_shm.xml; \
@@ -288,6 +301,15 @@ PY' >/dev/null 2>&1
         else
             echo "[FAIL] Project NOT mounted!"
             ERRORS=$((ERRORS + 1))
+        fi
+
+        # ubt_sim 只读挂载：容器内做数据转换时读仿真采集产物用。缺失不致命（数据集已转好
+        # 或走宿主机转换时用不到），只提示。
+        if sudo docker exec "$CONTAINER_NAME" test -d /ubt_sim/dataset 2>/dev/null; then
+            echo "[OK] ubt_sim mounted: /ubt_sim (read-only)"
+        else
+            echo "[WARN] ubt_sim NOT mounted: /ubt_sim 不存在，容器内转换需先手工拷贝数据"
+            WARNINGS=$((WARNINGS + 1))
         fi
 
         # lerobot 导入

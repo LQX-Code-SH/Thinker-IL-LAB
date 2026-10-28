@@ -50,25 +50,32 @@ bash run.sh bash       # 进入容器，后续命令均在容器内执行
 
 ## 3. 数据准备
 
-仿真采集的数据直接在 `ubt_sim/dataset/tienkung_dex/<epoch>/trajectory.hdf5`，
-转换时把 `SRC_ROOT` 指过去即可：
+仿真采集的数据在 `ubt_sim/dataset/tienkung_dex/<epoch>/trajectory.hdf5`。
+`docker/run.sh` 把 `ubt_sim/` **只读挂载**到容器的 `/ubt_sim`，在容器内直接转即可：
 
 ```bash
-SRC_ROOT=$PROJECT_ROOT/../ubt_sim/dataset/tienkung_dex \
 bash /ubt_IL/scripts/convert/tienkung_dex/convert.sh --overwrite
 ```
 
-转换配置：`/ubt_IL/scripts/convert/tienkung_dex/configs/tienkung_dex_20d_1RGB.json`
-（20D，因时 13 通道）。详细参数与静止帧处理见 [sim-workflow.md §3](./sim-workflow.md#3-数据转换hdf5--lerobot)。
+> `convert.sh` 的默认 `SRC_ROOT` 是 `ubt_IL/dataset/tienkung_dex`（供已经拷过的数据用），
+> 不存在时自动回退到 `/ubt_sim/dataset/tienkung_dex`，所以不用显式指定。
+> 容器里 `ls /ubt_sim` 报不存在，说明容器是旧挂载建的：`bash run.sh rm && bash run.sh start` 重建。
 
-> ⚠️ **`TRIM_STATIONARY` 对 Dex 默认关闭**：Dex 的重复帧成因是 15 Hz 录制跑在约 11 Hz 的
-> 仿真主循环上，重复散布在整段运动里，静止裁剪裁不掉，反而会切碎动作。转换配置里的
-> 20 维已剔除恒定维，不依赖裁剪。
+转换配置是 `/ubt_IL/scripts/convert/tienkung_dex/configs/tienkung_dex_20d_1RGB_inspire.json`，
+产出 20D = 右臂 7 + 右手 13（因时 Inspire）。采集侧只落盘真机通道驱动的 13 个手部关节，
+配置里手部 13 列原样取用；右手列数不是 13 时 `convert.sh` 会直接拦下。详细参数与静止帧
+处理见 [sim-workflow.md §3](./sim-workflow.md#3-数据转换hdf5--lerobot)。
+
+> **`TRIM_STATIONARY` 默认关闭，也支持开启**：2026-10 的 20 集实测，段内静止段 160 段
+> （均值 23 帧 / 最大 56），开 `TRIM_STATIONARY=1` 后 10937 → 8269 帧（-24.4%），20 维
+> range 与逐帧步长都不受影响。默认关是因为静止裁剪解决不了「15 Hz 录制跑在 ~11 Hz 主循环上」
+> 的相邻重复帧问题——那是采样率问题。参数与实测见
+> [sim-workflow.md §3.3](./sim-workflow.md#33-静止帧裁剪trim_stationary默认关闭)。
 
 ## 4. 模型训练
 
 脚本：`/ubt_IL/scripts/train/tienkung_dex/train.sh`（默认配置
-`configs/train_config_tienkung_dex_sim_pick_apple.json`，30 集 / 3 万步）。完整参数见
+`configs/train_config_tienkung_dex_sim_pick_apple.json`，20 集 / 6 万步 / 每 1 万步存）。完整参数见
 [sim-workflow.md §4](./sim-workflow.md#4-模型训练)。
 
 ```bash
