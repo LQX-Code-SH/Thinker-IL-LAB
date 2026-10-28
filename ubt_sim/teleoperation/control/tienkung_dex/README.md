@@ -215,7 +215,7 @@ ctrl.home()                                    # 分段回站立位
 ## 上真机前
 
 1. **消息包**：`ros2_bridge_msgs` / `inspire_hand_msgs` / `brainco_hand_msgs` 在仿真机上
-   是 `teleoperation/msgs/` 下按 SDK 用法重建的，字段布局未与厂商包核对——真机上
+   是 `teleoperation/msgs/tienkung_dex/` 下按 SDK 用法重建的，字段布局未与厂商包核对——真机上
    要 source 厂商自带的消息包，重建版只用于仿真联调（桥接启动时会打 WARN）。
 2. **驱动参数**：`constants.GROUP_CMD_LIMITS` 里的 `spd/cur`（臂 0.5/40、头腰 0.3/10）
    取自 SDK 示例；`CONTROL_MODE_IMPEDANCE` 只在真机有意义，仿真忽略 `mode`。

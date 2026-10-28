@@ -1,0 +1,8 @@
+# Dockerfile 只 COPY teleoperation/msgs/walker_s2，其余目录不进构建上下文。
+# 不加这一层时上下文约 9.8 GB（dataset 2.0G + assets 2.2G + shell 5.7G），
+# 每次 docker build 都要先打包/快照一遍，既慢又占临时磁盘。
+.git/
+dataset/
+shell/
+assets/
+docs/

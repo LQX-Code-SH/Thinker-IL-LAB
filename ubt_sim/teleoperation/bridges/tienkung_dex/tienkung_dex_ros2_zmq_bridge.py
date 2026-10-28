@@ -71,16 +71,16 @@ def load_real_msgs(variant: str) -> dict:
     """导入真机消息包；缺包时给出可执行的修复提示。
 
     ``brainco_hand_msgs`` / ``inspire_hand_msgs`` 优先用厂商包（真机自带）；
-    仿真机上装的是 ``teleoperation/msgs/dex_hand_msgs_src`` 下按 SDK 用法
-    重建的同名包，字段布局未经厂商核对——这里检测到用的是重建版就告警。
+    仿真机上装的是 ``teleoperation/msgs/tienkung_dex/dex_hand_msgs_src`` 下按
+    SDK 用法重建的同名包，字段布局未经厂商核对——这里检测到用的是重建版就告警。
     """
     try:
         from ros2_bridge_msgs.msg import ArmCtrl, HeadCtrl, MotorStatus, RobotState
     except ImportError as exc:
         raise RuntimeError(
             f"{exc}：真机话题档需要 ros2_bridge_msgs。"
-            "容器内先 bash run.sh init（会从 teleoperation/msgs 编译该包），"
-            "或 source /opt/ubt_sim/ros2_bridge_msgs/install/setup.bash"
+            "容器内先 bash run.sh init（会编译 teleoperation/msgs/tienkung_dex），"
+            "或 source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash"
         ) from exc
 
     msgs = {

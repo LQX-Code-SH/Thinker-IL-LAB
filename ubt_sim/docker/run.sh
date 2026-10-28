@@ -150,33 +150,28 @@ case "${1:-}" in
                 echo '[FIX] Restored torch/_vendor/packaging/_structures.py'; \
             fi"
 
-        # Install bodyctrl_msgs
-        echo "[INFO] Installing bodyctrl_msgs..."
-        docker exec "$CONTAINER_NAME" bash -c "\
-            dpkg -i /ubt_sim/teleoperation/msgs/ros-humble-bodyctrl-msgs_0.0.1-1_amd64.deb 2>/dev/null || true"
+        # ---- 按机型安装/编译消息包（teleoperation/msgs/<机型>/）----
+        # 每台机器人只碰自己的目录与独立工作空间；某个机型失败不中断其它机型，
+        # 全部跑完后统一报错。只想补一台时，直接单跑对应的脚本即可。
+        MSGS_FAILED=""
 
-        # Build Walker S2 ROS2 SDK message packages
-        echo "[INFO] Building Walker S2 ROS2 SDK message packages..."
-        docker exec "$CONTAINER_NAME" bash -c "\
-            source /opt/ros/humble/setup.bash && \
-            colcon --log-base /opt/ubt_sim/walker_sdk_ros2_msgs/log build \
-              --base-paths /ubt_sim/teleoperation/msgs/walker_sdk_ros2_msgs_src/src \
-              --build-base /opt/ubt_sim/walker_sdk_ros2_msgs/build \
-              --install-base /opt/ubt_sim/walker_sdk_ros2_msgs/install \
-              --merge-install \
-              --packages-up-to rosa_msgs shm_msgs mc_task_msgs mc_state_msgs ecat_task_msgs"
+        echo "[INFO] Installing TienKung Pro message packages (bodyctrl_msgs)..."
+        if ! docker exec "$CONTAINER_NAME" \
+            bash /ubt_sim/teleoperation/msgs/tienkung_pro/install.sh; then
+            MSGS_FAILED="$MSGS_FAILED tienkung_pro"
+        fi
 
-        # Build TienKung Dex real-robot message packages (ros2_bridge_msgs + 灵巧手)
-        echo "[INFO] Building TienKung Dex real-robot message packages..."
-        docker exec "$CONTAINER_NAME" bash -c "\
-            source /opt/ros/humble/setup.bash && \
-            colcon --log-base /opt/ubt_sim/tienkung_dex_msgs/log build \
-              --base-paths /ubt_sim/teleoperation/msgs/ros2_bridge_msgs_src/src \
-                           /ubt_sim/teleoperation/msgs/dex_hand_msgs_src/src \
-              --build-base /opt/ubt_sim/tienkung_dex_msgs/build \
-              --install-base /opt/ubt_sim/tienkung_dex_msgs/install \
-              --merge-install \
-              --packages-up-to ros2_bridge_msgs brainco_hand_msgs inspire_hand_msgs"
+        echo "[INFO] Building Walker S2 message packages..."
+        if ! docker exec "$CONTAINER_NAME" \
+            bash /ubt_sim/teleoperation/msgs/walker_s2/build.sh; then
+            MSGS_FAILED="$MSGS_FAILED walker_s2"
+        fi
+
+        echo "[INFO] Building TienKung Dex message packages..."
+        if ! docker exec "$CONTAINER_NAME" \
+            bash /ubt_sim/teleoperation/msgs/tienkung_dex/build.sh; then
+            MSGS_FAILED="$MSGS_FAILED tienkung_dex"
+        fi
 
         # Build C++ image bridge
         echo "[INFO] Building C++ image bridge..."
@@ -184,6 +179,12 @@ case "${1:-}" in
             source /opt/ros/humble/setup.bash && \
             cd /ubt_sim/teleoperation/bridges && \
             bash build_cpp_bridge.sh 2>/dev/null || echo '[WARN] C++ image bridge build failed (non-critical)'"
+
+        if [ -n "$MSGS_FAILED" ]; then
+            echo "[ERROR] 以下机型的消息包安装/编译失败:$MSGS_FAILED"
+            echo "[INFO] 可单独重跑: bash /ubt_sim/teleoperation/msgs/<机型>/{build,install}.sh"
+            exit 1
+        fi
 
         echo "[INFO] Environment initialized."
         ;;
@@ -308,7 +309,7 @@ case "${1:-}" in
         fi
 
         # bodyctrl_msgs
-        if docker exec "$CONTAINER_NAME" dpkg -l ros-humble-bodyctrl-msgs >/dev/null 2>&1; then
+        if docker exec "$CONTAINER_NAME" dpkg -s ros-humble-bodyctrl-msgs >/dev/null 2>&1; then
             echo "[OK] bodyctrl_msgs: installed"
         else
             echo "[WARN] bodyctrl_msgs: NOT installed (run: bash run.sh init)"

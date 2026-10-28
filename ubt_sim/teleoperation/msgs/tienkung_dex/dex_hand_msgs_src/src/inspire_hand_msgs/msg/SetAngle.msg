@@ -22,7 +22,11 @@
 # 屈曲通道码值越大越伸直（伸直在码上限），弯曲角 = (上限 - code) × 0.1°；
 # 侧摆通道 0 为中立位，摆角 = code × 0.1°。
 # 握拳示例（厂商 demo，指根 60° / 指中 75° / 拇指一关节 20° / 拇指二关节 54°）：
-#   ros2 topic pub -r 30 /right_hand/angle_set inspire_hand_msgs/msg/SetAngle \
+#   ros2 topic pub -r 30 /right_hand/angle_set inspire_hand_msgs/msg/SetAngle
 #     "{joint_values: [1051,1051,1051,0,1051,0,1150,1150,1150,1150,1500,1400,1500]}"
+#
+# 注意：注释里不要出现反斜杠。rosidl_adapter 会把注释经
+# ``string.encode().decode('unicode_escape')`` 转成 IDL 字符串，行尾单个
+# 反斜杠会让整个包编译失败（UnicodeDecodeError: unicodeescape）。
 int32 hand_id
 int32[13] joint_values

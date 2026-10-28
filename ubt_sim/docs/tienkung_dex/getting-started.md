@@ -108,7 +108,7 @@ export ROS_DOMAIN_ID=146          # 真机改成 0
 （`ros2_bridge_msgs`，`ctrl[].name` = 关节 ID）与 `/left_hand/angle_set`
 （因时）/ `/left_hand/set_motor_multi`（强脑）。因时手是 13 通道、单位 0.1°
 的绝对角码（码越大越伸直，标定与握拳示例见
-`teleoperation/msgs/dex_hand_msgs_src/src/inspire_hand_msgs/msg/SetAngle.msg`）。
+`teleoperation/msgs/tienkung_dex/dex_hand_msgs_src/src/inspire_hand_msgs/msg/SetAngle.msg`）。
 
 ## 5. 采集数据
 

@@ -55,11 +55,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends g++ make libzmq
     rm -rf /var/lib/apt/lists/*
 
 # ---- Walker S2 ROS2 SDK message packages ----
-COPY teleoperation/msgs/walker_sdk_ros2_msgs_src/src /opt/ubt_sim/walker_sdk_ros2_msgs/src
-RUN bash -c "source /opt/ros/humble/setup.bash && \
-    colcon --log-base /opt/ubt_sim/walker_sdk_ros2_msgs/log build \
-      --base-paths /opt/ubt_sim/walker_sdk_ros2_msgs/src \
-      --build-base /opt/ubt_sim/walker_sdk_ros2_msgs/build \
-      --install-base /opt/ubt_sim/walker_sdk_ros2_msgs/install \
-      --merge-install \
-      --packages-up-to rosa_msgs shm_msgs mc_task_msgs mc_state_msgs ecat_task_msgs"
+# 与容器内 run.sh init 共用同一份编译脚本，产物仍在 /opt/ubt_sim/walker_sdk_ros2_msgs
+COPY teleoperation/msgs/walker_s2 /opt/ubt_sim/msgs/walker_s2
+RUN bash /opt/ubt_sim/msgs/walker_s2/build.sh

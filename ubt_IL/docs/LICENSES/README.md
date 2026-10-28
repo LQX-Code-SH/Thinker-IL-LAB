@@ -48,7 +48,7 @@ licensed under the Apache License 2.0:
 ### 3. Precompiled binaries
 
 - `ubt_sim/teleoperation/bridges/zmq_image_bridge`
-- `ubt_sim/teleoperation/msgs/ros-humble-bodyctrl-msgs_0.0.1-1_amd64.deb`
+- `ubt_sim/teleoperation/msgs/tienkung_pro/ros-humble-bodyctrl-msgs_0.0.1-1_amd64.deb`
 - `ubt_IL/docker/ros2_msgs/ros-humble-bodyctrl-msgs_0.0.1-1_amd64.deb`
 
 ### 4. Robot description and model assets

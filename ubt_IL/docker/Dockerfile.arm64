@@ -43,7 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # bodyctrl_msgs (天工 msgs): arm64 无预编译 deb，从源码编译。
-# 源码备份自 ubt_sim/teleoperation/msgs/body_crtl_msgs_src（包名 bodyctrl_msgs，与 x86 deb 同名）。
+# 源码备份自 ubt_sim/teleoperation/msgs/tienkung_pro/bodyctrl_msgs_src（包名 bodyctrl_msgs，与 x86 deb 同名）。
 # setup.bash 必须用 bash 执行（sh/dash 不支持 ${BASH_SOURCE[0]} 等 bash 语法）
 COPY docker/ros2_msgs/bodyctrl_msgs_src /opt/bodyctrl_msgs_ws/src
 SHELL ["/bin/bash", "-c"]
