@@ -269,6 +269,55 @@ def _apply_performance_preset(carb_settings):
     print("[INFO] Applied full performance preset (%d keys)." % len(perf_keys))
 
 
+def _dump_joint_limits(env) -> None:
+    """打印手部关节的 PhysX 运行期限位与增益（默认只打印一行摘要）。
+
+    排查强脑手部时踩过的坑，写在这里备查：
+
+    * **USD 的 drive 属性不可信**。brainco USD 里所有手部关节都是
+      ``type=force`` / ``stiffness=0`` / ``damping=0.01745``（即 1° 的弧度值），
+      那是 URDF→USD 转换时的原始值。Isaac Lab 的 ``ImplicitActuator`` 通过
+      PhysX tensor API（``set_dof_stiffnesses``）写增益，**不会回写 USD**，
+      所以查 USD 永远看到 0。要看真实增益必须读 ``robot.data.joint_stiffness``。
+    * **USD 限位是「度」**（index_proximal 为 80.787），Isaac Lab 解析时换算成
+      弧度（1.41），换算正确；不要按弧度去改 USD。
+    * **手部 22 个关节不在重力补偿范围内**（只覆盖 14 臂 + 3 腰），所以伸展
+      方向完全靠 PD 顶重力，增益给低了就回不到伸直位。
+
+    设置 ``UBT_SIM_DUMP_JOINT_LIMITS=1`` 可打印完整明细。
+    """
+    verbose = bool(os.environ.get("UBT_SIM_DUMP_JOINT_LIMITS"))
+    try:
+        robot = env.unwrapped.scene["robot"]
+        names = list(robot.data.joint_names)
+        limits = robot.data.joint_pos_limits.cpu().tolist()
+        kp = robot.data.joint_stiffness[0].cpu().tolist()
+        kd = robot.data.joint_damping[0].cpu().tolist()
+
+        # 手部关节（左右各 11 个）摘要
+        hand = [n for n in names if "_thumb_" in n or "_index_" in n
+                or "_middle_" in n or "_ring_" in n or "_pinky_" in n]
+        if hand:
+            idx = [names.index(n) for n in hand]
+            kp_set = sorted({round(kp[i], 3) for i in idx})
+            kd_set = sorted({round(kd[i], 3) for i in idx})
+            hi = sorted({round(limits[0][i][1], 4) for i in idx})
+            print(f"[INFO] hand joints: {len(hand)} 个, kp={kp_set}, kd={kd_set}, "
+                  f"upperLimits(rad)={hi}")
+
+        if verbose:
+            print("[INFO] === joint limits / gains (env 0) ===")
+            for n in hand + ["head_pitch_joint"]:
+                if n not in names:
+                    continue
+                i = names.index(n)
+                lo, up = limits[0][i]
+                print(f"[INFO]   {n:34s} [{lo:+.4f}, {up:+.4f}]  kp={kp[i]:.2f} kd={kd[i]:.3f}")
+            print("[INFO] === end ===")
+    except Exception as exc:  # 诊断用，失败不应影响仿真启动
+        print(f"[WARN] dump joint limits failed: {exc}")
+
+
 def main():
     # Resolve physics device: Walker S2 uses a dedicated flag, Tienkung Pro uses the
     # AppLauncher device (which may also come from env).
@@ -352,6 +401,7 @@ def main():
             fix_walker_s2_head_material(env.sim.stage)
         if teleop_interface is not None:
             teleop_interface.reset()
+        _dump_joint_limits(env)
         if args_cli.load_only:
             print("[INFO] Load-only app update enabled: physics/action/observation stepping is disabled.")
         rate_limiter.update_from_env(env)

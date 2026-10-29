@@ -159,19 +159,32 @@ TIENKUNG_DEX_BRAINCO_CFG = ArticulationCfg(
             stiffness=_gains(TIENKUNG_DEX_RIGHT_ARM_JOINTS, TIENKUNG_DEX_ARM_KP),
             damping=_gains(TIENKUNG_DEX_RIGHT_ARM_JOINTS, TIENKUNG_DEX_ARM_KD),
         ),
+        # 手部力矩上限取 10 Nm：URDF 分档为四指 2.0 / 拇指 proximal+distal 1.1 /
+        # 拇指 metacarpal 0.5，但单指操作时阻力矩集中在单根手指上，按 URDF 原值
+        # 会导致 proximal 只到 ~0.2 rad 就推不动（实测 index 仅 0.186 / 1.41）。
+        # 10 Nm 保证单手单指也能走满行程，属仿真侧放宽，真机仍以 URDF 为准。
+        #
+        # 刚度/阻尼 200/10：头部同一台机器人用的是 600/10 能精确跟踪，手指
+        # 原来只有 10/2 属于过软——paper 手势拇指回不到伸直位（通道码卡在
+        # ~232，目标 1），ok 手势食指只到 199（目标 450），且关节到位要 10s。
+        # 手指连杆很轻（index_proximal_link 仅 9 g、惯量 2.5e-7 kg·m²），
+        # kp 提高不会引入低频振荡；kd 同步提到 10 抑制轻质连杆的高频抖动。
+        # 注意：ImplicitActuator 通过 PhysX tensor API 写刚度，不会回写 USD 的
+        # drive:angular:physics:stiffness（USD 里永远是转换时的 0），核对参数
+        # 要看 robot.data.joint_stiffness，sim_runner 启动时会打印。
         "left_hand": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_BRAINCO_LEFT_HAND_JOINTS,
-            effort_limit_sim=1.5,
+            effort_limit_sim=10.0,
             velocity_limit_sim=2.0,
-            stiffness=10.0,
-            damping=2.0,
+            stiffness=200.0,
+            damping=10.0,
         ),
         "right_hand": ImplicitActuatorCfg(
             joint_names_expr=TIENKUNG_DEX_BRAINCO_RIGHT_HAND_JOINTS,
-            effort_limit_sim=1.5,
+            effort_limit_sim=10.0,
             velocity_limit_sim=2.0,
-            stiffness=10.0,
-            damping=2.0,
+            stiffness=200.0,
+            damping=10.0,
         ),
         # 头部刚度/阻尼与 config.py 一致（600/10）；仿真里真正卡住头部跟踪的是
         # 速度上限与 ~11 Hz 的仿真步率，不是刚度，详见 config.py 的注释
