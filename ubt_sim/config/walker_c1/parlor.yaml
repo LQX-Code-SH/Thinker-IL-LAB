@@ -1,0 +1,45 @@
+# Walker C1 / Astron Parlor 任务配置
+# 路径均相对 assets/ 目录。
+#
+# 场景使用专用叠加层 local_scenes/tiangong_parlor/scene_v2_c1.usda：
+# 以 subLayer 引用共享的 scenes/parlor/scene_v2.usd，只在本任务内覆盖
+# 桌子位置（前移 16 cm）、盘子位姿与装饰苹果的 active 状态，
+# 不改动共享 USD，其余机型（tienkung_dex / tienkung_pro / walker_s2）不受影响。
+#
+# 注意：robot.usd_path 仅作文档/回溯用途，env_cfg 实际使用的 USD 来自
+# devices/walker_c1/config.py 的 WALKER_C1_USD_PATH（可用环境变量
+# UBT_SIM_WALKER_C1_USD_PATH 覆盖）。
+
+scene:
+  usd_path: "local_scenes/tiangong_parlor/scene_v2_c1.usda"
+  prim_path: "{ENV_REGEX_NS}/Scene"
+
+robot:
+  name: "walker_c1"
+  usd_path: "robots/walker_c1/usd/walker_c1_with_hands.usd"
+  init_state:
+    # 站位沿用 parlor 场景标定；带约 4° yaw（与 pro 一致）
+    pos: [7.80, 6.08257, 0.90]
+    rot: [0.99939, 0.0, 0.0349, 0.0]  # (w, x, y, z)
+
+# 采集相机 Camera_RGB 由 env_cfg 在 head_pitch_link 下**新建**（USD 自带的
+# head_stereo_left_Camera 等 5 路相机保持不动，仅作视觉参考）；
+# offset 为相对 head_pitch_link 的安装位姿：rot 为 ROS 光学约定
+# （0.5,-0.5,0.5,-0.5 = 沿 link +X 平视）叠加额外 20° 俯角，
+# 任务预备姿态下 head_pitch 已下俯约 20°，合计约 40° 俯视桌面。
+cameras:
+  head_rgb:
+    prim_path: "{ENV_REGEX_NS}/Robot/head_pitch_link/Camera_RGB"
+    data_types: ["rgb"]
+    resolution: [640, 480]
+    pos: [0.08, 0.0, 0.04]
+    rot: [0.40558, -0.57923, 0.57923, -0.40558]
+    focal_length: 24.0
+    horizontal_aperture: 44.76
+    vertical_aperture: 24.99
+
+simulation:
+  dt: 0.01
+  decimation: 1
+  render_interval: 3
+  episode_length_s: 1000

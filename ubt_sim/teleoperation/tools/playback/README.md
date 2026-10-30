@@ -1,6 +1,6 @@
 # 数据集回放（Playback）
 
-读取 `ubt_sim/dataset/{walker_s2,tienkung_pro}/<时间戳>/trajectory.hdf5`，支持两种模式：
+读取 `ubt_sim/dataset/{walker_c1,walker_s2,tienkung_pro,tienkung_dex}/<时间戳>/trajectory.hdf5`，支持两种模式：
 
 | 模式 | 作用 | 依赖 |
 | --- | --- | --- |
@@ -10,8 +10,10 @@
 架构：共用核心 [common.py](common.py)（HDF5 加载、节奏、CLI、Rerun 预览）+ 机器人适配层
 [robots/](robots/)（schema + ROS2 发布器 + 首帧对齐）。两个薄入口脚本：
 
+- `playback_walker_c1.py` — Walker C1（Astron）（31 身体关节 + 双手 SDK 6 维 + 1 相机）
 - `playback_walker_s2.py` — Walker S2 EDU 探索者（17 身体关节 + 7+7 V4 手 + 2 夹爪 + 4 相机）
 - `playback_tienkung_pro.py` — 天工行者无疆（Walker TienKung Pro）（7+7 臂 + 6+6 手 + 1 相机含深度）
+- `playback_tienkung_dex.py` — 天工行者 Dex（31 身体关节 + 灵巧手 + 1 相机含深度）
 
 ## 环境准备（容器内）
 
@@ -22,7 +24,8 @@ docker exec -it ubt-sim /usr/bin/python3 -m pip install "numpy<2" "rerun-sdk==0.
 
 # 控制模式额外需要（walker 需要 SDK 消息包，天工行者无疆仅需 ROS2）：
 source /opt/ros/humble/setup.bash
-source /opt/ubt_sim/walker_sdk_ros2_msgs/install/setup.bash   # 仅 walker
+source /opt/ubt_sim/walker_sdk_ros2_msgs/install/setup.bash   # Walker S2
+# source /opt/ubt_sim/walker_c1_msgs/install/setup.bash       # Walker C1（与 S2 包同名，二选一）
 
 # 统一用系统 Python：
 /usr/bin/python3

@@ -26,6 +26,8 @@ def init_action_cfg(action_cfg, device):
 def preprocess_device_action(action: dict[str, Any], teleop_device) -> torch.Tensor:
     if action.get("tienkung_dex") is not None:
         processed_action = action["tienkung_dex"]
+    elif action.get("walker_c1") is not None:
+        processed_action = action["walker_c1"]
     elif action.get("tienkung_pro") is not None:
         # Expected input format from teleop se3 agent or other source
         processed_action = action["tienkung_pro"]

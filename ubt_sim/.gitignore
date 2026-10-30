@@ -1,0 +1,20 @@
+
+# Walker C1：本地回退资产（旧版 USD/URDF/meshes）与运行时生成的贴图，不入库
+assets/robots/walker_c1/legacy/
+assets/robots/walker_c1/*.blend
+assets/robots/walker_c1/*.blend1
+
+# 贴图：只放行胸口 logo（被 USD 的 decal 材质引用，必须入库），其余预览图不入库
+assets/robots/walker_c1/textures/*
+!assets/robots/walker_c1/textures/logubt_warm_white.png
+
+# Blender 手工导出的临时 USD
+assets/robots/walker_c1/Untitled.usdc
+assets/robots/walker_c1/Untitled.usd
+
+# USD 转换/调试过程中的本地备份
+assets/robots/walker_c1/usd/backup_*/
+assets/robots/walker_c1/usd/config.yaml
+
+# 贴花/配色预览图（临时，不入库）
+dataset/walker_c1/preview/

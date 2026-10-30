@@ -14,4 +14,5 @@ from .task.tienkung_dex_brainco_parlor import *
 from .task.walker_s2_parlor import *
 from .task.walker_s2_part_sorting import *
 from .task.walker_s2_pick_part import *
+from .task.walker_c1_parlor import *
 from .utils import monkey_patch

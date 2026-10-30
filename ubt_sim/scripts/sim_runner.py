@@ -24,10 +24,20 @@ parser.add_argument("--seed", type=int, default=None, help="Seed for the environ
 parser.add_argument("--step_hz", type=int, default=60, help="Environment stepping rate in Hz.")
 parser.add_argument("--perf_stats", action="store_true", help="Print performance statistics.")
 parser.add_argument("--load_only", action="store_true", help="Load and render the environment without ROS control.")
-# Walker S2 specific (ignored for Tienkung Pro)
-parser.add_argument("--zmq_cmd_port", type=int, default=int(os.environ.get("UBT_SIM_WALKER_S2_CMD_PORT", 5655)))
-parser.add_argument("--zmq_status_port", type=int, default=int(os.environ.get("UBT_SIM_WALKER_S2_STATUS_PORT", 5656)))
-parser.add_argument("--zmq_image_port", type=int, default=int(os.environ.get("UBT_SIM_WALKER_S2_IMAGE_PORT", 5657)))
+# Walker S2 / Walker C1 specific (ignored for other robots)
+# 端口环境变量同时接受 S2 / C1 两套前缀（C1 与 S2 共用 5655-5658）
+def _port_env(s2_key: str, c1_key: str, default: int) -> int:
+    return int(os.environ.get(c1_key) or os.environ.get(s2_key) or default)
+
+
+parser.add_argument("--zmq_cmd_port", type=int, default=_port_env("UBT_SIM_WALKER_S2_CMD_PORT", "UBT_SIM_WALKER_C1_CMD_PORT", 5655))
+parser.add_argument("--zmq_status_port", type=int, default=_port_env("UBT_SIM_WALKER_S2_STATUS_PORT", "UBT_SIM_WALKER_C1_STATUS_PORT", 5656))
+parser.add_argument("--zmq_image_port", type=int, default=_port_env("UBT_SIM_WALKER_S2_IMAGE_PORT", "UBT_SIM_WALKER_C1_IMAGE_PORT", 5657))
+parser.add_argument(
+    "--zmq_jpeg_image_port",
+    type=int,
+    default=_port_env("UBT_SIM_WALKER_S2_JPEG_PORT", "UBT_SIM_WALKER_C1_JPEG_PORT", 5658),
+)
 # TienKung Dex specific (ignored for other robots)
 parser.add_argument("--dex_zmq_cmd_port", type=int, default=int(os.environ.get("UBT_SIM_TIENKUNG_DEX_CMD_PORT", 5755)))
 parser.add_argument("--dex_zmq_status_port", type=int, default=int(os.environ.get("UBT_SIM_TIENKUNG_DEX_STATUS_PORT", 5756)))
@@ -136,6 +146,8 @@ def patch_step_for_profiling(env):
 
 def _detect_robot(task_name: str | None) -> str:
     """Infer robot type from task name."""
+    if task_name and "WalkerC1" in task_name:
+        return "walker_c1"
     if task_name and "WalkerS2" in task_name:
         return "walker_s2"
     if task_name and "TienkungDex" in task_name:
@@ -356,11 +368,25 @@ def main():
 
         if args_cli.load_only:
             role = {
+                "walker_c1": "Walker C1",
                 "walker_s2": "Walker S2",
                 "tienkung_dex": "TienKung Dex",
             }.get(ROBOT, "Tienkung Pro")
             print(f"[INFO] {role} load-only mode: ROS control and action preprocessing are disabled.")
             teleop_interface = None
+        elif ROBOT == "walker_c1":
+            from ubt_sim.devices.walker_c1 import WalkerC1Controller
+
+            teleop_interface = WalkerC1Controller(
+                env,
+                cmd_port=args_cli.zmq_cmd_port,
+                status_port=args_cli.zmq_status_port,
+                image_port=args_cli.zmq_image_port,
+                jpeg_image_port=args_cli.zmq_jpeg_image_port,
+                camera_names=env.cfg.camera_names,
+                render_interval=env.cfg.sim.render_interval,
+            )
+            teleop_interface.display_controls()
         elif ROBOT == "tienkung_dex":
             from ubt_sim.devices.tienkung_dex import TienkungDexController
 
@@ -440,6 +466,12 @@ def main():
                         fix_walker_s2_head_material(env.sim.stage)
                     teleop_interface.reset()
                     keyboard_reset.reset_requested = False
+
+                if keyboard_reset.episode_complete_requested:
+                    if ROBOT == "walker_c1":
+                        teleop_interface.request_episode_complete()
+                        print("[INFO] Space pressed: requesting episode save and reset...")
+                    keyboard_reset.episode_complete_requested = False
 
                 if perf_monitor is not None:
                     t_0 = time.perf_counter()

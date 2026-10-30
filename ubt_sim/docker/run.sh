@@ -71,7 +71,7 @@ case "${1:-}" in
         ;;
     stop)
         # Stop bridge first if running
-        BRIDGE_PID=$(docker exec "$CONTAINER_NAME" pgrep -f "tienkung_pro_ros2_zmq_bridge" 2>/dev/null || true)
+        BRIDGE_PID=$(docker exec "$CONTAINER_NAME" pgrep -f "_ros2_zmq_bridge" 2>/dev/null || true)
         if [ -n "$BRIDGE_PID" ]; then
             echo "[INFO] Stopping bridge process..."
             docker exec "$CONTAINER_NAME" bash -c "kill $BRIDGE_PID 2>/dev/null" || true
@@ -106,9 +106,15 @@ case "${1:-}" in
             echo "[INFO] Start it first: bash run.sh start"
             exit 1
         fi
+        # Walker S2 与 Walker C1 的消息包同名但互相隔离：按 UBT_SIM_ROBOT 选择，
+        # 默认 S2；要进 C1 会话用 UBT_SIM_ROBOT=walker_c1 bash run.sh bash
+        WALKER_MSGS_WS="/opt/ubt_sim/walker_sdk_ros2_msgs"
+        if [ "${UBT_SIM_ROBOT:-}" = "walker_c1" ]; then
+            WALKER_MSGS_WS="/opt/ubt_sim/walker_c1_msgs"
+        fi
         docker exec -it "$CONTAINER_NAME" bash -c "\
             source /opt/ros/humble/setup.bash 2>/dev/null || true; \
-            source /opt/ubt_sim/walker_sdk_ros2_msgs/install/setup.bash 2>/dev/null || true; \
+            source ${WALKER_MSGS_WS}/install/setup.bash 2>/dev/null || true; \
             source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash 2>/dev/null || true; \
             export UBT_SIM_ROS_ENV_LOADED=1; \
             export ROS_DOMAIN_ID=$ROS_DOMAIN_ID; \
@@ -169,6 +175,13 @@ case "${1:-}" in
             MSGS_FAILED="$MSGS_FAILED walker_s2"
         fi
 
+        # Walker C1 使用独立的消息源码与工作空间（与 S2 同名包隔离）
+        echo "[INFO] Building Walker C1 message packages..."
+        if ! docker exec "$CONTAINER_NAME" \
+            bash /ubt_sim/teleoperation/msgs/walker_c1/build.sh; then
+            MSGS_FAILED="$MSGS_FAILED walker_c1"
+        fi
+
         echo "[INFO] Building TienKung Dex message packages..."
         if ! docker exec "$CONTAINER_NAME" \
             bash /ubt_sim/teleoperation/msgs/tienkung_dex/build.sh; then
@@ -208,12 +221,20 @@ if [ -z "${UBT_SIM_ROS_ENV_LOADED:-}" ]; then
     if [ -f /opt/ros/humble/setup.bash ]; then
         . /opt/ros/humble/setup.bash
     fi
-    for _ws in /opt/ubt_sim/tienkung_dex_msgs /opt/ubt_sim/walker_sdk_ros2_msgs; do
-        if [ -f "$_ws/install/setup.bash" ]; then
-            . "$_ws/install/setup.bash"
-        fi
-    done
-    unset _ws
+    if [ -f /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash ]; then
+        . /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash
+    fi
+    # Walker S2 与 Walker C1 的消息包同名但互相隔离：按 UBT_SIM_ROBOT 选择
+    # （默认 S2；进 C1 会话：UBT_SIM_ROBOT=walker_c1 docker exec -it ... bash）
+    if [ "${UBT_SIM_ROBOT:-}" = "walker_c1" ]; then
+        _walker_ws=/opt/ubt_sim/walker_c1_msgs
+    else
+        _walker_ws=/opt/ubt_sim/walker_sdk_ros2_msgs
+    fi
+    if [ -f "$_walker_ws/install/setup.bash" ]; then
+        . "$_walker_ws/install/setup.bash"
+    fi
+    unset _walker_ws
 fi
 # <<< ubt_sim message workspaces <<<
 EOF
@@ -229,19 +250,31 @@ EOF
             exit 1
         fi
         # Check if bridge is already running
-        BRIDGE_PID=$(docker exec "$CONTAINER_NAME" pgrep -f "tienkung_pro_ros2_zmq_bridge" 2>/dev/null || true)
+        BRIDGE_PID=$(docker exec "$CONTAINER_NAME" pgrep -f "_ros2_zmq_bridge" 2>/dev/null || true)
         if [ -n "$BRIDGE_PID" ]; then
             echo "[WARN] Bridge already running (PID=$BRIDGE_PID)"
             exit 0
         fi
         echo "[INFO] Starting ROS2-ZMQ bridge..."
-        docker exec -d "$CONTAINER_NAME" bash -c "\
-            source /opt/ros/humble/setup.bash && \
-            export ROS_DOMAIN_ID=$ROS_DOMAIN_ID && \
-            export FASTRTPS_DEFAULT_PROFILES_FILE=$FASTRTPS_DEFAULT_PROFILES_FILE && \
-            /usr/bin/python3 $BRIDGE_SCRIPT"
+        # 机型分派：默认 tienkung_pro；UBT_SIM_ROBOT=walker_c1 时走 C1 桥接
+        if [ "${UBT_SIM_ROBOT:-}" = "walker_c1" ]; then
+            docker exec -d "$CONTAINER_NAME" bash -c "\
+                source /opt/ros/humble/setup.bash && \
+                source /opt/ubt_sim/walker_c1_msgs/install/setup.bash && \
+                export ROS_DOMAIN_ID=$ROS_DOMAIN_ID && \
+                export RMW_IMPLEMENTATION=\${RMW_IMPLEMENTATION:-rmw_cyclonedds_cpp} && \
+                export FASTRTPS_DEFAULT_PROFILES_FILE=$FASTRTPS_DEFAULT_PROFILES_FILE && \
+                /usr/bin/python3 /ubt_sim/teleoperation/bridges/walker_c1/walker_c1_ros2_zmq_bridge.py \
+                    --config /ubt_sim/teleoperation/bridges/walker_c1/walker_c1_bridge_config.yaml"
+        else
+            docker exec -d "$CONTAINER_NAME" bash -c "\
+                source /opt/ros/humble/setup.bash && \
+                export ROS_DOMAIN_ID=$ROS_DOMAIN_ID && \
+                export FASTRTPS_DEFAULT_PROFILES_FILE=$FASTRTPS_DEFAULT_PROFILES_FILE && \
+                /usr/bin/python3 $BRIDGE_SCRIPT"
+        fi
         sleep 1
-        BRIDGE_PID=$(docker exec "$CONTAINER_NAME" pgrep -f "tienkung_pro_ros2_zmq_bridge" 2>/dev/null || true)
+        BRIDGE_PID=$(docker exec "$CONTAINER_NAME" pgrep -f "_ros2_zmq_bridge" 2>/dev/null || true)
         if [ -n "$BRIDGE_PID" ]; then
             echo "[INFO] Bridge started (PID=$BRIDGE_PID)"
         else
@@ -250,7 +283,7 @@ EOF
         fi
         ;;
     bridge-stop)
-        BRIDGE_PID=$(docker exec "$CONTAINER_NAME" pgrep -f "tienkung_pro_ros2_zmq_bridge" 2>/dev/null || true)
+        BRIDGE_PID=$(docker exec "$CONTAINER_NAME" pgrep -f "_ros2_zmq_bridge" 2>/dev/null || true)
         if [ -z "$BRIDGE_PID" ]; then
             echo "[WARN] Bridge is not running"
             exit 0
@@ -259,7 +292,7 @@ EOF
         docker exec "$CONTAINER_NAME" bash -c "kill $BRIDGE_PID 2>/dev/null"
         sleep 1
         # Force kill if still running
-        BRIDGE_PID=$(docker exec "$CONTAINER_NAME" pgrep -f "tienkung_pro_ros2_zmq_bridge" 2>/dev/null || true)
+        BRIDGE_PID=$(docker exec "$CONTAINER_NAME" pgrep -f "_ros2_zmq_bridge" 2>/dev/null || true)
         if [ -n "$BRIDGE_PID" ]; then
             echo "[WARN] Force killing bridge..."
             docker exec "$CONTAINER_NAME" bash -c "kill -9 $BRIDGE_PID 2>/dev/null"
@@ -368,6 +401,20 @@ EOF
             echo "[OK] Walker SDK Python message imports: available"
         else
             echo "[FAIL] Walker SDK Python message imports: unavailable (run: bash run.sh init)"
+            ((ERRORS++))
+        fi
+
+        # Walker C1 独立 ROS2 SDK messages（与 S2 同名包隔离）
+        if docker exec "$CONTAINER_NAME" test -f /opt/ubt_sim/walker_c1_msgs/install/setup.bash 2>/dev/null; then
+            echo "[OK] Walker C1 ROS2 messages: install setup found"
+        else
+            echo "[FAIL] Walker C1 ROS2 messages: NOT built (run: bash run.sh init)"
+            ((ERRORS++))
+        fi
+        if docker exec "$CONTAINER_NAME" bash -c "source /opt/ros/humble/setup.bash && source /opt/ubt_sim/walker_c1_msgs/install/setup.bash && /usr/bin/python3 -c 'from mc_task_msgs.msg import JointCmd, JointCommand, RobotCommand; from mc_state_msgs.msg import RobotState'" 2>/dev/null; then
+            echo "[OK] Walker C1 Python message imports: available"
+        else
+            echo "[FAIL] Walker C1 Python message imports: unavailable (run: bash run.sh init)"
             ((ERRORS++))
         fi
 

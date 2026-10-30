@@ -1,0 +1,17 @@
+# motion id indicates different motions
+string motion_id
+
+# motion arguments packed in a json string
+# corresponding profile.json file describe how to parse there json arguments
+string json_args
+
+# 'start' or 'stop' motion
+string CMD_START=start
+string CMD_STOP=stop
+string cmd
+---
+# motion execute result
+bool ok
+
+# error message
+string message

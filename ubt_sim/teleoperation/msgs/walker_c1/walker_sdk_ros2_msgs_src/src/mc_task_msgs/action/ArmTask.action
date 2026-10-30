@@ -1,0 +1,15 @@
+# motion id indicates different motions
+string task_name
+
+# motion arguments packed in a json string
+# corresponding profile.json file describe how to parse there json arguments
+string yaml_args ""
+
+---
+# Result motion execute result
+rosa_msgs/NodeState state
+---
+# Feedback
+rosa_msgs/NodeState state
+float64 total_time
+float64 current_time

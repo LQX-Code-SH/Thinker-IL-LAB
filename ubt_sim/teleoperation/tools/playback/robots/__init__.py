@@ -13,12 +13,14 @@ import h5py
 
 from .tienkung_dex import TienkungDexAdapter
 from .tienkung_pro import TienkungProAdapter
+from .walker_c1 import WalkerC1Adapter
 from .walker_s2 import WalkerS2Adapter
 
 ADAPTERS = {
     "walker_s2": WalkerS2Adapter,
     "tienkung_pro": TienkungProAdapter,
     "tienkung_dex": TienkungDexAdapter,
+    "walker_c1": WalkerC1Adapter,
 }
 
 
@@ -31,6 +33,8 @@ def detect_robot_type(path: str) -> str:
         robot_attr = f.attrs.get("robot")
         if robot_attr and str(robot_attr) in ADAPTERS:
             return str(robot_attr)
+        # 结构无法区分 dex 与 walker_c1（都用新录制契约），必须靠 attrs；
+        # 这里保留 dex 兜底，walker_c1 依赖 robot_type/robot 属性识别。
         if "joint_observations" in f and "hand_observations" in f:
             return "tienkung_dex"
         if "puppet" in f:

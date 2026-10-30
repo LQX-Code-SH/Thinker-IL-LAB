@@ -1,0 +1,231 @@
+"""C1 left/right palm IK extracted at runtime from the canonical full URDF."""
+from __future__ import annotations
+
+import copy
+import os
+import tempfile
+import warnings
+import xml.etree.ElementTree as ET
+from typing import Optional, Sequence
+
+import numpy as np
+from scipy.optimize import least_squares
+from scipy.spatial.transform import Rotation
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    from ikpy.chain import Chain
+
+try:
+    from .constants import LEFT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_NAMES
+except ImportError:
+    from constants import LEFT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_NAMES  # type: ignore[no-redef]
+
+
+def rotation_error(a: np.ndarray, b: np.ndarray) -> float:
+    """两个旋转矩阵之间的测地距离（rad）。
+
+    原实现放在 PICO 遥操作的 ``pico_math`` 模块里；本分支不移植 PICO，
+    因此在此内联（公式相同：R_a^T R_b 的旋转向量范数）。
+    """
+    delta = np.asarray(a, dtype=float).T @ np.asarray(b, dtype=float)
+    return float(np.linalg.norm(Rotation.from_matrix(delta).as_rotvec()))
+
+
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+# ubt_sim/teleoperation/control/walker_c1 -> ubt_sim/
+_ASSETS_ROOT = os.environ.get("UBT_SIM_ASSETS_ROOT") or os.path.abspath(
+    os.path.join(_THIS_DIR, os.pardir, os.pardir, os.pardir, "assets")
+)
+DEFAULT_FULL_URDF = os.path.join(
+    _ASSETS_ROOT,
+    "robots",
+    "walker_c1",
+    "urdf",
+    "walker_c1_with_hands.urdf",
+)
+
+
+def _chain_urdf(source_path: str, tip_link: str) -> bytes:
+    root = ET.parse(source_path).getroot()
+    joints_by_child = {}
+    links_by_name = {link.attrib["name"]: link for link in root.findall("link")}
+    for joint in root.findall("joint"):
+        child = joint.find("child")
+        if child is not None:
+            joints_by_child[child.attrib["link"]] = joint
+
+    joints = []
+    links = [tip_link]
+    child_name = tip_link
+    while child_name != "base_link":
+        if child_name not in joints_by_child:
+            raise ValueError(f"cannot find URDF path base_link -> {tip_link}")
+        joint = joints_by_child[child_name]
+        joints.append(joint)
+        child_name = joint.find("parent").attrib["link"]
+        links.append(child_name)
+    joints.reverse()
+    links.reverse()
+
+    trimmed = ET.Element("robot", {"name": f"walker_c1_{tip_link}_chain"})
+    for name in links:
+        if name not in links_by_name:
+            raise ValueError(f"URDF link {name!r} is missing")
+        # Kinematics only needs named links; omitting meshes also avoids path warnings.
+        ET.SubElement(trimmed, "link", {"name": name})
+    for joint in joints:
+        trimmed.append(copy.deepcopy(joint))
+    return ET.tostring(trimmed, encoding="utf-8", xml_declaration=True)
+
+
+class ArmIK:
+    def __init__(self, side: str, urdf_path: str = DEFAULT_FULL_URDF):
+        if side not in ("left", "right"):
+            raise ValueError("side must be left or right")
+        prefix = "L" if side == "left" else "R"
+        self.joint_names = LEFT_ARM_JOINT_NAMES if side == "left" else RIGHT_ARM_JOINT_NAMES
+        payload = _chain_urdf(urdf_path, f"{prefix}_palm_link")
+        path = ""
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".urdf", delete=False) as handle:
+                handle.write(payload)
+                path = handle.name
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                self.chain = Chain.from_urdf_file(path, base_elements=["base_link"])
+        finally:
+            if path:
+                os.unlink(path)
+
+        link_names = [link.name for link in self.chain.links]
+        self.indices = [link_names.index(name) for name in self.joint_names]
+        self.elbow_pitch_index = self.joint_names.index(f"{prefix}_elbow_pitch_joint")
+        mask = np.zeros(len(self.chain.links), dtype=bool)
+        mask[self.indices] = True
+        self.chain.active_links_mask = mask
+        self.bounds = [self.chain.links[index].bounds for index in self.indices]
+        self.last_rejection_reason = ""
+
+    def clamp_joints(self, joints: Sequence[float]) -> list[float]:
+        result = []
+        for value, bounds in zip(joints, self.bounds):
+            low, high = bounds
+            result.append(float(np.clip(value, float(low) + 1e-4, float(high) - 1e-4)))
+        return result
+
+    def _vector(self, joints: Sequence[float]) -> np.ndarray:
+        vector = np.zeros(len(self.chain.links))
+        for index, value in zip(self.indices, joints):
+            vector[index] = value
+        return vector
+
+    def fk(self, joints: Sequence[float]) -> np.ndarray:
+        return self.chain.forward_kinematics(self._vector(joints))
+
+    def solve(
+        self,
+        position: Sequence[float],
+        rotation: np.ndarray,
+        seed: Sequence[float],
+        max_position_error: float,
+        max_rotation_error: float,
+        max_solution_jump: float = float("inf"),
+        orientation_weight: float = 0.10,
+        seed_regularization_weight: float = 0.02,
+        max_nfev: int = 60,
+        max_target_position_step: float = float("inf"),
+        max_target_rotation_step: float = float("inf"),
+        max_elbow_pitch: float = float("inf"),
+    ) -> Optional[list[float]]:
+        self.last_rejection_reason = ""
+        target_position = np.asarray(position, dtype=float)
+        target_rotation = np.asarray(rotation, dtype=float)
+        lower_bounds = np.asarray([float(bounds[0]) + 1e-4 for bounds in self.bounds])
+        upper_bounds = np.asarray([float(bounds[1]) - 1e-4 for bounds in self.bounds])
+        if np.isfinite(max_elbow_pitch):
+            upper_bounds[self.elbow_pitch_index] = min(
+                upper_bounds[self.elbow_pitch_index], float(max_elbow_pitch)
+            )
+        if np.any(lower_bounds >= upper_bounds):
+            self.last_rejection_reason = "invalid constrained joint bounds"
+            return None
+        seed_joints = np.clip(
+            np.asarray(self.clamp_joints(seed), dtype=float), lower_bounds, upper_bounds
+        )
+        seed_pose = self.fk(seed_joints)
+
+        # A controller target can move much farther in one SDK update than a
+        # joint command is allowed to slew in one cycle. Solving that distant
+        # target directly can select another 7-DoF IK branch, which then gets
+        # rejected as a large joint jump on every following frame. Advance the
+        # Cartesian target from the commanded seed pose in bounded increments.
+        position_delta = target_position - seed_pose[:3, 3]
+        position_distance = float(np.linalg.norm(position_delta))
+        if (
+            np.isfinite(max_target_position_step)
+            and max_target_position_step > 0.0
+            and position_distance > max_target_position_step
+        ):
+            target_position = (
+                seed_pose[:3, 3]
+                + position_delta * float(max_target_position_step) / position_distance
+            )
+
+        rotation_delta = Rotation.from_matrix(
+            target_rotation @ seed_pose[:3, :3].T
+        ).as_rotvec()
+        rotation_distance = float(np.linalg.norm(rotation_delta))
+        if (
+            np.isfinite(max_target_rotation_step)
+            and max_target_rotation_step > 0.0
+            and rotation_distance > max_target_rotation_step
+        ):
+            rotation_delta *= float(max_target_rotation_step) / rotation_distance
+            target_rotation = (
+                Rotation.from_rotvec(rotation_delta).as_matrix()
+                @ seed_pose[:3, :3]
+            )
+        def residuals(joints: np.ndarray) -> np.ndarray:
+            reached = self.fk(joints)
+            position_error = reached[:3, 3] - target_position
+            rotation_error_vector = Rotation.from_matrix(
+                target_rotation.T @ reached[:3, :3]
+            ).as_rotvec()
+            seed_error = joints - seed_joints
+            return np.concatenate((
+                position_error,
+                float(orientation_weight) * rotation_error_vector,
+                float(seed_regularization_weight) * seed_error,
+            ))
+
+        try:
+            result = least_squares(
+                residuals,
+                seed_joints,
+                bounds=(lower_bounds, upper_bounds),
+                max_nfev=int(max_nfev),
+                ftol=1e-6,
+                xtol=1e-6,
+                gtol=1e-6,
+            )
+        except Exception as exc:
+            self.last_rejection_reason = f"solver error: {exc}"
+            return None
+        joints = self.clamp_joints(result.x)
+        solution_jump = float(np.max(np.abs(np.asarray(joints) - np.asarray(seed))))
+        if solution_jump > max_solution_jump:
+            self.last_rejection_reason = (
+                f"solution jump {solution_jump:.3f} rad > {max_solution_jump:.3f} rad"
+            )
+            return None
+        reached = self.fk(joints)
+        position_residual = float(np.linalg.norm(reached[:3, 3] - target_position))
+        rotation_residual = rotation_error(target_rotation, reached[:3, :3])
+        if position_residual > max_position_error or rotation_residual > max_rotation_error:
+            self.last_rejection_reason = (
+                f"residual position={position_residual:.4f} m/{max_position_error:.4f}, "
+                f"rotation={rotation_residual:.3f} rad/{max_rotation_error:.3f}"
+            )
+            return None
+        return joints

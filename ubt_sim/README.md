@@ -14,6 +14,7 @@ Thinker 机器人仿真平台，基于 NVIDIA Isaac Sim 5.0 + Isaac Lab 2.2 支�
 | Walker S2 EDU 探索者 | 34 | 2×2 (PGC 两指) | — | `assets/robots/walker_s2/s2_v1.usd` |
 | TienKung Dex（天工行者 Dex V3） | 67 | — | 18×2 (Inspire RH5DG2) | `assets/robots/tienkung_dex/usd/tienkung_dex_inspire.usd` |
 | TienKung Dex（BrainCo Revo2 双手） | 53 | — | 11×2 (BrainCo Revo2) | `assets/robots/tienkung_dex/usd/tienkung_dex_brainco.usd` |
+| Walker C1（Astron） | 53 | — | 11×2 (SDK 6 维压缩) | `assets/robots/walker_c1/usd/walker_c1_with_hands.usd` |
 
 ## 当前支持的任务
 
@@ -24,6 +25,7 @@ Thinker 机器人仿真平台，基于 NVIDIA Isaac Sim 5.0 + Isaac Lab 2.2 支�
 | `UBTSim-TienkungDex-Brainco-Parlor-v0` | TienKung Dex（BrainCo 双手） | 客厅 | 同上，手部为 Revo2（单手 11 关节） |
 | `UBTSim-WalkerS2-PartSorting-v0` | Walker S2 EDU 探索者 | 零件分拣 | 零件分拣：4 个零件 + 收纳箱（默认任务） |
 | `UBTSim-WalkerS2-PickPart-v0` | Walker S2 EDU 探索者 | 零件分拣 | 单零件抓取：桌面只保留单个零件，配合 `pick_part.py` 采集 |
+| `UBTSim-WalkerC1-Parlor-v0` | Walker C1（Astron） | 客厅 | 在线 IK 抓苹果放盘子 + 数据采集，见 `docs/walker_c1/getting-started.md` |
 
 任务通过 YAML 配置文件定义（`config/*.yaml`），Python 任务类从 YAML 自动加载场景、机器人、相机和仿真参数。任务/机器人由 `UBT_SIM_TASK` 环境变量选择（默认天工行者无疆 客厅任务）。
 
@@ -59,6 +61,7 @@ git lfs pull                             # 补全未下载的 LFS 文件
 - [Walker TienKung Pro 仿真使用说明](docs/tienkung_pro/getting-started.md)
 - [TienKung Dex（天工行者 Dex）仿真使用说明](docs/tienkung_dex/getting-started.md)
 - [Walker S2 EDU 探索者 仿真使用说明](docs/walker_s2/getting-started.md)
+- [Walker C1（Astron）仿真使用说明](docs/walker_c1/getting-started.md)
 
 一句话流程：构建启动容器 → 容器内动仿真→ 运行对应采集脚本录制 HDF5 数据。
 
@@ -67,10 +70,13 @@ git lfs pull                             # 补全未下载的 LFS 文件
 ```
 ubt_sim/
 ├── assets/                # 3D 模型（USD, URDF, 贴图）
+│   ├── local_scenes/      # 任务级场景叠加层（不改共享 USD）
 │   ├── robots/
 │   └── scenes/
 ├── config/                # YAML 任务/场景配置
+│   ├── tienkung_dex/
 │   ├── tienkung_pro/
+│   ├── walker_c1/
 │   └── walker_s2/
 ├── dataset/               # 采集数据保存目录
 ├── docker/                # Docker 容器配置
