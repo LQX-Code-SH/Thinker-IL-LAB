@@ -4,12 +4,12 @@
 
 前置条件：仿真已通过 ``scripts/start_sim.sh`` 启动（含 ROS2-ZMQ 桥接），
 且遥操作端在发布与真机一致的关节指令（``/arm|head|waist|leg/cmd`` + 灵巧手）。
-仿真 146 / 真机 0，靠 ``ROS_DOMAIN_ID`` 区分。
+默认 0（与真机同域），隔离时用 146，靠 ``ROS_DOMAIN_ID`` 区分。
 
 用法（容器内）::
 
     source /opt/ros/humble/setup.bash
-    export ROS_DOMAIN_ID=146          # 真机改成 0
+    export ROS_DOMAIN_ID=0            # 默认与真机同域
     /usr/bin/python3 teleoperation/control/tienkung_dex/save_data.py \
         --output-dir /ubt_sim/dataset/tienkung_dex --capture-hz 15
 

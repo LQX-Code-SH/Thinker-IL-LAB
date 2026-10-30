@@ -37,7 +37,7 @@ if [ -f /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash ]; then
 fi
 
 # 仿真 146 / 真机 0：采集代码本身完全一样
-export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-146}"
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"

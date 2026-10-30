@@ -12,7 +12,7 @@ Usage:
   # 真机
   ROS_DOMAIN_ID=0 /usr/bin/python3 image/test_ros_image.py
   # 仿真
-  ROS_DOMAIN_ID=146 /usr/bin/python3 image/test_ros_image.py
+  ROS_DOMAIN_ID=0 /usr/bin/python3 image/test_ros_image.py
 """
 
 import argparse

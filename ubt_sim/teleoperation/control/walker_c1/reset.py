@@ -75,7 +75,19 @@ def _send_sim_messages(cmd_port: int, messages: list[dict], repeats: int, interv
     context = zmq.Context()
     socket = context.socket(zmq.PUB)
     socket.setsockopt(zmq.SNDHWM, 1)
-    socket.bind(f"tcp://*:{cmd_port}")
+    try:
+        socket.bind(f"tcp://*:{cmd_port}")
+    except zmq.ZMQError:
+        # 5655 通常由 walker_c1 桥接占用：桥接在跑时应走 ROS 话题（--mode task）
+        print(
+            f"[ERROR] tcp://*:{cmd_port} 已被占用——多半是 walker_c1 桥接正在运行。\n"
+            f"        桥接在跑：用 --mode task（ROS 话题，需与仿真同 ROS_DOMAIN_ID）\n"
+            f"        桥接未起：--mode sim-task 才会用到这个端口直连仿真器",
+            file=sys.stderr,
+        )
+        socket.close(linger=0)
+        context.term()
+        return False
 
     try:
         # Give the simulator SUB socket time to observe this PUB socket.
@@ -93,7 +105,38 @@ def _send_sim_messages(cmd_port: int, messages: list[dict], repeats: int, interv
 
 
 def _send_sim_scene_reset(cmd_port: int, repeats: int, interval: float) -> bool:
-    return _send_sim_messages(cmd_port, [{"reset": True}], repeats, interval)
+    """发布 ROS ``/sim/cmd_reset``（Bool），由桥接转发到 ZMQ。
+
+    走 ROS 而不是直接 bind 5655，桥接正在运行时也能用（等价于仿真窗口按 R）。
+    桥接未运行时回退到 ZMQ 直发。
+    """
+    try:
+        import rclpy
+        from rclpy.node import Node
+        from std_msgs.msg import Bool
+    except ImportError:
+        print("[WARN] 没有 rclpy，回退到 ZMQ 直发（需桥接未运行）", file=sys.stderr)
+        return _send_sim_messages(cmd_port, [{"reset": True}], repeats, interval)
+
+    node = None
+    try:
+        rclpy.init()
+        node = Node("walker_c1_scene_reset")
+        pub = node.create_publisher(Bool, "/sim/cmd_reset", 1)
+        time.sleep(0.3)  # 等桥接的订阅完成匹配
+        for _ in range(max(int(repeats), 3)):
+            pub.publish(Bool(data=True))
+            time.sleep(interval)
+        print("[INFO] 已发布 /sim/cmd_reset（场景复位，等价于按 R）")
+        return True
+    except Exception as exc:  # noqa: BLE001
+        print(f"[WARN] ROS 发布失败（{exc}），回退 ZMQ 直发", file=sys.stderr)
+        return _send_sim_messages(cmd_port, [{"reset": True}], repeats, interval)
+    finally:
+        if node is not None:
+            node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 def _send_sim_task_reset(cmd_port: int, repeats: int, interval: float, staged: bool) -> bool:

@@ -14,7 +14,7 @@
 | 真机 | `0` | 厂商驱动发布的原话题 |
 
 ```bash
-export ROS_DOMAIN_ID=146    # 控仿真
+export ROS_DOMAIN_ID=0    # 控仿真
 export ROS_DOMAIN_ID=0      # 控真机
 ```
 
@@ -34,7 +34,7 @@ cd /ubt_sim
 UBT_SIM_TASK=UBTSim-TienkungDex-Parlor-v0 bash scripts/start_sim.sh
 
 # 2) 控制（另开终端）
-export ROS_DOMAIN_ID=146
+export ROS_DOMAIN_ID=0
 /usr/bin/python3 teleoperation/control/tienkung_dex/tienkung_dex_controller.py --print-state
 ```
 
@@ -223,7 +223,7 @@ ctrl.home()                                    # 分段回站立位
    取自 SDK 示例；`CONTROL_MODE_IMPEDANCE` 只在真机有意义，仿真忽略 `mode`。
 3. **腿**：默认不下发腿部指令，避免与行走控制器打架。
 4. **急停**：`Ctrl+C` 会停止下发，但已发出的目标由真机驱动器继续保持；真机务必留硬件急停。
-5. **domain**：真机 `ROS_DOMAIN_ID=0`。仿真默认 146，两者同时在线也不会串。
+5. **domain**：默认 `ROS_DOMAIN_ID=0`（与真机同域）。要让仿真与真机隔离，两个进程都传 `ROS_DOMAIN_ID=146`。
 
 ## 数据采集
 

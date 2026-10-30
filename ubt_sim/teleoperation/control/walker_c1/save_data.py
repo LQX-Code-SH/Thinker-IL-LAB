@@ -4,13 +4,13 @@
 
 前置条件：仿真已通过 ``scripts/start_sim.sh`` 启动（含 ROS2-ZMQ 桥接），
 且控制端在发布与真机一致的 SDK 话题（``/mc/sdk/robot_command`` +
-``/mc/{left,right}_hand/command``）。仿真 146 / 真机 0，靠 ``ROS_DOMAIN_ID`` 区分。
+``/mc/{left,right}_hand/command``）。默认 0（与真机同域），隔离时用 146，靠 ``ROS_DOMAIN_ID`` 区分。
 
 用法（容器内）::
 
     source /opt/ros/humble/setup.bash
     source /opt/ubt_sim/walker_c1_msgs/install/setup.bash
-    export ROS_DOMAIN_ID=146          # 真机改成 0
+    export ROS_DOMAIN_ID=0            # 默认与真机同域
     /usr/bin/python3 teleoperation/control/walker_c1/save_data.py \
         --output-dir /ubt_sim/dataset/walker_c1 --capture-hz 15
 

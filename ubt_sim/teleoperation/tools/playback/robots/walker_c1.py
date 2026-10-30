@@ -70,12 +70,19 @@ class WalkerC1Adapter:
                 pass
 
             cameras = {}
+            # color 与 depth 分开取：本机位仿真只发 rgb，缺 depth 时不能连 color 一起丢
+            color = None
             try:
                 color = f["camera_observations/color_images"]["camera_head"][()]
-                depth = f["camera_observations/depth_images"]["camera_head"][()]
-                cameras["head"] = CameraStream(color=color, depth=depth)
             except KeyError:
                 pass
+            if color is not None:
+                depth = None
+                try:
+                    depth = f["camera_observations/depth_images"]["camera_head"][()]
+                except KeyError:
+                    pass
+                cameras["head"] = CameraStream(color=color, depth=depth)
 
             return Episode(
                 str(path), "walker_c1", n, derive_fps(timestamps), timestamps, groups, cameras, attrs

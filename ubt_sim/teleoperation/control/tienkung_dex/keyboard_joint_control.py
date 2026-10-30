@@ -3,7 +3,7 @@
 """TienKung Dex 关节空间键盘遥操作。
 
 所有下发都走 :class:`dex_controller.DexController`，因此与真机/仿真无关——
-仿真和真机只有 ``ROS_DOMAIN_ID`` 不同（仿真 146 / 真机 0）。
+仿真和真机只有 ``ROS_DOMAIN_ID`` 不同（默认 0，与真机同域；隔离时用 146）。
 
 首帧从当前实测姿态初始化目标，之后只做增量修改，避免"一上来就跳回零位"。
 
@@ -19,7 +19,7 @@
 用法::
 
     source /opt/ros/humble/setup.bash
-    export ROS_DOMAIN_ID=146          # 仿真；真机改成 0
+    export ROS_DOMAIN_ID=0            # 默认与真机同域
     /usr/bin/python3 teleoperation/control/tienkung_dex/keyboard_joint_control.py --step 0.02
 """
 

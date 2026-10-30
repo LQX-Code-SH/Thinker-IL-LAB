@@ -1,14 +1,12 @@
 #!/bin/bash
 # Walker C1 数据采集启动脚本
 #
-# 两种模式：
-#   手动录制  —— 只录当前机器人在做什么，Enter 开始/停止，s 保存，q 退出
-#   批量采集  —— 每集「复位场景 → 回预备位 → 抓取 → 放到盘上」，自动落盘，跑完即走
+# 用法（默认直接执行，无交互按键）：
+#   bash teleoperation/control/walker_c1/save_data.sh                  # 采 1 条
+#   bash teleoperation/control/walker_c1/save_data.sh --batch 20       # 采 20 条
+#   bash teleoperation/control/walker_c1/save_data.sh --manual         # 交互录制（Enter/s/q）
 #
-# 用法：
-#   bash teleoperation/control/walker_c1/save_data.sh                       # 手动 Enter 控制
-#   bash teleoperation/control/walker_c1/save_data.sh --auto-start --duration 30 --episodes 5
-#   bash teleoperation/control/walker_c1/save_data.sh --batch 20            # 批量采 20 集
+# 每集流程：复位场景 → 回任务预备位 → 在线 IK 抓放一次 → 成功才落盘
 #
 # 批量模式每集产出一个时间戳目录：dataset/walker_c1/<epoch秒>/trajectory.hdf5
 #
@@ -35,8 +33,8 @@ else
     echo "[WARN] 未找到 /opt/ubt_sim/walker_c1_msgs，先执行: cd docker && bash run.sh init"
 fi
 
-# 仿真 146 / 真机 0：采集代码本身完全一样
-export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-146}"
+# 默认与真机同域（0）；需要隔离时显式传 ROS_DOMAIN_ID=146
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
 # RMW 与镜像保持一致：本仓库镜像只装了 cyclonedds
 if [ -z "${RMW_IMPLEMENTATION:-}" ]; then
     if [ -f /opt/ros/humble/lib/librmw_fastrtps_cpp.so ]; then
@@ -52,14 +50,24 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 OUTPUT_DIR="${UBT_SIM_WALKER_C1_OUTPUT_DIR:-$PROJECT_DIR/dataset/walker_c1}"
 mkdir -p "$OUTPUT_DIR"
 
-# ------------------------------------------------------------------ 批量采集
+# ------------------------------------------------------------------ 采集（默认 1 条）
+# 无参数即执行：复位场景 → 回预备位 → 抓放一次 → 成功才落盘
+# --batch N 采 N 条；--manual 才是交互录制（Enter/s/q）
+COUNT=1
+MODE="auto"
 if [ "${1:-}" = "--batch" ]; then
     COUNT="${2:?用法: save_data.sh --batch <集数> [pick_place 参数...]}"
     shift 2
-    RESET_WAIT="${RESET_WAIT:-3}"
+elif [ "${1:-}" = "--manual" ]; then
+    MODE="manual"
+    shift
+fi
+
+if [ "$MODE" = "auto" ]; then
+    RESET_WAIT="${RESET_WAIT:-2}"
     MAX_CONSECUTIVE_FAIL="${MAX_CONSECUTIVE_FAIL:-10}"
 
-    echo "[INFO] 批量采集 $COUNT 集，输出目录: $OUTPUT_DIR"
+    echo "[INFO] 采集 $COUNT 集，输出目录: $OUTPUT_DIR"
     success=0
     fail=0
     consecutive_fail=0
@@ -68,8 +76,9 @@ if [ "${1:-}" = "--batch" ]; then
         echo "=================================="
         echo "第 $i / $COUNT 集"
         echo "=================================="
-        # 仿真里才有 /sim/cmd_reset；真机没人订阅，发了无害
-        /usr/bin/python3 "$SCRIPT_DIR/reset.py" --mode sim-task >/dev/null 2>&1 || true
+        # 场景复位走 ROS /sim/cmd_reset（桥接转发），再回任务预备位
+        /usr/bin/python3 "$SCRIPT_DIR/reset.py" --mode sim-scene >/dev/null 2>&1 || true
+        /usr/bin/python3 "$SCRIPT_DIR/reset.py" --mode task >/dev/null 2>&1 || true
         sleep "$RESET_WAIT"
 
         /usr/bin/python3 "$SCRIPT_DIR/pick_place_controller.py" \
@@ -101,6 +110,7 @@ if [ "${1:-}" = "--batch" ]; then
     exit 0
 fi
 
-# ------------------------------------------------------------------ 手动录制
-echo "[INFO] 输出目录: $OUTPUT_DIR"
-exec /usr/bin/python3 "$SCRIPT_DIR/save_data.py" --output-dir "$OUTPUT_DIR" "$@"
+# ------------------------------------------------------------------ 交互录制（--manual）
+echo "[INFO] 手动录制（Enter 开始/停止，s 保存，q 退出）；输出目录: $OUTPUT_DIR"
+# 仿真相机 data_types 只有 rgb，不开深度录制，否则等不到深度图会 0 帧
+exec /usr/bin/python3 "$SCRIPT_DIR/save_data.py" --output-dir "$OUTPUT_DIR" --no-depth "$@"

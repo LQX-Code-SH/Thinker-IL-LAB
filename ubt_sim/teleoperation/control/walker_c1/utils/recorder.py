@@ -10,7 +10,7 @@
   保证 action 与 state 维度一致，回放适配层无需特判；
 * 深度按 ``16UC1`` 存储（C++ 图像桥已输出毫米）。
 
-仿真与真机跑同一份代码，靠 ``ROS_DOMAIN_ID`` 区分（仿真 146 / 真机 0）。
+仿真与真机跑同一份代码，靠 ``ROS_DOMAIN_ID`` 区分（默认 0，与真机同域；隔离时用 146）。
 """
 
 from __future__ import annotations

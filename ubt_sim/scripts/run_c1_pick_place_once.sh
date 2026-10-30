@@ -16,7 +16,7 @@ set +u
 source /opt/ros/humble/setup.bash
 source /opt/ubt_sim/walker_c1_msgs/install/setup.bash
 set -u
-export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-146}"
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
 if [ -z "${RMW_IMPLEMENTATION:-}" ]; then
     if [ -f /opt/ros/humble/lib/librmw_fastrtps_cpp.so ]; then
         export RMW_IMPLEMENTATION=rmw_fastrtps_cpp

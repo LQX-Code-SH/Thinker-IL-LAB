@@ -17,7 +17,7 @@
 7. 话题与具身天工 3.0 真机完全一致（``ros2_bridge_msgs`` 的
    ``/arm|head|waist|leg/cmd``、``/robot_state``；灵巧手
    ``/left_hand/angle_set`` / ``set_motor_multi``），按关节 ID 编址。
-   仿真与真机只有 ``ROS_DOMAIN_ID`` 不同（仿真 146 / 真机 0）——
+   仿真与真机只有 ``ROS_DOMAIN_ID`` 不同（默认 0（与真机同域），隔离时用 146）——
    同一份脚本、同一套 API，不用改代码。
 
 安全默认值
@@ -32,7 +32,7 @@
 
     source /opt/ros/humble/setup.bash
     source /opt/ros/humble/setup.bash
-    export ROS_DOMAIN_ID=146          # 仿真；真机改成 0
+    export ROS_DOMAIN_ID=0            # 默认与真机同域
     /usr/bin/python3 teleoperation/control/tienkung_dex/dex_controller.py --print-state
     /usr/bin/python3 teleoperation/control/tienkung_dex/dex_controller.py --home
     /usr/bin/python3 teleoperation/control/tienkung_dex/dex_controller.py --print-hand

@@ -1,6 +1,6 @@
 # Walker C1 控制与采集（ROS 侧）
 
-真机同款 SDK 话题面：仿真与真机只差 `ROS_DOMAIN_ID`（仿真 146 / 真机 0），
+真机同款 SDK 话题面：仿真与真机只差 `ROS_DOMAIN_ID`（默认 0，与真机同域；隔离时用 146），
 本目录的脚本两边通用。
 
 > 本分支**未移植** PICO 头显遥操作（`pico_*.py`、头显图传、xrobotoolkit 依赖）；
@@ -25,7 +25,7 @@
 ```bash
 source /opt/ros/humble/setup.bash
 source /opt/ubt_sim/walker_c1_msgs/install/setup.bash
-export ROS_DOMAIN_ID=146
+export ROS_DOMAIN_ID=0
 
 # 复位到任务预备位
 /usr/bin/python3 teleoperation/control/walker_c1/reset.py --mode task

@@ -16,9 +16,9 @@
 
 无子命令或首参是 flag 时默认走 ``state``，兼容旧式调用。
 话题与具身天工 3.0 真机一致；仿真和真机只靠 ``ROS_DOMAIN_ID`` 区分
-（仿真 146 / 真机 0），脚本不用改。
+（默认 0（与真机同域），隔离时用 146），脚本不用改。
 
-    export ROS_DOMAIN_ID=146          # 真机改成 0
+    export ROS_DOMAIN_ID=0            # 默认与真机同域
     python3 tienkung_dex_controller.py --print-state
     python3 tienkung_dex_controller.py state --print-hand
     python3 tienkung_dex_controller.py endpoint --side right --delta-xyz 0.05 0 0
@@ -92,7 +92,7 @@ def _print_help():
     print("用法: python3 tienkung_dex_controller.py [子命令] [选项]")
     print("      无子命令或首参为 flag 时默认走 state")
     print("      子命令详细参数: python3 tienkung_dex_controller.py <子命令> --help")
-    print("      通道: 仿真 ROS_DOMAIN_ID=146 / 真机 0（话题完全相同）\n")
+    print("      通道: 默认 ROS_DOMAIN_ID=0（与真机同域，话题完全相同）\n")
     print("子命令:")
     for name, (_, _, desc, egs) in _SUBCOMMANDS.items():
         print(f"  {name:<10} {desc}")

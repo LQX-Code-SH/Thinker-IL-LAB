@@ -19,7 +19,7 @@ mkdir -p "$LOG_DIR"
 
 source /opt/ros/humble/setup.bash
 source /opt/ubt_sim/walker_c1_msgs/install/setup.bash
-export ROS_DOMAIN_ID=146
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
 
 TOTAL_ATTEMPTS=0
 SUCCESS_COUNT=0
@@ -39,7 +39,7 @@ restart_stack() {
     ros2 daemon stop >/dev/null 2>&1
     ros2 daemon start >/dev/null 2>&1
     cd "$PROJECT_DIR"
-    UBT_SIM_TASK=UBTSim-WalkerC1-Parlor-v0 ROS_DOMAIN_ID=146 \
+    UBT_SIM_TASK=UBTSim-WalkerC1-Parlor-v0 ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}" \
         nohup bash scripts/start_sim.sh --headless --device cpu --step_hz 30 \
         > "$LOG_DIR/stack_${TOTAL_ATTEMPTS}.log" 2>&1 &
     for attempt in $(seq 1 45); do

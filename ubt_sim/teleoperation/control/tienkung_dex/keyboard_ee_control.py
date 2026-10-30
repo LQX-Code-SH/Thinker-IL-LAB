@@ -47,7 +47,7 @@
 运行（容器内，需 X11 转发；headless 请在宿主机跑）::
 
     source /opt/ros/humble/setup.bash
-    export ROS_DOMAIN_ID=146          # 仿真；真机改成 0
+    export ROS_DOMAIN_ID=0            # 默认与真机同域
     /usr/bin/python3 teleoperation/control/tienkung_dex/keyboard_ee_control.py --side right
 
 重启想接着上次的**目标**走（不是实测）时，把日志里最后那行目标位姿传进去::

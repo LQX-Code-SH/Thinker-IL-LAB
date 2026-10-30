@@ -3,7 +3,7 @@
 
 Exposes the real-robot SDK topic surface on top of the in-sim
 WalkerC1Controller ZMQ interface, so control code written against the SDK
-topics runs unchanged against the simulator (ROS_DOMAIN_ID=146) and the real
+topics runs unchanged against the simulator (ROS_DOMAIN_ID=0) and the real
 robot (ROS_DOMAIN_ID=0):
 
   /mc/sdk/robot_command   (mc_task_msgs/RobotCommand)  -> ZMQ {"body": {...}}
@@ -19,7 +19,7 @@ robot (ROS_DOMAIN_ID=0):
 Run (inside the container, Py3.10 ROS side):
   source /opt/ros/humble/setup.bash
   source /opt/ubt_sim/walker_c1_msgs/install/setup.bash
-  ROS_DOMAIN_ID=146 /usr/bin/python3 \
+  ROS_DOMAIN_ID=0 /usr/bin/python3 \
     /ubt_sim/teleoperation/bridges/walker_c1/walker_c1_ros2_zmq_bridge.py
 """
 from __future__ import annotations

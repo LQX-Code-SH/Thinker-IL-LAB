@@ -79,7 +79,7 @@ UBT_SIM_TASK=UBTSim-TienkungDex-Parlor-v0 bash scripts/start_sim.sh
 | `UBT_SIM_TIENKUNG_DEX_CMD_PORT` / `_STATUS_PORT` / `_IMAGE_PORT` / `_JPEG_PORT` | 5755/5756/5757/5758 | ZMQ 端口（须与 `bridge_config.yaml` 一致） |
 | `ROS_DOMAIN_ID` | 146 | 仿真 146 / 真机 0；话题相同，只靠 domain 分流 |
 
-> `run.sh bash` 进入的 shell 会把 `ROS_DOMAIN_ID` 预设为 `docker/env.sh` 的值（默认 0），从那里启动请显式 `export ROS_DOMAIN_ID=146`，避免与真机串台。
+> `run.sh bash` 进入的 shell 会把 `ROS_DOMAIN_ID` 预设为 `docker/env.sh` 的值（默认 0），从那里启动请显式 `export ROS_DOMAIN_ID=0`，避免与真机串台。
 
 ### 3. 数据采集（容器内，使用系统 Python 3.10）
 

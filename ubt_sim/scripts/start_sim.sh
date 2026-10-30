@@ -10,7 +10,7 @@
 #
 # 注意：Walker C1 与 Walker S2 的 ZMQ 端口区间相同（5655-5658），二者不能同时运行。
 #
-# 话题与真机一致，仿真/真机只靠 ROS_DOMAIN_ID 区分（仿真默认 146，真机 0）。
+# 话题与真机一致，默认与真机同域（0）；要隔离时显式传 ROS_DOMAIN_ID=146。
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -65,8 +65,8 @@ if [ -z "${UBT_SIM_NO_BRIDGE:-}" ]; then
         set +u
         source /opt/ros/humble/setup.bash
         set -u
-        # 仿真默认 146，真机默认 0——话题完全一样，只靠 domain 分流
-        export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-146}"
+        # 默认与真机同域（0）；需要仿真/真机隔离时显式传 ROS_DOMAIN_ID=146
+        export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}"
 
         if [ "$ROBOT" = "walker_c1" ]; then
             # Walker C1 使用独立的消息工作空间（与 Walker S2 的同名包隔离）

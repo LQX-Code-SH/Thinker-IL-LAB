@@ -55,7 +55,7 @@ kd 按 ζ≈0.7 配之后是 3.4 mm——已经落在 IK 默认 5 mm 容差（``
 
 用法::
 
-    export ROS_DOMAIN_ID=146                      # 仿真；真机为 0
+    export ROS_DOMAIN_ID=0                        # 默认与真机同域
     /usr/bin/python3 pick_apple.py --dry-run       # 只解算 5 个点，不动机器人
     /usr/bin/python3 pick_apple.py                 # 回预备位 → 抓 → 放 → 回预备位
     /usr/bin/python3 pick_apple.py --skip-ready    # 已就位，直接开始

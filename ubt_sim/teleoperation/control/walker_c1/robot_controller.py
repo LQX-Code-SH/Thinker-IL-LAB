@@ -2,7 +2,7 @@
 """Walker C1 / Astron ROS-side robot controller (Tienkung-style).
 
 Talks ONLY the SDK topic surface, so the same code drives the simulator
-(through the walker_c1 ROS2-ZMQ bridge, ROS_DOMAIN_ID=146) and, later, the
+(through the walker_c1 ROS2-ZMQ bridge, ROS_DOMAIN_ID=0) and, later, the
 real robot (ROS_DOMAIN_ID=0):
 
   pub  /mc/sdk/robot_command      body joint position commands

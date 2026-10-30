@@ -327,6 +327,20 @@ def run_control(args, adapter_cls) -> None:
 # 预览模式（Rerun）
 # ============================================================================
 
+def _detect_host_ip() -> str:
+    """返回本机对外 IP（远程浏览器要用它，而不是 127.0.0.1）。"""
+    import socket
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect(("8.8.8.8", 80))
+        return sock.getsockname()[0]
+    except OSError:
+        return "localhost"
+    finally:
+        sock.close()
+
+
 def run_preview(args, adapter_cls) -> None:
     path = resolve_episode_path(args.episode, adapter_cls.robot_type)
     episode = adapter_cls.load(path)
@@ -359,10 +373,16 @@ def run_preview(args, adapter_cls) -> None:
         # url 参数值需整体 URL 编码，JS 端解码后恢复 rerun+http://... 格式。
         # 浏览器链接延后到全部输出末尾再打印，醒目且方便点击。
         url_param = urllib.parse.quote(server_uri, safe="")
-        web_url = f"http://localhost:{web_port}/?url={url_param}"
-        remote_note = (f"远程浏览器需同时转发 {web_port} 与 {grpc_port} 两个端口"
-                       f"（VSCode PORTS 面板 / ssh -L {web_port}:localhost:{web_port}"
-                       f" -L {grpc_port}:localhost:{grpc_port}）")
+        host_ip = _detect_host_ip()
+        if host_ip == "localhost":
+            web_url = f"http://localhost:{web_port}/?url={url_param}"
+            remote_note = ""
+        else:
+            remote_uri = server_uri.replace("127.0.0.1", host_ip).replace("0.0.0.0", host_ip)
+            web_url = f"http://{host_ip}:{web_port}/?url={urllib.parse.quote(remote_uri, safe='')}"
+            remote_note = (f"本机浏览器: http://localhost:{web_port}/?url={url_param}\n"
+                           f"（需要 ssh -L {web_port}:localhost:{web_port}"
+                           f" -L {grpc_port}:localhost:{grpc_port} 或 VSCode PORTS 转发）")
 
     n = min(episode.num_frames, args.max_frames or episode.num_frames)
     print(f"[preview] 记录 {n}/{episode.num_frames} 帧到 Rerun ...")
@@ -452,9 +472,10 @@ def build_cli(adapter_cls):
                    help="记录全部帧后保存 .rrd 并退出（不弹 viewer）")
     p.add_argument("--headless", action="store_true",
                    help="不弹本地 viewer（单独使用 = 仅冒烟记录）")
-    p.add_argument("--web-port", type=int, default=None,
-                   help="起 web viewer 服务（浏览器打开 http://<宿主机IP>:<端口>；"
-                        "默认 9090，与 --headless 是否给出无关）")
+    p.add_argument("--web-port", type=int, default=9090,
+                   help="web viewer 端口（默认 9090，直接打印可点链接；设 0 关闭）")
+    p.add_argument("--no-web", action="store_true",
+                   help="不起 web 服务，改为尝试弹本地 Rerun 窗口（容器内通常不可用）")
     p.add_argument("--grpc-port", type=int, default=None,
                    help="distant 模式 gRPC 代理端口（默认 9876）")
     p.add_argument("--max-frames", type=int, default=None,
@@ -478,6 +499,9 @@ def build_cli(adapter_cls):
 def main(adapter_cls) -> None:
     parser = build_cli(adapter_cls)
     args = parser.parse_args()
+    # --no-web 或 --web-port 0：退回本地弹窗模式
+    if getattr(args, "no_web", False) or args.web_port == 0:
+        args.web_port = None
     if args.mode == "preview":
         run_preview(args, adapter_cls)
     else:

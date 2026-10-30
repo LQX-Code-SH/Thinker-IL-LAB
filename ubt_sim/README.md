@@ -6,6 +6,10 @@ Thinker 机器人仿真平台，基于 NVIDIA Isaac Sim 5.0 + Isaac Lab 2.2 支�
 
 ![Walker S2 EDU 探索者 仿真界面预览](docs/assets/walker-s2仿真界面预览.png)
 
+![TienKung Dex 仿真界面预览](docs/assets/TienKung_DEX.png)
+
+![Walker C1（Astron）仿真界面预览](docs/assets/walker_c1.png)
+
 ## 支持的机器人
 
 | 机器人 | DOF | 夹爪 | 手部 | USD 路径 |
@@ -14,7 +18,7 @@ Thinker 机器人仿真平台，基于 NVIDIA Isaac Sim 5.0 + Isaac Lab 2.2 支�
 | Walker S2 EDU 探索者 | 34 | 2×2 (PGC 两指) | — | `assets/robots/walker_s2/s2_v1.usd` |
 | TienKung Dex（天工行者 Dex V3） | 67 | — | 18×2 (Inspire RH5DG2) | `assets/robots/tienkung_dex/usd/tienkung_dex_inspire.usd` |
 | TienKung Dex（BrainCo Revo2 双手） | 53 | — | 11×2 (BrainCo Revo2) | `assets/robots/tienkung_dex/usd/tienkung_dex_brainco.usd` |
-| Walker C1（Astron） | 53 | — | 11×2 (SDK 6 维压缩) | `assets/robots/walker_c1/usd/walker_c1_with_hands.usd` |
+| Walker C1（Astron） | 53 | — | 11×2 (SDK 6 维压缩) | `assets/robots/walker_c1/usd/walker_c1_merged.usd`（53 驱动 / 0 固定） |
 
 ## 当前支持的任务
 
@@ -25,7 +29,7 @@ Thinker 机器人仿真平台，基于 NVIDIA Isaac Sim 5.0 + Isaac Lab 2.2 支�
 | `UBTSim-TienkungDex-Brainco-Parlor-v0` | TienKung Dex（BrainCo 双手） | 客厅 | 同上，手部为 Revo2（单手 11 关节） |
 | `UBTSim-WalkerS2-PartSorting-v0` | Walker S2 EDU 探索者 | 零件分拣 | 零件分拣：4 个零件 + 收纳箱（默认任务） |
 | `UBTSim-WalkerS2-PickPart-v0` | Walker S2 EDU 探索者 | 零件分拣 | 单零件抓取：桌面只保留单个零件，配合 `pick_part.py` 采集 |
-| `UBTSim-WalkerC1-Parlor-v0` | Walker C1（Astron） | 客厅 | 在线 IK 抓苹果放盘子 + 数据采集，见 `docs/walker_c1/getting-started.md` |
+| `UBTSim-WalkerC1-Parlor-v0` | Walker C1（Astron） | 客厅 | 在线 IK 抓苹果放盘子 + 批量数据采集（自带 USD 生成/配色/校验工具链），见 `docs/walker_c1/getting-started.md` |
 
 任务通过 YAML 配置文件定义（`config/*.yaml`），Python 任务类从 YAML 自动加载场景、机器人、相机和仿真参数。任务/机器人由 `UBT_SIM_TASK` 环境变量选择（默认天工行者无疆 客厅任务）。
 
@@ -37,11 +41,13 @@ Thinker 机器人仿真平台，基于 NVIDIA Isaac Sim 5.0 + Isaac Lab 2.2 支�
 Isaac Sim (Py3.11)  ──ZMQ──►  ROS2-ZMQ Bridge (Py3.10)  ──ROS2──►  遥操作/采集脚本
 ```
 
-- **仿真** `/isaac-sim/python.sh`：加载 Gym 任务（天工行者无疆 客厅 / Walker S2 EDU 探索者 仓库），JPEG/RGB 直发 ZMQ 端口。
+- **仿真** `/isaac-sim/python.sh`：加载 Gym 任务（天工行者无疆 客厅 / Walker S2 EDU 探索者 仓库 / Walker C1 客厅），JPEG/RGB 直发 ZMQ 端口。
 - **桥接** `/usr/bin/python3`：ZMQ↔ROS2 双向转发，`start_sim.sh` 自动拉起。
 - **采集** `/usr/bin/python3`：发布指令、录制 15Hz HDF5。
 
 > 仿真用 Isaac Sim Python 3.11；桥接/采集用系统 Python 3.10（rclpy 所在）。
+>
+> **ROS 域**：默认 `ROS_DOMAIN_ID=0`（与真机同域，开箱即用）。需要让仿真与真机隔离时，启动仿真和所有控制/采集进程都显式传 `ROS_DOMAIN_ID=146`。
 
 ## Git Clone 注意事项
 
