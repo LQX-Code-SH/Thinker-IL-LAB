@@ -7,6 +7,8 @@ source "$SCRIPT_DIR/env.sh"
 _HOST_DISPLAY="${DISPLAY:-}"
 
 WALKER_WS="/ubt_IL/walker_s2/walker_sdk_ros2"
+# Walker C1 复用同一套 mc_* 消息工作空间；需要独立工作空间时覆盖此变量。
+WALKER_C1_ROS_WS="${WALKER_C1_ROS_WS:-$WALKER_WS}"
 
 case "${1:-}" in
     build)
@@ -75,6 +77,7 @@ case "${1:-}" in
                 --group-add video \
                 -v /dev:/dev \
                 -e DOMAIN_ID="$DOMAIN_ID" \
+                -e WALKER_C1_ROS_WS="$WALKER_C1_ROS_WS" \
                 -e HF_HOME="$HF_HOME" \
                 -e TORCH_HOME="$TORCH_HOME" \
                 -e UV_INDEX_URL="$UV_INDEX_URL" \
@@ -116,6 +119,7 @@ case "${1:-}" in
 import lerobot
 from lerobot_robot_tienkung import TienKungRobotConfig
 from lerobot_robot_walker import WalkerRobotConfig, WalkerCameraConfig
+from lerobot_robot_walker_c1 import WalkerC1RobotConfig, WalkerC1CameraConfig
 from lerobot_robot_tienkung_dex import TienKungDexRobotConfig, DexCameraConfig
 PY' >/dev/null 2>&1
         }
@@ -341,6 +345,19 @@ PY' >/dev/null 2>&1
             WARNINGS=$((WARNINGS + 1))
         fi
 
+        # Walker C1 插件导入
+        if sudo docker exec "$CONTAINER_NAME" test -d /ubt_IL/walker_c1/lerobot_robot_walker_c1; then
+            if sudo docker exec "$CONTAINER_NAME" /lerobot/.venv/bin/python -c "from lerobot_robot_walker_c1 import WalkerC1RobotConfig, WalkerC1CameraConfig" 2>/dev/null; then
+                echo "[OK] walker_c1 plugin: installed"
+            else
+                echo "[FAIL] walker_c1 plugin: NOT installed"
+                ERRORS=$((ERRORS + 1))
+            fi
+        else
+            echo "[WARN] walker_c1 plugin: /ubt_IL/walker_c1/lerobot_robot_walker_c1 not found"
+            WARNINGS=$((WARNINGS + 1))
+        fi
+
         # Dex 插件导入（如果已迁移 tienkung_dex/ 目录）
         if sudo docker exec "$CONTAINER_NAME" test -d /ubt_IL/tienkung_dex/lerobot_robot_tienkung_dex; then
             if sudo docker exec "$CONTAINER_NAME" /lerobot/.venv/bin/python -c "from lerobot_robot_tienkung_dex import TienKungDexRobotConfig, DexCameraConfig" 2>/dev/null; then
@@ -380,6 +397,14 @@ PY" 2>/dev/null; then
             echo "[OK] walker bridge: available"
         else
             echo "[WARN] walker bridge: /ubt_IL/walker_s2/ros2_walker_bridge.py not found"
+            WARNINGS=$((WARNINGS + 1))
+        fi
+
+        # Walker C1 Bridge2 脚本
+        if sudo docker exec "$CONTAINER_NAME" test -f /ubt_IL/walker_c1/ros2_walker_c1_bridge.py; then
+            echo "[OK] walker_c1 bridge: available"
+        else
+            echo "[WARN] walker_c1 bridge: /ubt_IL/walker_c1/ros2_walker_c1_bridge.py not found"
             WARNINGS=$((WARNINGS + 1))
         fi
 

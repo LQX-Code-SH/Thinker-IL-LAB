@@ -361,7 +361,7 @@ def main():
         help="Generate per-episode prediction-vs-ground-truth plots.",
     )
     parser.add_argument(
-        "--plot-dir", type=str, default="/ubt_IL/scripts/eval/output/eval_plots",
+        "--plot-dir", type=str, default=None,
         help="Directory to save plots (default: /ubt_IL/scripts/eval/output/eval_plots).",
     )
     parser.add_argument(
@@ -374,6 +374,11 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # --plot 的默认目录跟随 --output（<results.json 所在目录>/plots），
+    # 避免写死 /ubt_IL/... 在宿主机运行时创建失败或与指标分家。
+    if getattr(args, "plot_dir", None) is None:
+        args.plot_dir = os.path.join(os.path.dirname(os.path.abspath(args.output)), "plots")
 
     # ── Validate paths ────────────────────────────────────────────────────
     policy_path = Path(args.policy_path)
@@ -585,7 +590,9 @@ def main():
                 for r in all_results
             ],
         }
-        with open(args.output, "w") as f:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w") as f:
             json.dump(output_data, f, indent=2)
         print(f"\nResults saved → {args.output}")
 

@@ -1,0 +1,90 @@
+{
+  "observation.images.camera_head": {
+    "dtype": "video",
+    "shape": [3, 240, 320],
+    "names": ["channel", "height", "width"]
+  },
+  "observation.state": {
+    "dtype": "float32",
+    "shape": [13],
+    "names": [
+      "R_shoulder_pitch_joint",
+      "R_shoulder_roll_joint",
+      "R_shoulder_yaw_joint",
+      "R_elbow_pitch_joint",
+      "R_elbow_yaw_joint",
+      "R_wrist_pitch_joint",
+      "R_wrist_roll_joint",
+      "right_thumb_swing",
+      "right_thumb_mcp",
+      "right_index_mcp",
+      "right_middle_mcp",
+      "right_ring_mcp",
+      "right_little_mcp"
+    ]
+  },
+  "action": {
+    "dtype": "float32",
+    "shape": [13],
+    "names": [
+      "R_shoulder_pitch_joint",
+      "R_shoulder_roll_joint",
+      "R_shoulder_yaw_joint",
+      "R_elbow_pitch_joint",
+      "R_elbow_yaw_joint",
+      "R_wrist_pitch_joint",
+      "R_wrist_roll_joint",
+      "right_thumb_swing",
+      "right_thumb_mcp",
+      "right_index_mcp",
+      "right_middle_mcp",
+      "right_ring_mcp",
+      "right_little_mcp"
+    ]
+  },
+  "episode_index": {
+    "dtype": "int64",
+    "shape": [1],
+    "names": null
+  },
+  "frame_index": {
+    "dtype": "int64",
+    "shape": [1],
+    "names": null
+  },
+  "index": {
+    "dtype": "int64",
+    "shape": [1],
+    "names": null
+  },
+  "task_index": {
+    "dtype": "int64",
+    "shape": [1],
+    "names": null
+  },
+  "hdf5_mapping": {
+    "observation.state": [
+      {
+        "hdf5_key": "joint_observations/joint_position",
+        "indices": [7, 8, 9, 10, 11, 12, 13]
+      },
+      {
+        "hdf5_key": "hand_observations/hand_right_position"
+      }
+    ],
+    "action": [
+      {
+        "hdf5_key": "action_observations/joint_position",
+        "indices": [7, 8, 9, 10, 11, 12, 13]
+      },
+      {
+        "hdf5_key": "action_observations/hand_right_position"
+      }
+    ],
+    "observation.images.camera_head": {
+      "hdf5_key": "camera_observations/color_images/camera_head",
+      "encoding": "png",
+      "image_size": [320, 240]
+    }
+  }
+}

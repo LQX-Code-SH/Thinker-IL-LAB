@@ -599,6 +599,8 @@ def process_episode(
     source_fps: float = 30,
     segment_ranges: list[tuple[int, int]] | None = None,
     stationary_cfg: dict | None = None,
+    tail_trim: int = 0,
+    sync_encoding: bool = False,
 ) -> int:
     """Process single episode HDF5 into one or more LeRobot dataset episodes.
 
@@ -626,11 +628,18 @@ def process_episode(
                     image_size = tuple(field_spec["image_size"])  # (W, H)
                     raw = file[hdf5_key]
 
-                    if encoding == "jpeg":
+                    if encoding in ("jpeg", "png"):
+                        # 已编码图像字节流：cv2.imdecode 自动识别 JPEG/PNG。
+                        # walker_c1 采集落盘 PNG，配置显式写 "png" 以免误认为 JPEG；
+                        # jpeg 分支行为保持不变（向后兼容）。
                         import cv2
                         images = []
                         for buf in raw:
                             img = cv2.imdecode(np.frombuffer(buf, np.uint8), cv2.IMREAD_COLOR)
+                            if img is None:
+                                raise ValueError(
+                                    f"Failed to decode {encoding} image bytes for '{lerobot_key}'"
+                                )
                             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                             images.append(cv2.resize(img, image_size))
                     elif encoding == "png_depth":
@@ -772,6 +781,25 @@ def process_episode(
             logging.warning("No valid segments for %s — skipping", episode_path.name)
             return 0
 
+    # --- tail trim：裁掉每集末尾的快速收尾/复位动作（默认 0 = 不裁）---
+    if tail_trim and tail_trim > 0:
+        trimmed_ranges = []
+        for idx, (start, end) in enumerate(ranges):
+            if idx == len(ranges) - 1:
+                end = max(start, end - int(tail_trim))
+            if end > start:
+                trimmed_ranges.append((start, end))
+            else:
+                logging.warning(
+                    "%s: tail_trim=%d leaves no frames in segment [%d, %d) — skipped",
+                    episode_path.name, tail_trim, start, end,
+                )
+        if not trimmed_ranges:
+            logging.warning("%s: tail_trim removed all frames — skipping", episode_path.name)
+            return 0
+        logging.info("%s: tail_trim=%d frames (%s)", episode_path.name, tail_trim, ranges[-1])
+        ranges = trimmed_ranges
+
     # --- emit frames per segment ---
     saved_count = 0
     try:
@@ -791,7 +819,10 @@ def process_episode(
                     frame[lerobot_key] = arr[i]
                 frame["task"] = task_name
                 dataset.add_frame(frame)
-            dataset.save_episode()
+            # parallel_encoding=True 时多集编码会排队，可能在某一集一次性删除
+            # 多个 episode 的临时图片目录（>500 文件）。--sync-encoding 改为逐集
+            # 同步编码，单次仅删除当前集的图片目录。
+            dataset.save_episode(parallel_encoding=not sync_encoding)
             saved_count += 1
             logging.info("Saved segment %d/%d: frames [%d, %d) (%d/%d kept%s)",
                          seg_idx + 1, len(ranges), start, end,
@@ -832,6 +863,10 @@ def main():
     parser.add_argument("--vcodec", type=str, default="h264",
                         help="Video codec: h264 (default, closest to Pick_up's mp4v), libsvtav1 (av1), hevc, auto. "
                              "Note: mpeg4/mp4v is rejected by lerobot's codec whitelist.")
+    parser.add_argument("--sync-encoding", action="store_true",
+                        help="逐集同步编码视频（单次仅删除本集临时图片，避免大批量删除）")
+    parser.add_argument("--tail-trim", type=int, default=0,
+                        help="Drop the last N frames of every episode (walker_c1 收尾复位动作，默认 0=不裁)")
     parser.add_argument("--stream-video", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--resample-fps", type=float, default=None,
                         help="Target FPS for resampling. When set, source frames are "
@@ -963,6 +998,8 @@ def main():
             timestamp_hdf5_key=args.timestamp_hdf5_key,
             source_fps=source_fps,
             segment_ranges=segment_ranges,
+            tail_trim=args.tail_trim,
+            sync_encoding=args.sync_encoding,
             stationary_cfg=stationary_cfg,
         )
         if n_saved > 0:

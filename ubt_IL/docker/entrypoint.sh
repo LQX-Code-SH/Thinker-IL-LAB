@@ -204,6 +204,13 @@ if [ -d "/ubt_IL" ]; then
         uv pip install -e /ubt_IL/walker_s2/lerobot_robot_walker || echo "[entrypoint] WARNING: walker plugin install failed"
     fi
 
+    # Install Walker C1 plugin (editable)。复用 walker_s2 的 msgs 工作空间
+    # （mc_task_msgs/mc_state_msgs 字段与 ubt_sim C1 完全一致），不重复编译。
+    if [ -d "/ubt_IL/walker_c1/lerobot_robot_walker_c1" ]; then
+        echo "[entrypoint] Installing lerobot-robot-walker-c1 plugin..."
+        uv pip install -e /ubt_IL/walker_c1/lerobot_robot_walker_c1 || echo "[entrypoint] WARNING: walker_c1 plugin install failed"
+    fi
+
     # Install TienKung Dex plugin (editable)
     if [ -d "/ubt_IL/tienkung_dex/lerobot_robot_tienkung_dex" ]; then
         echo "[entrypoint] Installing lerobot-robot-tienkung-dex plugin..."

@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lerobot_robot_walker_c1"
+version = "0.1.0"
+description = "Walker C1 (Astron) dual-arm humanoid with 6-channel dexterous hands plugin for LeRobot"
+requires-python = ">=3.12"
+dependencies = ["pyzmq"]
+
+[tool.setuptools.packages.find]
+include = ["lerobot_robot_walker_c1*"]
