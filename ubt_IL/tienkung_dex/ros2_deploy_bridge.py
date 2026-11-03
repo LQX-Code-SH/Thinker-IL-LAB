@@ -264,6 +264,15 @@ _DEFAULT_CFG = {
     "image_enabled": False,
     "image_port": 5558,
     "topic_image_head": "/ob_camera_head/color/image_raw",
+    # 编码前缩放目标（0/0 = 不缩放，仿真链路保持原样）。
+    # 真机 /ob_camera_head 是 1280x720，而 dex_camera 只按 offset_x+width 切列、不缩放，
+    # 原样送出会拿到"左半幅"——策略照常输出、但画面分布全错，且不报错。
+    "image_width": 0,
+    "image_height": 0,
+    # True = 订阅 .../image_raw/compressed（真机推荐）。
+    # 实测：raw 1280x720 的 rclpy 反序列化约 35 ms/帧，桥接只能转出 10~16 fps；
+    # 走 compressed（约 386 KB）解码+缩放+重编码约 11 ms/帧，可稳定 ~20 fps。
+    "image_compressed": False,
 }
 
 # 手型 -> (指令话题, 状态话题)，与真机话题表一致
@@ -437,7 +446,14 @@ class RealRobotBridge:
         self._cv_bridge = None
         self._cv2 = None
         self._last_image_ts = 0.0
-        self._image_min_interval = 1.0 / 30.0
+        self._image_min_interval = 1.0 / 20.0
+        # 多线程执行器下图像回调可能并发重入；用非阻塞锁"忙则丢帧"，
+        # 保证同一时刻只有一帧在解码/编码（保持最新帧语义）。
+        self._image_lock = threading.Lock()
+        # 状态发布限频：/robot_state 是 200Hz，原样转发会把唯一执行线程占满
+        # （实测图像被饿到 ~12fps）。策略跑 15Hz，60Hz 状态足够新。
+        self._last_status_ts = 0.0
+        self._status_min_interval = 1.0 / 60.0
         if cfg.get("image_enabled", False):
             self._setup_image_forwarding(cfg, ros_namespace)
 
@@ -519,12 +535,19 @@ class RealRobotBridge:
         """真机头相机：sensor_msgs/Image → JPEG → ZMQ image_port。"""
         import cv2
         from cv_bridge import CvBridge
-        from sensor_msgs.msg import Image
+        from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
         from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+        from sensor_msgs.msg import CompressedImage, Image
 
         self._cv2 = cv2
         self._cv_bridge = CvBridge()
         self._jpeg_quality = int(cfg.get("image_quality", 80))
+        # 缩放目标：真机 1280x720 -> 640x360（与仿真头相机同视野，见 config/tienkung_dex/*.yaml
+        # 的 focal 24 / aperture 44.76 ≈ 实机 fx 690.6 的 85.6° 水平视场）
+        self._image_size = (
+            int(cfg.get("image_width", 0)),
+            int(cfg.get("image_height", 0)),
+        )
 
         self.zmq_bridge.bind_image(int(cfg["image_port"]))
 
@@ -534,12 +557,26 @@ class RealRobotBridge:
             history=HistoryPolicy.KEEP_LAST,
             depth=10,
         )
-        self._node.create_subscription(
-            Image, f"{ros_namespace}{cfg['topic_image_head']}", self._image_callback, qos
-        )
+        # 独立回调组：与 200Hz 的 /robot_state 解耦，否则多线程执行器里仍会被串行化
+        self._image_cb_group = MutuallyExclusiveCallbackGroup()
+        self._image_compressed = bool(cfg.get("image_compressed", False))
+        if self._image_compressed:
+            topic = f"{ros_namespace}{cfg['topic_image_head']}/compressed"
+            self._node.create_subscription(
+                CompressedImage, topic, self._image_compressed_callback, qos,
+                callback_group=self._image_cb_group,
+            )
+        else:
+            topic = f"{ros_namespace}{cfg['topic_image_head']}"
+            self._node.create_subscription(
+                Image, topic, self._image_callback, qos,
+                callback_group=self._image_cb_group,
+            )
         logger.info(
-            "图像转发已开启：%s -> ZMQ %d",
-            cfg["topic_image_head"], cfg["image_port"],
+            "图像转发已开启：%s -> ZMQ %d（缩放目标 %s）",
+            topic, cfg["image_port"],
+            f"{self._image_size[0]}x{self._image_size[1]}"
+            if all(self._image_size) else "原尺寸",
         )
 
     # ---------------------------------------------------------------- 回调
@@ -559,7 +596,10 @@ class RealRobotBridge:
         with self._state_lock:
             for i, mid in enumerate(self._right_arm_motor_ids):
                 self._right_arm_jpos[i] = pos_by_id[mid]
-        self._publish_status()
+        now = time.monotonic()
+        if now - self._last_status_ts >= self._status_min_interval:
+            self._last_status_ts = now
+            self._publish_status()
 
     def _hand_state_callback(self, msg: Any) -> None:
         """右手反馈：因时 GetAngleAct(13 码) / 强脑 MotorStatus(6 闭合度) → rad。"""
@@ -586,20 +626,51 @@ class RealRobotBridge:
         self._publish_status()
 
     def _image_callback(self, msg: Any) -> None:
-        now = time.monotonic()
-        if now - self._last_image_ts < self._image_min_interval:
-            return
-        self._last_image_ts = now
+        """raw 源：sensor_msgs/Image（仿真兼容路径）。"""
+        self._image_gate_and_send(msg, compressed=False)
+
+    def _image_compressed_callback(self, msg: Any) -> None:
+        """compressed 源：sensor_msgs/CompressedImage（真机推荐，反序列化成本低 3x）。"""
+        self._image_gate_and_send(msg, compressed=True)
+
+    def _image_gate_and_send(self, msg: Any, compressed: bool) -> None:
+        """限流 + 缩放 + JPEG 编码 + ZMQ 发送。
+
+        时间戳只在"真正处理"时更新：被限流丢掉的帧若也重置窗口，会连锁丢帧。
+        """
+        if not self._image_lock.acquire(blocking=False):
+            return  # 上一帧还在转换/编码，丢这一帧（保持最新帧语义）
         try:
-            frame = self._cv_bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+            now = time.monotonic()
+            if now - self._last_image_ts < self._image_min_interval:
+                return
+            self._last_image_ts = now
+
+            if compressed:
+                import numpy as np
+
+                frame = self._cv2.imdecode(
+                    np.frombuffer(bytes(msg.data), dtype=np.uint8), self._cv2.IMREAD_COLOR
+                )
+                if frame is None:
+                    return
+            else:
+                frame = self._cv_bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+
+            # 先缩放再编码：dex_camera 侧不做缩放，只按 offset_x+width 切列。
+            # 真机 1280x720 必须在**发送端**变成 640x360，否则相机拿到的是左半幅。
+            w, h = self._image_size
+            if w > 0 and h > 0 and (frame.shape[1], frame.shape[0]) != (w, h):
+                frame = self._cv2.resize(frame, (w, h), interpolation=self._cv2.INTER_LINEAR)
             ok, buf = self._cv2.imencode(
                 ".jpg", frame, [int(self._cv2.IMWRITE_JPEG_QUALITY), self._jpeg_quality]
             )
+            if ok:
+                self.zmq_bridge.send_image(buf.tobytes())
         except Exception as exc:  # noqa: BLE001 - 单帧失败不应打死执行器
             logger.warning("图像转换失败: %s", exc)
-            return
-        if ok:
-            self.zmq_bridge.send_image(buf.tobytes())
+        finally:
+            self._image_lock.release()
 
     # ---------------------------------------------------------------- 状态
     def _publish_status(self) -> None:

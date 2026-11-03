@@ -85,6 +85,15 @@ class TienKungDexRobotConfig(RobotConfig):
     image_enabled: bool = False
     image_port: int = 5558
     topic_image_head: str = TOPIC_IMAGE_HEAD
+    # Bridge2 编码前的缩放目标（0 = 不缩放）。真机 /ob_camera_head 是 1280x720，
+    # 而 dex_camera 只切列不缩放，必须在这里让桥接先缩到策略训练分辨率（640x360）。
+    # 必须与 cameras[...] 里的 width/height 一致。
+    image_width: int = 0
+    image_height: int = 0
+    # True = Bridge2 订阅 .../image_raw/compressed（真机推荐）。
+    # 实测 raw 1280x720 的 rclpy 反序列化 ~35ms/帧 → 只能转出 10~16fps；
+    # compressed（~386KB）解码+缩放+重编码 ~11ms/帧 → 稳定 ~20fps。
+    image_compressed: bool = False
 
     # Safety
     max_relative_target: float | None = None
@@ -197,4 +206,7 @@ class TienKungDexRobotConfig(RobotConfig):
             "image_enabled": self.image_enabled,
             "image_port": self.image_port,
             "topic_image_head": self.topic_image_head,
+            "image_width": self.image_width,
+            "image_height": self.image_height,
+            "image_compressed": self.image_compressed,
         }

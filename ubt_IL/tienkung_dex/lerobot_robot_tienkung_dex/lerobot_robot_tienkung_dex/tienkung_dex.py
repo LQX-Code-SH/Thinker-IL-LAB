@@ -210,7 +210,9 @@ class TienKungDexRobot(Robot):
         # 新进程；直接 /usr/bin/python3 起会 ModuleNotFoundError: ros2_bridge_msgs。
         cmd = [
             "bash", "-lc",
-            "source /opt/ros/humble/setup.bash 2>/dev/null || true; "
+            # 发行版跟随宿主（容器 Humble / 真机 Jazzy）；`bash -lc` 不会 source
+            # ~/.bashrc，所以这里显式 source，配合父进程 env 继承双保险。
+            "source /opt/ros/${ROS_DISTRO:-humble}/setup.bash 2>/dev/null || true; "
             f"source {shlex.quote(_DEX_MSGS_WS)}/install/setup.bash 2>/dev/null || true; "
             f"exec /usr/bin/python3 {shlex.quote(self.config.bridge_script)} "
             f"--config {shlex.quote(config_json)}",

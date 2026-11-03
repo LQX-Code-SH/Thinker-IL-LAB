@@ -11,6 +11,8 @@ build/
 
 # Virtual environments
 .venv/
+# 真机（Thor）部署用的独立 venv，由 scripts/deploy/tienkung_dex/arm_64/setup_env.sh 生成
+.venv-dex/
 venv/
 env/
 !ubt_sim/source/ubt_sim/env/
