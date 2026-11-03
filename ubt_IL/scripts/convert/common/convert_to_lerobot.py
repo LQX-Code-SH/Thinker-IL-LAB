@@ -604,6 +604,61 @@ def _load_label_segments(ep_dir_name: str, label_root: Path) -> list[tuple[int, 
     return ranges
 
 
+def _decode_images(raw, encoding, image_size, iter_start=0, iter_end=None,
+                   episode_path: Path | None = None,
+                   depth_clip_mm: int = 8000) -> list:
+    """Decode image rows from an HDF5 dataset into a list of RGB arrays.
+
+    按块批量读取：h5py 对 (T,H,W,C) 大数组逐行迭代会在每个小 chunk 上反复做
+    选择（真机 75GB 裸 RGB 的 chunks=(530,23,40,1)，单帧横跨 ~3000 个 chunk），
+    慢到不可用。按块整体切片让每个 chunk 只读一次；且每块独立物化，调用方
+    控制窗口大小时不会一次性撑爆内存。
+    """
+    def _iter_rows_blocked(view, start=0, end=None, block=256):
+        end = len(view) if end is None else end
+        for s in range(start, end, block):
+            yield from view[s:s + block]
+
+    if encoding in ("jpeg", "png"):
+        # 已编码图像字节流：cv2.imdecode 自动识别 JPEG/PNG。
+        # walker_c1 采集落盘 PNG，配置显式写 "png" 以免误认为 JPEG；
+        # jpeg 分支行为保持不变（向后兼容）。
+        import cv2
+        images = []
+        for buf in _iter_rows_blocked(raw, iter_start, iter_end):
+            img = cv2.imdecode(np.frombuffer(buf, np.uint8), cv2.IMREAD_COLOR)
+            if img is None:
+                raise ValueError(
+                    f"Failed to decode {encoding} image bytes"
+                )
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            images.append(cv2.resize(img, image_size))
+        return images
+    elif encoding == "png_depth":
+        import cv2
+        images = []
+        for buf in _iter_rows_blocked(raw, iter_start, iter_end):
+            d16 = cv2.imdecode(np.frombuffer(buf, np.uint8), cv2.IMREAD_UNCHANGED)
+            d16 = cv2.resize(d16, image_size, interpolation=cv2.INTER_NEAREST)
+            d8 = np.clip(d16, 0, depth_clip_mm).astype(np.float32)
+            d8 = (d8 * (255.0 / depth_clip_mm)).astype(np.uint8)
+            images.append(np.stack([d8, d8, d8], axis=-1))
+        return images
+    elif encoding == "raw":
+        import cv2
+        return [
+            cv2.resize(img, image_size)
+            for img in _iter_rows_blocked(raw, iter_start, iter_end)
+        ]
+    elif encoding == "mp4_value_list":
+        # Real robot: value_list → MP4 path → video frames
+        if episode_path is None:
+            raise ValueError("mp4_value_list encoding requires episode_path")
+        return _read_mp4_via_value_list(raw, episode_path, image_size)
+    else:
+        raise ValueError(f"Unknown encoding '{encoding}'")
+
+
 def process_episode(
     episode_path: Path,
     dataset: LeRobotDataset,
@@ -631,6 +686,7 @@ def process_episode(
             compose_fields = {}   # lerobot_key -> (parts_list, dtype)
             image_fields = {}     # lerobot_key -> numpy array (T, H, W, C)
             image_windows = {}    # lerobot_key -> (窗口首帧绝对下标, 窗口尾) ; (0, None)=整集
+            image_fields_lazy = {}  # lerobot_key -> (raw ds, encoding, image_size)，按段懒解码
 
             # label 分段模式下只读段覆盖的帧区间：真机 HDF5 可能几十 GB
             # （如 75GB 的 720p 裸 RGB），整集逐帧解码+缩放极慢且无谓。
@@ -652,62 +708,26 @@ def process_episode(
                     encoding = field_spec["encoding"]
                     image_size = tuple(field_spec["image_size"])  # (W, H)
                     raw = file[hdf5_key]
+
+                    # label 分段且不重采样：不在整窗口上预解码（窗口覆盖整集时
+                    # 上万帧 720p 裸 RGB 一次性驻留内存会撑爆进程），改为 emit
+                    # 循环内按段解码，单段峰值内存只有几百帧。
+                    # 存 hdf5_key 而非 dataset 句柄：with 块结束后文件已关闭。
+                    if segment_ranges and resample_fps is None and encoding != "mp4_value_list":
+                        image_fields_lazy[lerobot_key] = (hdf5_key, encoding, image_size)
+                        image_windows[lerobot_key] = (0, None)
+                        continue
+
                     iter_start, iter_end = 0, None
                     if read_end is not None and encoding != "mp4_value_list":
                         iter_start, iter_end = read_start, read_end
                         image_windows[lerobot_key] = (read_start, read_end)
 
-                    # 分块批量读取：h5py 对 (T,H,W,C) 大数组逐行迭代会在每个
-                    # 小 chunk 上反复做选择（真机 75GB 裸 RGB 的
-                    # chunks=(530,23,40,1)，单帧横跨 ~3000 个 chunk），慢到
-                    # 不可用。按块整体切片让每个 chunk 只读一次；且每块独立
-                    # 物化，label 窗口覆盖整集（几十 GB）时也不会一次性撑爆内存。
-                    def _iter_rows_blocked(view, start=0, end=None, block=256):
-                        end = len(view) if end is None else end
-                        for s in range(start, end, block):
-                            yield from view[s:s + block]
-
-                    if encoding in ("jpeg", "png"):
-                        # 已编码图像字节流：cv2.imdecode 自动识别 JPEG/PNG。
-                        # walker_c1 采集落盘 PNG，配置显式写 "png" 以免误认为 JPEG；
-                        # jpeg 分支行为保持不变（向后兼容）。
-                        import cv2
-                        images = []
-                        for buf in _iter_rows_blocked(raw, iter_start, iter_end):
-                            img = cv2.imdecode(np.frombuffer(buf, np.uint8), cv2.IMREAD_COLOR)
-                            if img is None:
-                                raise ValueError(
-                                    f"Failed to decode {encoding} image bytes for '{lerobot_key}'"
-                                )
-                            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                            images.append(cv2.resize(img, image_size))
-                    elif encoding == "png_depth":
-                        import cv2
-                        depth_clip_mm = field_spec.get("depth_clip_mm", 8000)
-                        images = []
-                        for buf in _iter_rows_blocked(raw, iter_start, iter_end):
-                            d16 = cv2.imdecode(np.frombuffer(buf, np.uint8), cv2.IMREAD_UNCHANGED)
-                            d16 = cv2.resize(d16, image_size, interpolation=cv2.INTER_NEAREST)
-                            d8 = np.clip(d16, 0, depth_clip_mm).astype(np.float32)
-                            d8 = (d8 * (255.0 / depth_clip_mm)).astype(np.uint8)
-                            images.append(np.stack([d8, d8, d8], axis=-1))
-                    elif encoding == "raw":
-                        import cv2
-                        images = [
-                            cv2.resize(img, image_size)
-                            for img in _iter_rows_blocked(raw, iter_start, iter_end)
-                        ]
-                    elif encoding == "mp4_value_list":
-                        # Real robot: value_list → MP4 path → video frames
-                        images = _read_mp4_via_value_list(
-                            raw, episode_path, image_size
-                        )
-                    else:
-                        raise ValueError(
-                            f"Unknown encoding '{encoding}' for '{lerobot_key}'"
-                        )
-
-                    image_fields[lerobot_key] = np.stack(images)
+                    image_fields[lerobot_key] = np.stack(_decode_images(
+                        raw, encoding, image_size, iter_start, iter_end,
+                        episode_path=episode_path,
+                        depth_clip_mm=field_spec.get("depth_clip_mm", 8000),
+                    ))
 
             # --- peek timestamps while file is still open ---
             _src_ts = None
@@ -851,6 +871,16 @@ def process_episode(
             if keep_mask is not None:
                 seg_indices = [i for i in seg_indices if keep_mask[i]]
             seg_dropped = (end - start) - len(seg_indices)
+            # 懒解码字段：按段重新打开 HDF5 解码一次，段结束即释放
+            lazy_arrays = {}
+            if image_fields_lazy:
+                with h5py.File(episode_path, "r") as f:
+                    lazy_arrays = {
+                        lerobot_key: np.stack(_decode_images(
+                            f[hdf5_key], enc, isz, start, end,
+                        ))
+                        for lerobot_key, (hdf5_key, enc, isz) in image_fields_lazy.items()
+                    }
             for i in tqdm(seg_indices, desc=f"Processing {seg_label}"):
                 frame = {}
                 for lerobot_key, (parts, dtype) in compose_fields.items():
@@ -859,8 +889,11 @@ def process_episode(
                     ).astype(dtype)
                 for lerobot_key, arr in image_fields.items():
                     frame[lerobot_key] = arr[i - image_windows.get(lerobot_key, (0, None))[0]]
+                for lerobot_key, arr in lazy_arrays.items():
+                    frame[lerobot_key] = arr[i - start]
                 frame["task"] = task_name
                 dataset.add_frame(frame)
+            del lazy_arrays
             # parallel_encoding=True 时多集编码会排队，可能在某一集一次性删除
             # 多个 episode 的临时图片目录（>500 文件）。--sync-encoding 改为逐集
             # 同步编码，单次仅删除当前集的图片目录。

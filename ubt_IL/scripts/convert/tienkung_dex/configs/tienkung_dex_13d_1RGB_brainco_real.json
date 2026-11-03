@@ -1,20 +1,20 @@
 {
   "observation.images.head": {
     "dtype": "video",
-    "shape": [3, 360, 640],
-    "names": ["channel", "height", "width"]
+    "shape": [3, 720, 1280],
+    "names": ["channels", "height", "width"]
   },
   "observation.state": {
     "dtype": "float32",
     "shape": [13],
     "names": [
-      "shoulder_pitch_r_joint",
-      "shoulder_roll_r_joint",
-      "shoulder_yaw_r_joint",
-      "elbow_pitch_r_joint",
-      "elbow_yaw_r_joint",
-      "wrist_pitch_r_joint",
-      "wrist_roll_r_joint",
+      "right_shoulder_pitch_joint",
+      "right_shoulder_roll_joint",
+      "right_shoulder_yaw_joint",
+      "right_elbow_pitch_joint",
+      "right_elbow_yaw_joint",
+      "right_wrist_pitch_joint",
+      "right_wrist_roll_joint",
       "right_thumb_proximal_joint",
       "right_thumb_metacarpal_joint",
       "right_index_proximal_joint",
@@ -27,19 +27,19 @@
     "dtype": "float32",
     "shape": [13],
     "names": [
-      "shoulder_pitch_r_joint",
-      "shoulder_roll_r_joint",
-      "shoulder_yaw_r_joint",
-      "elbow_pitch_r_joint",
-      "elbow_yaw_r_joint",
-      "wrist_pitch_r_joint",
-      "wrist_roll_r_joint",
-      "right_thumb_proximal_joint",
-      "right_thumb_metacarpal_joint",
-      "right_index_proximal_joint",
-      "right_middle_proximal_joint",
-      "right_ring_proximal_joint",
-      "right_pinky_proximal_joint"
+      "right_shoulder_pitch_target",
+      "right_shoulder_roll_target",
+      "right_shoulder_yaw_target",
+      "right_elbow_pitch_target",
+      "right_elbow_yaw_target",
+      "right_wrist_pitch_target",
+      "right_wrist_roll_target",
+      "right_thumb_proximal_target",
+      "right_thumb_metacarpal_target",
+      "right_index_proximal_target",
+      "right_middle_proximal_target",
+      "right_ring_proximal_target",
+      "right_pinky_proximal_target"
     ]
   },
   "episode_index": {
@@ -65,26 +65,16 @@
   "hdf5_mapping": {
     "observation.state": [
       "puppet/arm_right_position_align/data",
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [0], "scale": 0.0010482482, "offset": -0.0010482482},
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [1], "scale": 0.0015548949, "offset": -0.0015548949},
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [2], "scale": 0.0014114114, "offset": -0.0014114114},
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [3], "scale": 0.0014114114, "offset": -0.0014114114},
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [4], "scale": 0.0014114114, "offset": -0.0014114114},
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [5], "scale": 0.0014114114, "offset": -0.0014114114}
+      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [0, 1, 2, 3, 4, 5], "scale": 0.0010010010, "offset": -0.0010010010}
     ],
     "action": [
-      {"hdf5_key": "puppet/arm_right_position_align/data", "shift": 1},
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [0], "shift": 1, "scale": 0.0010482482, "offset": -0.0010482482},
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [1], "shift": 1, "scale": 0.0015548949, "offset": -0.0015548949},
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [2], "shift": 1, "scale": 0.0014114114, "offset": -0.0014114114},
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [3], "shift": 1, "scale": 0.0014114114, "offset": -0.0014114114},
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [4], "shift": 1, "scale": 0.0014114114, "offset": -0.0014114114},
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [5], "shift": 1, "scale": 0.0014114114, "offset": -0.0014114114}
+      {"hdf5_key": "master/arm_right_position_align/data"},
+      {"hdf5_key": "master/end_effector_right_position_align/data"}
     ],
     "observation.images.head": {
       "hdf5_key": "camera_observations/color_images/camera_head",
       "encoding": "raw",
-      "image_size": [640, 360]
+      "image_size": [1280, 720]
     }
   }
 }
