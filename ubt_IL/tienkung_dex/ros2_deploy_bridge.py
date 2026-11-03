@@ -19,10 +19,20 @@ ZMQ 内部端口（LeRobot ↔ Bridge2）：
   5560: Bridge2 PUB → LeRobot SUB（状态）
   5558: Bridge2 PUB → DexCamera SUB（JPEG；仅 image_enabled 时由 /ob_camera_head 转发）
 
-只驱动**右臂 7 + 右手 13（因时）/ 6（强脑）**。左臂/腰/头/腿由
+只驱动**右臂 7 + 右手**。左臂/腰/头/腿由
 ``scripts/deploy/tienkung_dex/robot_ready.py`` 摆到预备位后保持不动——
 本桥接**默认不碰 /waist/cmd 与 /leg/cmd**，腿永远不发（真机由行走控制器独占。
 注意 /waist/cmd 与 /leg/cmd 与 /arm/cmd 同用 ArmCtrl 消息，只是话题不同）。
+
+手部动作量纲（``hand_action_mode``）：
+
+  - ``rad13``（默认，20D 老链路）：ZMQ ``right_hand`` 是 13 维关节角 rad ->
+    ``SetAngle.joint_values[13]`` 的 0.1° 角码；状态也是 13 维 rad。
+  - ``pico6``（r13 数据集）：ZMQ ``right_hand`` 是 **6 维归一化 0~1**
+    （0=张开、1=闭合），由 :func:`pico6_to_inspire13` 展开成 13 个角码下发；
+    状态回显同一 6 维指令（开环，与数据集 ``observation.state`` 同口径）。
+    硬件侧仍是因时 13 通道、``hand_id=2``、``/right_hand/angle_set``，不变。
+  - ``brainco``：6 维闭合度 0~1 -> ``SetMotorMulti`` 的 1~1000 码。
 """
 
 from __future__ import annotations
@@ -246,7 +256,9 @@ def hand_action_to_code(variant: str, channel: int, value: float, joint_name: st
     """ZMQ 控制量 -> 真机通道码。量纲按手型区分（与训练数据集一致）。
 
     - ``brainco``：**闭合度 [0, 1]**（数据集 action 就是 0~1）-> ``round(1 + v*999)``；
-    - ``inspire``：关节角 rad -> 0.1° 角码（暂不变，因时后续再改归一化）。
+    - ``inspire`` + ``hand_action_mode=rad13``：关节角 rad -> 0.1° 角码；
+    - ``inspire`` + ``hand_action_mode=pico6``：**不走本函数**，整只手由
+      :func:`pico6_to_inspire13` 把 6 维 0~1 展开成 13 个码。
     """
     if variant == "brainco":
         return hand_percent_to_code(variant, value)
@@ -282,6 +294,123 @@ def hand_rad_to_code(variant: str, channel: int, rad: float, joint_name: str) ->
         ratio = float(rad) / limit if abs(limit) > 1e-6 else 0.0
         return hand_percent_to_code(variant, ratio)
     return inspire_rad_to_code(channel, rad)
+
+
+# ── 因时 6 维归一化策略 → 13 通道码（采集端 Pico 映射）──────────────────────
+# r13 数据集（dataset/tienkung_dex_real_pick_r13_1RGB）的 action[7:13] 与
+# observation.state[7:13] 只有 6 维归一化 0~1：0=张开、1=闭合；真机协议却是
+# SetAngle.joint_values[13]（0.1° 角码）。这里做与采集端
+# pico_joint_states_callback._control_dex_inspire_hand 完全一致的 6→13 展开。
+# 参考实现：dex_vla/ubt_IL/scripts/deploy/dex/act_control.py::pico_to_inspire。
+#
+# 输入 6 通道顺序（= 数据集列名去掉 side 前缀）：
+PICO6_INPUT_JOINTS: tuple[str, ...] = (
+    "thumb_proximal_joint",     # 0 thumb_pitch  拇指弯曲
+    "thumb_metacarpal_joint",   # 1 thumb_roll   拇指旋转
+    "index_proximal_joint",     # 2 index
+    "middle_proximal_joint",    # 3 middle
+    "ring_proximal_joint",      # 4 ring
+    "pinky_proximal_joint",     # 5 little
+)
+PICO6_INPUT_DIM = len(PICO6_INPUT_JOINTS)
+
+# (输出通道索引, 输入通道索引, 是否先 ×1.2, 固定码)
+# 侧摆通道 3/5 恒为中立 0（不能写成 mapped(0, -150, 150)，那会得到 150）。
+# ×1.2 只作用于四指指根（MCP），且必须写成 ``v + v * .2`` 以复现采集端的
+# 浮点取整边界；PIP 与拇指通道用原值。
+PICO6_TO_INSPIRE13: tuple[tuple[int, int | None, bool, int | None], ...] = (
+    (0, 5, True, None),     # 小拇指指根  <- little ×1.2
+    (1, 4, True, None),     # 无名指指根  <- ring   ×1.2
+    (2, 3, True, None),     # 中指指根    <- middle ×1.2
+    (3, None, False, 0),    # 中指侧摆    <- 固定中立
+    (4, 2, True, None),     # 食指指根    <- index  ×1.2
+    (5, None, False, 0),    # 食指侧摆    <- 固定中立
+    (6, 5, False, None),    # 小拇指指中  <- little
+    (7, 4, False, None),    # 无名指指中  <- ring
+    (8, 3, False, None),    # 中指指中    <- middle
+    (9, 2, False, None),    # 食指指中    <- index
+    (10, 1, False, None),   # 大拇指侧摆  <- thumb_roll
+    (11, 0, False, None),   # 拇指一关节  <- thumb_pitch
+    (12, 0, False, None),   # 拇指二关节  <- thumb_pitch
+)
+
+# hand_action_mode：rad13 = 老口径（13 维 rad）；pico6 = 6 维 0~1 展开成 13 码。
+HAND_ACTION_MODES = ("rad13", "pico6")
+DEFAULT_HAND_ACTION_MODE = "rad13"
+
+
+def pico6_action_joints(side: str) -> list[str]:
+    """该侧手 6 维策略列名（= 数据集 action[7:13] 的名字）。"""
+    return [f"{side}_{name}" for name in PICO6_INPUT_JOINTS]
+
+
+def pico6_to_inspire13(values: list[float] | tuple[float, ...]) -> list[int]:
+    """6 维归一化 [0,1] → 因时 13 个 0.1° 角码（输出顺序 = INSPIRE_CHANNELS）。
+
+    0 = 张开 → 码上限，1 = 闭合 → 码下限；越界输入先夹紧。取整用 ``int``
+    截断（不是 round），与采集端一致。
+    """
+    if len(values) != PICO6_INPUT_DIM:
+        raise ValueError(f"pico6 需要 {PICO6_INPUT_DIM} 维输入，收到 {len(values)}")
+    clamped = [min(max(float(v), 0.0), 1.0) for v in values]
+
+    def mapped(value: float, low: int, high: int) -> int:
+        return int(low + (1 - min(max(value, 0.0), 1.0)) * (high - low))
+
+    codes: list[int] = []
+    for channel, src, boost, fixed in PICO6_TO_INSPIRE13:
+        _, low, high, _, _ = INSPIRE_CHANNELS[channel]
+        if fixed is not None:
+            codes.append(fixed)
+            continue
+        v = clamped[int(src)]
+        codes.append(mapped(v + v * .2 if boost else v, low, high))
+    return codes
+
+
+def _assert_pico6_table() -> None:
+    """启动自检：展开表结构 + 端点码值，防表被改错后静默下发错手势。"""
+    n = len(INSPIRE_CHANNELS)
+    if len(PICO6_TO_INSPIRE13) != n:
+        raise RuntimeError("pico6 展开表长度与 INSPIRE_CHANNELS 不一致")
+    seen = [row[0] for row in PICO6_TO_INSPIRE13]
+    if sorted(seen) != list(range(n)):
+        raise RuntimeError(f"pico6 展开表通道索引不完备: {seen}")
+    for channel, src, _boost, fixed in PICO6_TO_INSPIRE13:
+        if src is None and fixed is None:
+            raise RuntimeError(f"pico6 通道 {channel} 既无输入也无固定值")
+        if src is not None and not 0 <= src < PICO6_INPUT_DIM:
+            raise RuntimeError(f"pico6 通道 {channel} 输入索引越界: {src}")
+        if fixed is not None:
+            _, low, high, _, _ = INSPIRE_CHANNELS[channel]
+            if not low <= fixed <= high:
+                raise RuntimeError(f"pico6 通道 {channel} 固定码 {fixed} 越界")
+    for label, value, expected in (
+        ("张开", [0.0] * PICO6_INPUT_DIM, [row[2] for row in INSPIRE_CHANNELS]),
+        ("闭合", [1.0] * PICO6_INPUT_DIM, [row[1] for row in INSPIRE_CHANNELS]),
+    ):
+        codes = pico6_to_inspire13(value)
+        for ch, code in enumerate(codes):
+            if ch in (3, 5):  # 侧摆固定中立，不参与端点比对
+                if code != 0:
+                    raise RuntimeError(f"pico6 {label}: 侧摆通道 {ch} 应为 0，得到 {code}")
+            elif code != expected[ch]:
+                raise RuntimeError(
+                    f"pico6 {label}: 通道 {ch} 应为 {expected[ch]}，得到 {code}"
+                )
+
+
+def _assert_pico6_joints(side: str, joints_from_plugin: list[str] | None) -> list[str]:
+    """校验插件传下来的 6 维策略列序，防止数据集顺序与展开表错位。"""
+    expected = pico6_action_joints(side)
+    if joints_from_plugin:
+        stripped = [name.removesuffix(".pos") for name in joints_from_plugin]
+        if stripped != expected:
+            raise RuntimeError(
+                f"插件传入的{side}手 6 维动作列序与桥接展开表不一致：\n"
+                f"  插件: {stripped}\n  桥接: {expected}"
+            )
+    return expected
 
 
 def _assert_hand_table(
@@ -326,6 +455,13 @@ _DEFAULT_CFG = {
     "ros_namespace": "",
     "cmd_namespace": "",
     "hand_variant": DEFAULT_VARIANT,
+    # 因时手的策略侧量纲：rad13（老 20D，13 维 rad）| pico6（r13 数据集，6 维 0~1）。
+    # 可用 {side}_hand_action_mode 覆盖单侧；pico6 仅对 hand_variant=inspire 有效。
+    "hand_action_mode": DEFAULT_HAND_ACTION_MODE,
+    # pico6 模式下插件透传的 6 维策略列名（带 .pos 后缀），用于启动逐字比对；
+    # 硬件 13 通道名仍走 {side}_hand_joints + _assert_hand_table。
+    "right_hand_action_joints": [],
+    "left_hand_action_joints": [],
     "right_arm_motor_ids": list(RIGHT_ARM_MOTOR_IDS),
     # 左侧/头部默认关闭：老配置（13D/20D 只有右臂右手）行为完全不变。
     # 双臂数据训练时由插件 to_bridge_config() 打开对应开关。
@@ -483,6 +619,29 @@ class RealRobotBridge:
             if variant not in HAND_CHANNEL_COUNT:
                 raise RuntimeError(f"未知 {side}_hand_variant: {variant!r}")
 
+        # 因时手的策略侧动作量纲（可按侧覆盖）。pico6 只对 inspire 有效：
+        # 强脑本来就是 6 维 0~1，不需要展开。
+        self._hand_action_mode: dict[str, str] = {}
+        for side in ("left", "right"):
+            mode = (
+                cfg.get(f"{side}_hand_action_mode")
+                or cfg.get("hand_action_mode")
+                or DEFAULT_HAND_ACTION_MODE
+            )
+            if mode not in HAND_ACTION_MODES:
+                raise RuntimeError(
+                    f"未知 {side}_hand_action_mode: {mode!r}（可选 {HAND_ACTION_MODES}）"
+                )
+            if (mode == "pico6" and self._enable[f"{side}_hand"]
+                    and self._hand_variant[side] != "inspire"):
+                raise RuntimeError(
+                    f"{side}_hand_action_mode=pico6 要求 {side}_hand_variant=inspire，"
+                    f"实际为 {self._hand_variant[side]!r}"
+                )
+            self._hand_action_mode[side] = mode
+        if any(mode == "pico6" for mode in self._hand_action_mode.values()):
+            _assert_pico6_table()
+
         self._arm_sides = [s for s in ("right", "left") if self._enable[f"{s}_arm"]]
         self._hand_sides = [s for s in ("right", "left") if self._enable[f"{s}_hand"]]
         self._sides = [s for s in ("right", "left") if s in self._arm_sides or s in self._hand_sides]
@@ -537,15 +696,32 @@ class RealRobotBridge:
         self._hand_topic_state: dict[str, str] = {}
         self._hand_joints: dict[str, list[str]] = {}
         self._hand_channel_count: dict[str, int] = {}
+        # ZMQ 里 right_hand / left_hand 的维度（动作与状态同维）：
+        #   rad13  = 硬件通道数（因时 13 / 强脑 6）
+        #   pico6  = 6（策略侧归一化列），硬件仍固定 13 通道
+        self._hand_action_joints: dict[str, list[str]] = {}
+        self._hand_action_dim: dict[str, int] = {
+            side: HAND_CHANNEL_COUNT[self._hand_variant[side]] for side in ("left", "right")
+        }
+        self._hand_state_dim: dict[str, int] = dict(self._hand_action_dim)
         for side in self._hand_sides:
             variant = self._hand_variant[side]
             default_cmd, default_state = _HAND_TOPICS[variant][side]
             self._hand_topic_cmd[side] = cfg.get(f"topic_{side}_hand_cmd") or default_cmd
             self._hand_topic_state[side] = cfg.get(f"topic_{side}_hand_state") or default_state
+            # 物理通道表永远是 13（因时）/ 6（强脑），与动作模式无关。
             self._hand_joints[side] = _assert_hand_table(
                 variant, side, cfg.get(f"{side}_hand_joints")
             )
             self._hand_channel_count[side] = HAND_CHANNEL_COUNT[variant]
+            if self._hand_action_mode[side] == "pico6":
+                self._hand_action_joints[side] = _assert_pico6_joints(
+                    side, cfg.get(f"{side}_hand_action_joints")
+                )
+                self._hand_action_dim[side] = PICO6_INPUT_DIM
+                # 状态回显 6 维指令：r13 数据集 observation.state 手部是
+                # action 的副本（fill_state_from_action），采集端也是手部开环。
+                self._hand_state_dim[side] = PICO6_INPUT_DIM
 
         ros_namespace = (cfg.get("ros_namespace") or "").rstrip("/")
         cmd_namespace = (cfg.get("cmd_namespace") or "").rstrip("/")
@@ -564,9 +740,10 @@ class RealRobotBridge:
         # State caches（左右两侧都建，便于未启用侧也有确定值/别名）
         self._arm_jpos = {side: [0.0] * len(self._arm_motor_ids[side]) for side in ("left", "right")}
         self._hand_pos = {
-            side: [0.0] * HAND_CHANNEL_COUNT[self._hand_variant[side]]
-            for side in ("left", "right")
+            side: [0.0] * self._hand_state_dim[side] for side in ("left", "right")
         }
+        # pico6 模式下保留真机 13 个反馈码（仅日志/健康检查，不进策略状态）
+        self._hand_feedback_codes: dict[str, list[int]] = {"left": [], "right": []}
         self._head_pos = [0.0] * len(self._head_motor_ids)
         # 兼容旧引用
         self._right_arm_motor_ids = self._arm_motor_ids["right"]
@@ -654,16 +831,26 @@ class RealRobotBridge:
             )
         for side in self._hand_sides:
             variant = self._hand_variant[side]
+            mode = self._hand_action_mode[side]
+            label = "左" if side == "left" else "右"
             logger.info(
-                "%s手(%s) 通道 -> 关节: %s", "左" if side == "left" else "右", variant,
+                "%s手(%s) 通道 -> 关节: %s", label, variant,
                 dict(enumerate(self._hand_joints[side])),
             )
-            logger.info(
-                "%s手控制量口径: %s", "左" if side == "left" else "右",
-                "闭合度 0~1 -> 码 1~1000（brainco，与训练数据集一致）"
-                if variant == "brainco"
-                else "关节角 rad -> 0.1° 角码（inspire）",
-            )
+            if mode == "pico6":
+                logger.info(
+                    "%s手控制量口径: 6 维归一化 0~1（0=张开/1=闭合）-> 13 个 0.1° 角码；"
+                    "状态回显 6 维指令（开环，与 r13 数据集 state=action 一致）", label,
+                )
+                logger.info("%s手动作列序: %s", label, self._hand_action_joints[side])
+                logger.info("%s手 6→13 展开表: %s", label, PICO6_TO_INSPIRE13)
+            else:
+                logger.info(
+                    "%s手控制量口径: %s", label,
+                    "闭合度 0~1 -> 码 1~1000（brainco，与训练数据集一致）"
+                    if variant == "brainco"
+                    else "关节角 rad -> 0.1° 角码（inspire，rad13）",
+                )
         if not self._enable["head"]:
             logger.info("头部未启用（enable_head=false）")
 
@@ -837,15 +1024,26 @@ class RealRobotBridge:
         强脑的空闲/忙时无效帧（现场实测 ``positions=65535``、``states=255``）不参与
         换算——``(65535-1)/999`` 夹取后是 1.0，会让策略把"无数据"看成"全闭合"。
         这类通道保留上一帧有效值。
+
+        ``hand_action_mode=pico6`` 时**不反解反馈**：6→13 不是单射（指根 ×1.2、
+        侧摆恒 0、拇指两节同源），且 r13 数据集的 ``observation.state`` 手部本来
+        就是 action 副本、采集端也是开环。反馈码只留作日志/健康检查，策略状态由
+        :meth:`_publish_hand_command` 回显 6 维指令。
         """
         variant = self._hand_variant[side]
         count = self._hand_channel_count[side]
         joints = self._hand_joints[side]
+        mode = self._hand_action_mode[side]
         label = "左" if side == "left" else "右"
 
         def callback(msg: Any) -> None:
             raw = list(msg.positions) if variant == "brainco" else list(msg.joint_values)
             if len(raw) < count:
+                return
+
+            if mode == "pico6":
+                with self._state_lock:
+                    self._hand_feedback_codes[side] = [int(code) for code in raw[:count]]
                 return
 
             if variant == "brainco":
@@ -1024,7 +1222,11 @@ class RealRobotBridge:
         self._head_pub.publish(msg)
 
     def _publish_hand_command(self, position: list, side: str) -> None:
-        """单只手的手指指令。手部通道是定长数组，只能整只手启停。"""
+        """单只手的手指指令。硬件通道是定长数组，只能整只手启停。
+
+        ``pico6`` 模式下 ZMQ 动作是 6 维 0~1，先夹紧再整只手展开成 13 个角码；
+        ``rad13`` / ``brainco`` 走原来的逐通道换算（动作维度 = 硬件通道数）。
+        """
         if not position:
             return
         if self._estop:
@@ -1032,14 +1234,35 @@ class RealRobotBridge:
         variant = self._hand_variant[side]
         count = self._hand_channel_count[side]
         joints = self._hand_joints[side]
-        if len(position) != count:
+        mode = self._hand_action_mode[side]
+        action_dim = self._hand_action_dim[side]
+        if len(position) != action_dim:
             logger.warning(
-                "%s_hand 维度不匹配: %d (期望 %d). Skipping.", side, len(position), count
+                "%s_hand 维度不匹配: %d (期望 %d, mode=%s). Skipping.",
+                side, len(position), action_dim, mode,
             )
             return
 
-        # 控制量 -> 真机通道码：强脑=闭合度[0,1] -> 1~1000；因时=rad -> 0.1° 角码
-        codes = [hand_action_to_code(variant, ch, position[ch], joints[ch]) for ch in range(count)]
+        if mode == "pico6":
+            clamped = [min(max(float(v), 0.0), 1.0) for v in position]
+            if any(a != b for a, b in zip(clamped, position)):
+                logger.debug("%s_hand 动作超出 [0,1]，已夹紧: %s -> %s", side, position, clamped)
+            codes = pico6_to_inspire13(clamped)
+            # 兜底：逐通道夹到硬件限位（展开表按限位构造，正常不会触发）
+            codes = [
+                min(max(code, INSPIRE_CHANNELS[ch][1]), INSPIRE_CHANNELS[ch][2])
+                for ch, code in enumerate(codes)
+            ]
+            # 状态回显 6 维指令：与 r13 数据集 observation.state 同口径
+            with self._state_lock:
+                self._hand_pos[side][:] = clamped
+            self._publish_status()
+        else:
+            # 控制量 -> 真机通道码：强脑=闭合度[0,1] -> 1~1000；因时=rad -> 0.1° 角码
+            codes = [
+                hand_action_to_code(variant, ch, position[ch], joints[ch])
+                for ch in range(count)
+            ]
 
         msg = self._hand_msgs[side]["command"]()
         if variant == "brainco":
@@ -1184,6 +1407,9 @@ def _parse_args() -> argparse.Namespace:
                              "(recommended). If omitted, legacy CLI args or defaults are used.")
     parser.add_argument("--variant", type=str, default=None, choices=["inspire", "brainco"],
                         help="灵巧手变体（默认取 config 里的 hand_variant）")
+    parser.add_argument("--hand-action-mode", type=str, default=None,
+                        choices=list(HAND_ACTION_MODES),
+                        help="因时手动作量纲：rad13=13 维 rad；pico6=6 维 0~1 展开成 13 码")
     parser.add_argument("--domain-id", type=int, default=None,
                         help="覆盖 ROS_DOMAIN_ID（146=仿真，0=真机）；必须在 rclpy.init 前设置")
     parser.add_argument("--enable-image", action="store_true",
@@ -1217,6 +1443,8 @@ def main() -> int:
 
     if args.variant is not None:
         cfg["hand_variant"] = args.variant
+    if args.hand_action_mode is not None:
+        cfg["hand_action_mode"] = args.hand_action_mode
     if args.enable_image:
         cfg["image_enabled"] = True
     if args.zmq_cmd_port is not None:

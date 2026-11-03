@@ -51,6 +51,7 @@ def install() -> None:
         print("  lerobot-rollout --robot.type=tienkung_dex --policy.path=<model> ...")
         print("  20-DOF（因时 13 手）:  --robot.joint_config=tienkung_dex_20")
         print("  13-DOF（强脑 6 手）:   --robot.joint_config=tienkung_dex_brainco_13")
+        print("  13-DOF（因时 r13 6维0~1）: --robot.joint_config=tienkung_dex_inspire_13")
     else:
         print(f"Verification failed:\n{result.stderr}")
         sys.exit(1)

@@ -6,6 +6,9 @@
 
 - 目标机器：NVIDIA **Thor**，Ubuntu 24.04，**ROS 2 Jazzy**，python 3.12，torch 2.9.1+cu130（`sm_110`）
 - 实物手型：**强脑 BrainCo Revo2（6 电机，SDK 1–1000 闭合度）** → `JOINT_CONFIG=tienkung_dex_brainco_13`
+- 因时 RH56 手（r13 数据集）→ `JOINT_CONFIG=tienkung_dex_inspire_13`：策略侧也是
+  **13D = 右臂 7 + 右手 6 维归一化 0~1**，由 Bridge2 展开成 13 个 0.1° 角码
+  （详见 `../README.md`「手部量纲」）。
 - 动作空间：**13D = 右臂 7 + 右手 6**；左臂/腰/头不进模型（`robot_ready` 摆位后保持）
 
 ## 1 架构（双 Python 栈，ZMQ 解耦）
@@ -63,7 +66,8 @@ POLICY_PATH=/abs/pretrained_model \
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `POLICY_PATH` | 无（必填） | checkpoint 的 `pretrained_model` 目录 |
-| `JOINT_CONFIG` | `tienkung_dex_brainco_13` | 强脑 6 电机；因时用 `tienkung_dex_20` |
+| `JOINT_CONFIG` | `tienkung_dex_brainco_13` | 强脑 6 电机；因时 20D 用 `tienkung_dex_20`；因时 r13 数据集用 `tienkung_dex_inspire_13` |
+| `HAND_ACTION_MODE` | 空（自动） | 留空由 `JOINT_CONFIG` 推导；`tienkung_dex_inspire_13` → `pico6` |
 | `FPS` | `15` | 必须 = 数据集帧率 |
 | `CAMERA_PORT` / `IMAGE_ENABLED` | `5558` / `1` | 真机走 Bridge2 转码 |
 | `CAMERA_WIDTH/HEIGHT` | `640×360` | 同时用于 Bridge2 缩放与 `dex_camera` 裁剪窗口 |

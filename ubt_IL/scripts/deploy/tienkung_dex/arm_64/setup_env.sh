@@ -79,15 +79,22 @@ import lerobot
 from lerobot_robot_tienkung_dex import TienKungDexRobotConfig, DexCamera  # noqa: F401
 
 cfgs = {}
-for name in ("tienkung_dex_brainco_13", "tienkung_dex_20"):
+for name in ("tienkung_dex_brainco_13", "tienkung_dex_20", "tienkung_dex_inspire_13"):
     cfg = TienKungDexRobotConfig(joint_config=name)
     cfgs[name] = cfg
-    print(f"joint_config={name:24s} dim={len(cfg.all_joints):2d} hand={cfg.hand_variant}")
+    print(f"joint_config={name:26s} dim={len(cfg.all_joints):2d} hand={cfg.hand_variant} "
+          f"mode={cfg.hand_action_mode} action_hand={len(cfg.right_hand_action_joints)}")
 
 cfg = cfgs["tienkung_dex_brainco_13"]
 assert len(cfg.all_joints) == 13 and cfg.hand_variant == "brainco"
 assert cfg.topic_right_hand_cmd == "/right_hand/set_motor_multi"
-print("dex_camera 已注册 | 13D 契约: 右臂7 + 强脑6电机")
+insp = cfgs["tienkung_dex_inspire_13"]
+assert (len(insp.all_joints) == 13 and insp.hand_variant == "inspire"
+        and insp.hand_action_mode == "pico6"
+        and len(insp.right_hand_action_joints) == 6
+        and len(insp.right_hand_joints) == 13
+        and len(insp.hand_open_position) == 6)
+print("dex_camera 已注册 | 13D 契约: 右臂7 + 强脑6电机；因时 pico6: 6 维 0~1 -> 13 通道码")
 
 # Bridge2 需要的关节序（插件传给桥接、桥接逐字断言）
 print("right_hand_joints:", [j.removesuffix(".pos") for j in cfg.right_hand_joints])

@@ -621,7 +621,9 @@ def hand_action_to_code(variant: str, channel: int, value: float, joint_name: st
     """策略动作 -> 真机通道码。量纲按手型区分（与训练数据集一致）。
 
     - ``brainco``：**闭合度 [0, 1]**（数据集 action 就是 0~1）-> ``round(1 + v*999)``；
-    - ``inspire``：关节角 rad -> 0.1° 角码（因时后续再改归一化 + 13 维展开）。
+    - ``inspire`` + ``rad13``：关节角 rad -> 0.1° 角码；
+    - ``inspire`` + ``pico6``：**不走本函数**，6 维 0~1 整只手由 Bridge2 的
+      ``pico6_to_inspire13`` 展开成 13 个码（插件只做 [0,1] 夹紧）。
     """
     if variant == "brainco":
         return hand_percent_to_code(variant, value)
@@ -818,6 +820,27 @@ def default_inactive_fill(variant: str = DEFAULT_VARIANT) -> dict[str, float]:
 
 # ── DOF 枚举：定义 all_joints（policy 维度与顺序 = 数据集顺序）──
 # 成员名须取自 canonical_joint_names()；成员顺序须与数据集 action/state 顺序一致。
+
+# 13D r13 数据集的 6 个手部列名（不含 side 前缀）。强脑 6 电机与因时的
+# Pico 采集 6 通道共用这组名字与顺序：
+#   [thumb_pitch, thumb_roll, index, middle, ring, little]
+# 因时 pico6 模式下这 6 维是归一化 0~1，由 Bridge2 展开成 13 个角码；
+# 这里只定义列名，展开数学只在桥接（避免第四份常量副本）。
+PICO6_JOINT_NAMES: tuple[str, ...] = (
+    "thumb_proximal_joint",     # thumb_pitch
+    "thumb_metacarpal_joint",   # thumb_roll
+    "index_proximal_joint",     # index
+    "middle_proximal_joint",    # middle
+    "ring_proximal_joint",     # ring
+    "pinky_proximal_joint",    # little
+)
+
+
+def pico6_action_joints(side: str = "right") -> list[str]:
+    """该侧手 6 维策略列名（= r13 数据集 action[7:13] 的名字）。"""
+    return [f"{side}_{name}" for name in PICO6_JOINT_NAMES]
+
+
 class TienKungDex20JointIndex(IntEnum):
     """20-DOF（右臂 7 + 右手因时 13），顺序 = 数据集 20 维顺序。
 
@@ -851,11 +874,15 @@ class TienKungDex20JointIndex(IntEnum):
     right_pinky_pip_joint = 19
 
 
-class TienKungDexBrainco13JointIndex(IntEnum):
-    """13-DOF（右臂 7 + 右手强脑 6 电机），供 BrainCo 实物采集的数据训练用。
+class TienKungDex13JointIndex(IntEnum):
+    """13-DOF（右臂 7 + 右手 6 维），列名 = r13 数据集 action/state 顺序。
 
-    手部按强脑电机序（thumb_flex / thumb_rot / index / middle / ring / pinky），
-    远端关节在 URDF 里是 mimic，不作为动作维度。
+    手部 6 列是 ``[thumb_proximal, thumb_metacarpal, index/middle/ring/pinky_proximal]``：
+    - ``tienkung_dex_brainco_13``：强脑 6 电机闭合度 0~1，桥接逐通道出 1~1000 码；
+    - ``tienkung_dex_inspire_13``：因时手的 Pico 采集 6 通道 0~1，桥接按
+      ``pico6_to_inspire13`` 展开成 13 个 0.1° 角码。
+    两者共用同一组列名与顺序，手型/量纲由 ``DOF_HAND_VARIANT`` 与
+    ``DOF_HAND_ACTION_MODE`` 区分，不在这个枚举里区分。
     """
 
     # Right arm (0-6)
@@ -875,16 +902,30 @@ class TienKungDexBrainco13JointIndex(IntEnum):
     right_pinky_proximal_joint = 12
 
 
+# 兼容旧引用（外部脚本可能按旧类名导入）
+TienKungDexBrainco13JointIndex = TienKungDex13JointIndex
+
 # DOF 名 -> (枚举类, 手型) 注册表（新增 DOF：定义 IntEnum + 在此注册即可）
 JOINT_INDEX_ENUMS: dict[str, type] = {
     "tienkung_dex_20": TienKungDex20JointIndex,
-    "tienkung_dex_brainco_13": TienKungDexBrainco13JointIndex,
+    "tienkung_dex_brainco_13": TienKungDex13JointIndex,
+    "tienkung_dex_inspire_13": TienKungDex13JointIndex,
 }
 
 # 每个 DOF 配置绑定的手型（joint_config 决定 hand_variant，避免两者配错）
 DOF_HAND_VARIANT: dict[str, str] = {
     "tienkung_dex_20": "inspire",
     "tienkung_dex_brainco_13": "brainco",
+    "tienkung_dex_inspire_13": "inspire",
+}
+
+# 每个 DOF 配置绑定的策略侧手动作量纲（传给 Bridge2 的 hand_action_mode）：
+#   rad13 = 动作维度 = 硬件通道数（20D 因时 rad / 强脑 6 维 0~1）
+#   pico6 = 6 维归一化 0~1，由 Bridge2 展开成因时 13 通道码
+DOF_HAND_ACTION_MODE: dict[str, str] = {
+    "tienkung_dex_20": "rad13",
+    "tienkung_dex_brainco_13": "rad13",
+    "tienkung_dex_inspire_13": "pico6",
 }
 
 

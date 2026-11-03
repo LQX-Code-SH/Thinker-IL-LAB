@@ -128,6 +128,7 @@ _PARAM_MAP = [
     ("policy_path", "POLICY_PATH"),
     ("joint_config", "JOINT_CONFIG"),
     ("hand_variant", "HAND_VARIANT"),
+    ("hand_action_mode", "HAND_ACTION_MODE"),
     ("fps", "FPS"),
     ("task", "TASK"),
     ("camera_port", "CAMERA_PORT"),
@@ -245,9 +246,11 @@ def _add_param_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--policy-path", dest="policy_path", default=None,
                    help="pretrained_model 目录路径（launch 必填）")
     p.add_argument("--joint-config", dest="joint_config", default=None,
-                   help="关节配置：tienkung_dex_20 | tienkung_dex_brainco_13")
+                   help="关节配置：tienkung_dex_20 | tienkung_dex_brainco_13 | tienkung_dex_inspire_13")
     p.add_argument("--hand-variant", dest="hand_variant", default=None,
                    help="手型 inspire|brainco（留空跟随 joint-config）")
+    p.add_argument("--hand-action-mode", dest="hand_action_mode", default=None,
+                   help="因时手动作量纲 rad13|pico6（留空由 joint-config 推导）")
     p.add_argument("--fps", type=int, default=None, help="控制环 FPS（默认 15）")
     p.add_argument("--task", default=None, help="任务描述字符串")
     p.add_argument("--camera-port", dest="camera_port", type=int, default=None,

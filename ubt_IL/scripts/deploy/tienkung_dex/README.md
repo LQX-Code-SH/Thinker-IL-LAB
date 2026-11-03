@@ -1,7 +1,14 @@
 # TienKung Dex（天工行者 Dex V3）部署
 
-容器内执行。动作空间 **20D = 右臂 7 + 右手 13（因时 Inspire）**；强脑 BrainCo 用
-13D = 右臂 7 + 右手 6。左臂 / 腰 / 头 / 腿**不进模型**——数据里它们全程恒定，由
+容器内执行。动作空间有三种配置：
+
+| `JOINT_CONFIG` | 维度 | 手 | 策略侧手量纲 |
+|---|---|---|---|
+| `tienkung_dex_20` | 20D = 右臂 7 + 右手 13 | 因时 Inspire | 13 维关节角 rad |
+| `tienkung_dex_brainco_13` | 13D = 右臂 7 + 右手 6 | 强脑 BrainCo | 6 维闭合度 0~1 |
+| `tienkung_dex_inspire_13` | 13D = 右臂 7 + 右手 6 | 因时 Inspire | **6 维归一化 0~1**，Bridge2 展开成 13 个角码 |
+
+左臂 / 腰 / 头 / 腿**不进模型**——数据里它们全程恒定，由
 `robot_ready.sh` 摆到预备位后保持不动。
 
 | 脚本 | 用途 |
@@ -88,8 +95,9 @@ bash /ubt_IL/scripts/deploy/tienkung_dex/rollout.sh
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `POLICY_PATH` | **必填** | checkpoint 目录（含 `config.json`） |
-| `JOINT_CONFIG` | `tienkung_dex_20` | `tienkung_dex_20`（因时 13 通道）/ `tienkung_dex_brainco_13`（强脑 6 电机） |
+| `JOINT_CONFIG` | `tienkung_dex_20` | `tienkung_dex_20`（因时 13 rad）/ `tienkung_dex_brainco_13`（强脑 6 电机）/ `tienkung_dex_inspire_13`（因时 6 维 0~1 → 13 码） |
 | `HAND_VARIANT` | 空 | 留空跟随 `JOINT_CONFIG`；显式填写时两者必须一致 |
+| `HAND_ACTION_MODE` | 空（自动） | 留空由 `JOINT_CONFIG` 推导；排查时可显式 `rad13` / `pico6`，必须与 `JOINT_CONFIG` 一致 |
 | `STRATEGY` | `base` | rollout 策略类型 |
 | `FPS` | `15` | 控制环频率（= 数据集帧率） |
 | `DURATION` | `60` | 运行时长（秒） |
@@ -213,30 +221,60 @@ ROS_DOMAIN_ID=146 /usr/bin/python3 reset.py           # 默认重复发 3 次
                  pinky_mcp, pinky_pip
 ```
 
-⚠️ **数据集手序 ≠ 因时通道序**。数据集按 URDF（thumb→pinky），`INSPIRE_CHANNELS`
-按 pinky→thumb，落地映射是 `[10,11,12,5,4,9,3,2,8,1,7,0,6]`。Bridge2 按关节名
-散列，不按位；启动时逐字比对关节名，不一致直接拒启。
+⚠️ **数据集手序 ≠ 因时通道序**（20D）。数据集按 URDF（thumb→pinky），
+`INSPIRE_CHANNELS` 按 pinky→thumb，落地映射是
+`[10,11,12,5,4,9,3,2,8,1,7,0,6]`。Bridge2 按关节名散列，不按位；启动时逐字
+比对关节名，不一致直接拒启。pico6 模式则固定按 6 维列序展开，不走按名散射。
 
-### 手部量纲（强脑 13D）
+### 手部量纲
 
-```
-[0-6]   右臂 7 : shoulder_pitch_r … wrist_roll_r     单位 rad
-[7-12]  右手 6 : thumb_proximal, thumb_metacarpal,
-                 index/middle/ring/pinky_proximal     单位 **闭合度 0~1**
-```
+三种口径由 `JOINT_CONFIG` 自动选择（也可用 `HAND_ACTION_MODE` 显式覆盖）：
 
-训练数据集（`tienkung_dex_real_pick_apple_brainco_13d`）的 `action` 与
-`observation.state` 手部 6 维都是 **0~1**（convert 配置
-`scale=1/999, offset=-1/999`）。因此 Bridge2 与插件对 `brainco` 统一按该口径：
+**强脑 13D（rad13）**：右臂 7 rad + 右手 6 维闭合度 0~1。
+数据集 `tienkung_dex_real_pick_apple_brainco_13d` 的 action/state 都是 0~1
+（convert 配置 `scale=1/999, offset=-1/999`）。
 
 | 方向 | 换算 |
 |---|---|
 | 动作（ZMQ → 真机） | `code = round(1 + v*999)`（1=伸直，1000=弯曲） |
 | 状态（真机 → ZMQ） | `v = (code-1)/999` |
 
-`inspire`（20D 因时）暂时仍是 rad 口径，后续再改归一化 + 13 维展开。
-注意：绕过插件直接给 Bridge2 喂 `right_hand` 时，`brainco` 必须给 0~1，给 rad 会被
-当成 "0~1 上限" 截断（最多到码 644~955，手指抓不紧）。
+**因时 20D（rad13）**：右臂 7 rad + 右手 13 维关节角 rad；Bridge2 逐通道
+`inspire_rad_to_code` 转成 0.1° 角码，状态也是 13 维 rad。
+
+**因时 r13 13D（pico6，新）**：数据集 `tienkung_dex_real_pick_r13_1RGB` 的
+action/state 手部只有 6 维归一化 0~1（0=张开、1=闭合），列序 =
+
+```
+[7] right_thumb_proximal   (thumb_pitch)   [10] right_middle_proximal (middle)
+[8] right_thumb_metacarpal (thumb_roll)    [11] right_ring_proximal   (ring)
+[9] right_index_proximal   (index)         [12] right_pinky_proximal  (little)
+```
+
+Bridge2 的 `pico6_to_inspire13()` 把 6 维展开成 `SetAngle.joint_values[13]`，
+与采集端 `pico_joint_states_callback._control_dex_inspire_hand` 逐码一致：
+
+| 输出通道 | 来源 | 计算 |
+|---|---|---|
+| 0/1/2/4 四指指根 | little/ring/middle/index | `mapped(clamp01(v + v*0.2), 900, 1650)` |
+| 3/5 中指/食指侧摆 | 无 | 固定 0（中立） |
+| 6/7/8/9 四指指中 | little/ring/middle/index | `mapped(v, 1150, 1900)` |
+| 10 拇指侧摆 | thumb_roll | `mapped(v, 650, 1750)` |
+| 11/12 拇指两节 | thumb_pitch | `mapped(v, 1250, 1600)` / `mapped(v, 1500, 2040)` |
+
+`mapped(v, low, high) = int(low + (1 - clamp01(v)) * (high - low))`，即
+**0 → 码上限（张开）、1 → 码下限（闭合）**；用 `int` 截断，不是 `round`。
+全 0 → `(1650,1650,1650,0,1650,0,1900,1900,1900,1900,1750,1600,2040)`；
+全 1 → `(900,900,900,0,900,0,1150,1150,1150,1150,650,1250,1500)`。
+启动时 `_assert_pico6_table()` 会自检表结构与端点码值。
+
+**状态侧**：r13 数据集的 `observation.state` 手部是 action 副本（repair 配置
+`fill_state_from_action`），采集端也是开环；所以 Bridge2 **回显上次成功下发的
+6 维夹紧值**，`/right_hand/angle_actual` 的 13 个反馈码只留作日志/健康检查，
+不反解、不进策略状态（6→13 非单射：指根 ×1.2、侧摆恒 0、拇指双节同源）。
+
+⚠️ 绕过插件直接给 Bridge2 喂 `right_hand` 时：`brainco` / `pico6` 必须给 0~1；
+`rad13` 必须给 13 维 rad，给 0~1 会被当成 rad，手指几乎不动。
 
 ### Bridge2 组组合与颗粒度
 

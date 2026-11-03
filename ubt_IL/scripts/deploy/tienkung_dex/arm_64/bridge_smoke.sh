@@ -3,8 +3,10 @@
 # 适合在预备位/rollout 之前跑，也可作为"今天机器还通不通"的体检。
 #
 # 用法：
-#   bash bridge_smoke.sh             # 8 秒采样
+#   bash bridge_smoke.sh             # 8 秒采样（默认强脑只读）
 #   SMOKE_SECONDS=15 bash bridge_smoke.sh
+#   HAND_VARIANT=inspire HAND_ACTION_MODE=pico6 bash bridge_smoke.sh
+#     ↑ 因时 r13 链路：状态 right_hand 应为 6 维（6 维 0~1 回显）
 #
 # 判据（脚本会自己给结论）：
 #   status ≥ 30 Hz、image ≥ 10 fps、estop=false、无消息包缺失
@@ -20,9 +22,12 @@ dex_source_ros
 dex_check_msgs
 
 echo "[smoke] 启动 Bridge2（只订阅，不发布控制指令）..."
+EXTRA_ARGS=()
+[ -n "${HAND_VARIANT:-}" ] && EXTRA_ARGS+=(--variant "$HAND_VARIANT")
+[ -n "${HAND_ACTION_MODE:-}" ] && EXTRA_ARGS+=(--hand-action-mode "$HAND_ACTION_MODE")
 "$SYSPY" "$BRIDGE_SCRIPT" \
     --config "{\"hand_variant\":\"brainco\",\"image_width\":${CAMERA_WIDTH:-640},\"image_height\":${CAMERA_HEIGHT:-360},\"image_compressed\":${IMAGE_COMPRESSED:-true}}" \
-    --enable-image > "$LOG" 2>&1 &
+    --enable-image "${EXTRA_ARGS[@]}" > "$LOG" 2>&1 &
 BRIDGE_PID=$!
 trap 'kill -TERM $BRIDGE_PID 2>/dev/null || true' EXIT
 sleep 4

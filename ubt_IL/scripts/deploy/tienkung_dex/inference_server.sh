@@ -20,6 +20,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 POLICY_PATH="${POLICY_PATH:-}"
 JOINT_CONFIG="${JOINT_CONFIG:-tienkung_dex_20}"
 HAND_VARIANT="${HAND_VARIANT:-}"
+# 留空 = 由 JOINT_CONFIG 自动推导（tienkung_dex_inspire_13 → pico6）
+HAND_ACTION_MODE="${HAND_ACTION_MODE:-}"
 STRATEGY="${STRATEGY:-base}"
 # 控制环频率 = 数据集帧率（15 Hz）
 FPS="${FPS:-15}"
@@ -165,6 +167,7 @@ cd /ubt_IL/lerobot || { echo "[ERROR] /ubt_IL/lerobot 不存在"; exit 1; }
 ROBOT_ARGS=(--robot.type=tienkung_dex --robot.bridge_enabled=true
             --robot.joint_config="$JOINT_CONFIG")
 [ -n "$HAND_VARIANT" ] && ROBOT_ARGS+=(--robot.hand_variant="$HAND_VARIANT")
+[ -n "$HAND_ACTION_MODE" ] && ROBOT_ARGS+=(--robot.hand_action_mode="$HAND_ACTION_MODE")
 [ "$IMAGE_ENABLED" = "1" ] && ROBOT_ARGS+=(--robot.image_enabled=true)
 [ -n "$MAX_RELATIVE_TARGET" ] && ROBOT_ARGS+=(--robot.max_relative_target="$MAX_RELATIVE_TARGET")
 

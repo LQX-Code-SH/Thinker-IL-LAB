@@ -106,7 +106,8 @@ bash /ubt_IL/scripts/deploy/tienkung_dex/rollout.sh
 - 真机部署：→ [real-workflow.md §6](./real-workflow.md#6-模型部署真机)
 - 脚本清单与全部环境变量：→ [scripts/deploy/tienkung_dex/README.md](../../scripts/deploy/tienkung_dex/README.md)
 
-> 注意：`JOINT_CONFIG` 必须与训练 DOF 一致（因时 `tienkung_dex_20` / 强脑 `tienkung_dex_brainco_13`）。
+> 注意：`JOINT_CONFIG` 必须与训练 DOF 一致（因时 20D `tienkung_dex_20` / 强脑 `tienkung_dex_brainco_13` /
+> 因时 r13 数据集 `tienkung_dex_inspire_13`，后者自动启用 6 维 0~1 → 13 码展开）。
 > **预备位不是回零**，也不能一步跳到预备位——从站立位直达会让手贴着桌面从体侧扫过去。
 
 ## 7. 相机链路

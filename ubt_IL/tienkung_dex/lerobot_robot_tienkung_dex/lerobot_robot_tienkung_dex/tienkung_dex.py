@@ -100,9 +100,18 @@ class TienKungDexRobot(Robot):
 
         # Joint definitions from config (replace module-level constants)
         self._right_arm_joints = config.right_arm_joints
+        # 硬件物理通道名（因时 13 / 强脑 6）只给 Bridge2 做通道表比对；
+        # ZMQ right_hand / left_hand 的维度由**策略侧列名**决定：
+        #   rad13 = 物理通道名（13/6）；pico6 = r13 数据集的 6 个归一化列名。
         self._right_hand_joints = config.right_hand_joints
+        self._right_hand_action_joints = (
+            getattr(config, "right_hand_action_joints", None) or self._right_hand_joints
+        )
         self._left_arm_joints = config.left_arm_joints
         self._left_hand_joints = config.left_hand_joints
+        self._left_hand_action_joints = (
+            getattr(config, "left_hand_action_joints", None) or self._left_hand_joints
+        )
         self._head_joints = config.head_joints
         self._all_joints = config.all_joints
         # 非激活关节(不在 all_joints 中的硬件关节)的静态填充值,部署时用于
@@ -118,10 +127,10 @@ class TienKungDexRobot(Robot):
         # Thread-safe state caches
         self._state_lock = threading.Lock()
         self._right_arm_jpos: list[float] = [0.0] * len(config.right_arm_joints)
-        self._right_hand_pos: list[float] = [0.0] * len(config.right_hand_joints)
+        self._right_hand_pos: list[float] = [0.0] * len(self._right_hand_action_joints)
         # 可选组（左侧 / 头部）：未启用时保持空缓存，状态里不会出现
         self._left_arm_jpos: list[float] = [0.0] * len(config.left_arm_joints)
-        self._left_hand_pos: list[float] = [0.0] * len(config.left_hand_joints)
+        self._left_hand_pos: list[float] = [0.0] * len(self._left_hand_action_joints)
         self._head_pos: list[float] = [0.0] * len(config.head_joints)
         self._estop_engaged = False
         self._state_ready = threading.Event()
@@ -263,13 +272,14 @@ class TienKungDexRobot(Robot):
         with self._state_lock:
             if len(right_arm) >= len(self._right_arm_joints):
                 self._right_arm_jpos[:] = right_arm[:len(self._right_arm_joints)]
-            if len(right_hand) >= len(self._right_hand_joints):
-                self._right_hand_pos[:] = right_hand[:len(self._right_hand_joints)]
+            # 手状态维度 = 策略侧列名数（pico6 = 6，rad13 = 13/6）
+            if len(right_hand) >= len(self._right_hand_pos):
+                self._right_hand_pos[:] = right_hand[:len(self._right_hand_pos)]
             # 以下三组只在桥接启用时才会出现
             if len(left_arm) >= len(self._left_arm_joints):
                 self._left_arm_jpos[:] = left_arm[:len(self._left_arm_joints)]
-            if len(left_hand) >= len(self._left_hand_joints):
-                self._left_hand_pos[:] = left_hand[:len(self._left_hand_joints)]
+            if len(left_hand) >= len(self._left_hand_pos):
+                self._left_hand_pos[:] = left_hand[:len(self._left_hand_pos)]
             if len(head) >= len(self._head_joints):
                 self._head_pos[:] = head[:len(self._head_joints)]
 
@@ -290,11 +300,11 @@ class TienKungDexRobot(Robot):
         with self._state_lock:
             for i, name in enumerate(self._right_arm_joints):
                 full[name] = self._right_arm_jpos[i]
-            for i, name in enumerate(self._right_hand_joints):
+            for i, name in enumerate(self._right_hand_action_joints):
                 full[name] = self._right_hand_pos[i]
             for i, name in enumerate(self._left_arm_joints):
                 full[name] = self._left_arm_jpos[i]
-            for i, name in enumerate(self._left_hand_joints):
+            for i, name in enumerate(self._left_hand_action_joints):
                 full[name] = self._left_hand_pos[i]
             for i, name in enumerate(self._head_joints):
                 full[name] = self._head_pos[i]
@@ -326,9 +336,11 @@ class TienKungDexRobot(Robot):
 
         # 右侧保持既有语义（即使个别名字缺失也用 inactive_fill 补齐）
         right_arm = [get_val(name) for name in self._right_arm_joints]
-        # 手部量纲随 hand_variant 而定，与训练数据集一致：
-        #   brainco = 闭合度 0~1（桥接内部 round(1+v*999) 出码）；inspire = 关节角 rad
-        right_hand = [get_val(name) for name in self._right_hand_joints]
+        # 手部量纲随 hand_action_mode 而定，与训练数据集一致：
+        #   brainco / pico6 = 6 维归一化 0~1；inspire rad13 = 13 维关节角 rad。
+        #   pico6 下这 6 维由 Bridge2 展开成因时 13 个 0.1° 角码。
+        hand_mode = self.config.hand_action_mode
+        right_hand = [get_val(name) for name in self._right_hand_action_joints]
 
         # Apply safety clipping if configured
         if self.config.max_relative_target is not None:
@@ -355,7 +367,7 @@ class TienKungDexRobot(Robot):
                     )
                 action_msg["left_arm"] = left_arm
         if self.config.enable_left_hand:
-            left_hand = group_values(self._left_hand_joints)
+            left_hand = group_values(self._left_hand_action_joints)
             if left_hand is not None:
                 action_msg["left_hand"] = left_hand
         if self.config.enable_head:
@@ -371,21 +383,23 @@ class TienKungDexRobot(Robot):
         # Return the actual action sent (after clipping), only for policy joints.
         # 手部按真机通道分辨率量化，使返回值 == 硬件真正执行的值。
         right_hand_sent = clip_hand_position(
-            right_hand, self.config.hand_variant, self._right_hand_joints
+            right_hand, self.config.hand_variant, self._right_hand_action_joints,
+            mode=hand_mode,
         )
         sent_map: dict[str, float] = {}
         for i, name in enumerate(self._right_arm_joints):
             sent_map[name] = right_arm[i]
-        for i, name in enumerate(self._right_hand_joints):
+        for i, name in enumerate(self._right_hand_action_joints):
             sent_map[name] = right_hand_sent[i]
         if left_arm is not None:
             for i, name in enumerate(self._left_arm_joints):
                 sent_map[name] = left_arm[i]
         if left_hand is not None:
             left_hand_sent = clip_hand_position(
-                left_hand, self.config.left_hand_variant, self._left_hand_joints
+                left_hand, self.config.left_hand_variant, self._left_hand_action_joints,
+                mode=hand_mode,
             )
-            for i, name in enumerate(self._left_hand_joints):
+            for i, name in enumerate(self._left_hand_action_joints):
                 sent_map[name] = left_hand_sent[i]
         if head is not None:
             for i, name in enumerate(self._head_joints):

@@ -1,6 +1,7 @@
 # 天工行者 Dex V3 真机数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
 
-> 机型：**TienKung Dex（天工行者 Dex V3）** — 右臂 7 + 右手 13（因时 Inspire）
+> 机型：**TienKung Dex（天工行者 Dex V3）** — 右臂 7 + 右手（因时 Inspire 13 通道；
+> 策略侧动作口径见 `scripts/deploy/tienkung_dex/README.md`「手部量纲」）
 > 机器人：`--robot.type=tienkung_dex`，`ROS_DOMAIN_ID=0`
 > 桥接：`ubt_IL/tienkung_dex/ros2_deploy_bridge.py`（Bridge2）
 
@@ -129,6 +130,12 @@ bash /ubt_IL/scripts/train/tienkung_dex/train.sh
 3. **手型一致**：`--variant inspire|brainco` 必须与实物一致（`HAND_VARIANT` / `JOINT_CONFIG`
    要跟着改）。
 4. **急停可用**：Bridge2 监听 `/power/board/key_status` 的 `is_estop`，为 true 时停发指令。
+5. **因时 r13 模型走 6→13 展开**：`JOINT_CONFIG=tienkung_dex_inspire_13` 会自动把
+   `HAND_ACTION_MODE` 推导为 `pico6`——策略输出的 `right_hand` 是 **6 维归一化 0~1**
+   （0=张开、1=闭合），Bridge2 用 `pico6_to_inspire13()` 展开成 13 个 0.1° 角码，
+   状态回显同一 6 维指令（开环，与数据集 `observation.state` 一致）。
+   硬件侧仍是因时 13 通道、`hand_id=2`、`/right_hand/angle_set`。
+   此时给 13 维会被判维度不匹配而跳过；给 rad 会几乎不动。
 
 ### 首轮：只跑预备位
 
@@ -207,6 +214,8 @@ bash /ubt_IL/scripts/deploy/tienkung_dex/inference_client.sh shutdown
 | 手臂动作幅度偏大 / 起步过猛 | `MAX_RELATIVE_TARGET` 是否设置；`DURATION` 是否还是首轮的短时长 |
 | 姿态比预期低一截 | 用了仿真的 `READY_POSE_TARGET`；真机应走 `robot_ready.sh --real`（`READY_POSE`） |
 | 手型明显不对 | `HAND_VARIANT` / `JOINT_CONFIG` 与实物手型不一致（因时 13 通道 ↔ 强脑 6 电机） |
+| 因时手完全不动 / 日志报 `right_hand 维度不匹配` | r13 模型要用 `JOINT_CONFIG=tienkung_dex_inspire_13`（pico6，动作 6 维 0~1）；20D 老模型才用 `tienkung_dex_20`（rad13，动作 13 维 rad） |
+| 拇指侧摆与预备位不一致 | pico6 展开的通道 10 由 `thumb_roll` 决定（全 0→码 1750），策略首帧会覆盖 `robot_ready` 的预备位码 850 |
 | 相机无画面 | Bridge2 是否带 `image_enabled=true`；端口是否 5558；`/ob_camera_head/color/image_raw` 是否有流 |
 | Bridge2 启动即退出 | 报「通道表不一致」说明插件与 Bridge2 的常量副本漂移；报消息包缺失说明 `/opt/tienkung_dex_msgs_ws` 没 source |
 | 急停后机器人仍在小幅动 | Bridge2 只是停发新指令，已下发目标仍在驱动器里；按物理急停 |

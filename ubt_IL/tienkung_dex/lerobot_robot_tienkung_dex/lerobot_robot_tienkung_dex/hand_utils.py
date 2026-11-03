@@ -3,7 +3,9 @@
 因时/强脑两种手在**线缆上**走的都不是策略侧量纲：因时是 13 个 0.1° 角码，
 强脑是 6 个 1~1000 通道码。策略侧量纲（= 训练数据集口径）：
 - 强脑：**闭合度 [0, 1]**（数据集 action/state 都是 0~1）；
-- 因时：关节角 rad（暂时不变，后续改归一化 + 13 维展开）。
+- 因时 ``rad13``：关节角 rad（20D 老链路）；
+- 因时 ``pico6``：**6 维归一化 0~1**（r13 数据集），由 Bridge2 展开成 13 个
+  0.1° 角码；插件侧只做 [0,1] 夹紧，不做 rad 换算。
 
 桥接（ros2_deploy_bridge.py）负责 策略量纲 → 角码，并顺带按通道上下限夹取；
 插件这里做同一件事，目的只有一个——让 ``send_action()`` 返回的是**真机真正会
@@ -38,8 +40,15 @@ def clip_hand_position(
     position: list,
     variant: str = "inspire",
     joints: list[str] | None = None,
+    mode: str = "rad13",
 ) -> list:
-    """整组手部关节角 → 真机通道分辨率下的实际下发值，按硬件通道序。"""
+    """整组手部动作 → 真机通道分辨率下的实际下发值（策略量纲），按策略列序。
+
+    ``pico6`` 是 6 维归一化 0~1，硬件侧由 Bridge2 做 6→13 展开并截断成角码；
+    这里只做 [0,1] 夹紧，绝不能走 ``inspire_rad_to_code``（会把 0~1 当 rad）。
+    """
+    if mode == "pico6":
+        return [min(max(float(pos), 0.0), 1.0) for pos in position]
     if joints is None:
         return [clip_hand_value(pos, variant, i, "") for i, pos in enumerate(position)]
     return [

@@ -20,11 +20,15 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 POLICY_PATH="${POLICY_PATH:-}"
-# 关节 DOF 配置：tienkung_dex_20（右臂7+右手13，因时）/
-#               tienkung_dex_brainco_13（右臂7+右手6，强脑）
+# 关节 DOF 配置：tienkung_dex_20（右臂7+右手13 rad，因时）/
+#               tienkung_dex_brainco_13（右臂7+右手6 闭合度，强脑）/
+#               tienkung_dex_inspire_13（右臂7+右手6 归一化0~1，因时 6→13 展开）
 JOINT_CONFIG="${JOINT_CONFIG:-tienkung_dex_20}"
 # 手型，留空表示跟随 JOINT_CONFIG（推荐：两者必须一致，插件会校验）
 HAND_VARIANT="${HAND_VARIANT:-}"
+# 因时手动作量纲，留空 = 由 JOINT_CONFIG 自动推导（inspire_13 → pico6）；
+# 仅排查时用 rad13 / pico6 显式覆盖，两者必须与 JOINT_CONFIG 一致。
+HAND_ACTION_MODE="${HAND_ACTION_MODE:-}"
 STRATEGY="${STRATEGY:-base}"
 # 控制环频率 = 数据集帧率。数据是 15 Hz 采的，控制环跟着 15 Hz 才对得上时间轴。
 FPS="${FPS:-15}"
@@ -61,7 +65,7 @@ if [ "$INFERENCE_TYPE" != "sync" ]; then
     exit 1
 fi
 
-echo "[INFO] JOINT_CONFIG=$JOINT_CONFIG  HAND_VARIANT=${HAND_VARIANT:-<跟随 joint_config>}"
+echo "[INFO] JOINT_CONFIG=$JOINT_CONFIG  HAND_VARIANT=${HAND_VARIANT:-<跟随 joint_config>}  HAND_ACTION_MODE=${HAND_ACTION_MODE:-<自动>}"
 echo "[INFO] POLICY_PATH=$POLICY_PATH"
 echo "[INFO] FPS=$FPS  DURATION=$DURATION  ZMQ_HOST=$ZMQ_HOST  相机端口=$CAMERA_PORT"
 [ -n "$MAX_RELATIVE_TARGET" ] && echo "[INFO] 单步相对限幅 max_relative_target=$MAX_RELATIVE_TARGET rad"
@@ -152,6 +156,7 @@ cd /ubt_IL/lerobot || { echo "[ERROR] /ubt_IL/lerobot 不存在"; exit 1; }
 ROBOT_ARGS=(--robot.type=tienkung_dex --robot.bridge_enabled=true
             --robot.joint_config="$JOINT_CONFIG")
 [ -n "$HAND_VARIANT" ] && ROBOT_ARGS+=(--robot.hand_variant="$HAND_VARIANT")
+[ -n "$HAND_ACTION_MODE" ] && ROBOT_ARGS+=(--robot.hand_action_mode="$HAND_ACTION_MODE")
 [ "$IMAGE_ENABLED" = "1" ] && ROBOT_ARGS+=(--robot.image_enabled=true)
 [ -n "$MAX_RELATIVE_TARGET" ] && ROBOT_ARGS+=(--robot.max_relative_target="$MAX_RELATIVE_TARGET")
 

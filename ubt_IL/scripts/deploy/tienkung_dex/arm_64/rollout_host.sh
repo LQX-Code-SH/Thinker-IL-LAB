@@ -18,7 +18,9 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/env.sh"
 # ── 配置（全部可环境变量覆盖）───────────────────────────────────────────────
 POLICY_PATH="${POLICY_PATH:-}"                       # 必填
 JOINT_CONFIG="${JOINT_CONFIG:-tienkung_dex_brainco_13}"   # 实物强脑：右臂7 + 右手6
+# 因时手 r13 数据集改用：JOINT_CONFIG=tienkung_dex_inspire_13（自动 pico6 展开）
 HAND_VARIANT="${HAND_VARIANT:-}"                     # 留空跟随 joint_config
+HAND_ACTION_MODE="${HAND_ACTION_MODE:-}"             # 留空 = 由 JOINT_CONFIG 自动推导
 STRATEGY="${STRATEGY:-base}"
 FPS="${FPS:-15}"                                     # = 数据集帧率
 DURATION="${DURATION:-60}"
@@ -99,6 +101,7 @@ ROBOT_ARGS=(
     --robot.image_compressed="${IMAGE_COMPRESSED}"
 )
 [ -n "$HAND_VARIANT" ] && ROBOT_ARGS+=(--robot.hand_variant="$HAND_VARIANT")
+[ -n "$HAND_ACTION_MODE" ] && ROBOT_ARGS+=(--robot.hand_action_mode="$HAND_ACTION_MODE")
 [ -n "$MAX_RELATIVE_TARGET" ] && ROBOT_ARGS+=(--robot.max_relative_target="$MAX_RELATIVE_TARGET")
 
 cd "$PROJECT_ROOT/lerobot"

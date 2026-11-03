@@ -7,6 +7,7 @@ from lerobot.robots.config import RobotConfig
 
 from .constants import (
     ARM_JOINTS,
+    DOF_HAND_ACTION_MODE,
     DOF_HAND_VARIANT,
     GROUP_CMD_LIMITS,
     HEAD_JOINTS,
@@ -23,6 +24,7 @@ from .constants import (
     hand_open_pose,
     inactive_fill_for,
     joint_names_with_pos,
+    pico6_action_joints,
 )
 
 # 右臂站立位（7 维），= HOME_POSE 的右臂子集
@@ -49,16 +51,28 @@ class TienKungDexRobotConfig(RobotConfig):
     cmd_namespace: str = ""
 
     # DOF 配置名（取自 JOINT_INDEX_ENUMS）。决定 all_joints 的维度与顺序（= 数据集顺序），
-    # 同时决定手型：tienkung_dex_20 → inspire，tienkung_dex_brainco_13 → brainco。
+    # 同时决定手型：tienkung_dex_20 → inspire，tienkung_dex_brainco_13 → brainco，
+    # tienkung_dex_inspire_13 → inspire（r13 数据集 6 维归一化，pico6 展开）。
     joint_config: str = "tienkung_dex_20"
 
     # 手型，留空表示跟随 joint_config（推荐）。显式填写时必须与 joint_config 一致，
     # 防止"用因时数据的模型去驱动强脑手"这类配错。
     hand_variant: str = ""
 
+    # 因时手策略侧动作量纲。留 "auto" = 由 joint_config 推导（推荐）：
+    #   rad13 = 20D 老口径，ZMQ right_hand 是 13 维关节角 rad；
+    #   pico6 = r13 数据集，ZMQ right_hand 是 6 维归一化 0~1，Bridge2 展开成 13 个角码。
+    # 显式填写时必须与 joint_config 一致。
+    hand_action_mode: str = "auto"
+
     # Joint group definitions (固定物理通道顺序，bridge 按位寻址，严禁重排)
     right_arm_joints: list[str] = field(default_factory=lambda: _pos(RIGHT_ARM_JOINTS))
+    # 硬件物理通道名（因时 13 / 强脑 6），传给 Bridge2 做 _assert_hand_table 比对。
     right_hand_joints: list[str] = field(default_factory=list)  # 由 hand_variant 派生
+    # 策略侧手列名（send_action / get_observation 用，带 .pos）。rad13 时 =
+    # right_hand_joints；pico6 时 = r13 数据集 6 个列名。
+    right_hand_action_joints: list[str] = field(default_factory=list)
+    left_hand_action_joints: list[str] = field(default_factory=list)
 
     # ---- 任意组组合（可选）：左侧 / 头部默认关闭，13D/20D 行为完全不变 ----
     # 关节级颗粒度：*_joints 与 *_motor_ids 一一对应，可为子集（臂/头部）；
@@ -153,15 +167,45 @@ class TienKungDexRobotConfig(RobotConfig):
                 f"got {self.hand_variant!r}"
             )
 
+        # 策略侧手动作量纲：auto 时按 joint_config 推导
+        # （tienkung_dex_inspire_13 自动走 pico6，无需额外开关）。
+        expected_mode = DOF_HAND_ACTION_MODE.get(self.joint_config, "rad13")
+        if self.hand_action_mode == "auto":
+            self.hand_action_mode = expected_mode
+        elif self.hand_action_mode not in ("rad13", "pico6"):
+            raise ValueError(
+                f"hand_action_mode 须为 'auto' | 'rad13' | 'pico6'，"
+                f"got {self.hand_action_mode!r}"
+            )
+        elif self.hand_action_mode != expected_mode:
+            raise ValueError(
+                f"hand_action_mode={self.hand_action_mode!r} 与 "
+                f"joint_config={self.joint_config!r} 不匹配（应为 {expected_mode!r}）"
+            )
+        self._pico6 = self.hand_action_mode == "pico6"
+        if self._pico6 and self.hand_variant != "inspire":
+            raise ValueError("hand_action_mode=pico6 只能用于因时手（hand_variant=inspire）")
+
         if not self.right_hand_joints:
             self.right_hand_joints = _pos(RIGHT_HAND_JOINTS_BY_VARIANT[self.hand_variant])
+        # 策略侧手列名：pico6 是 r13 数据集的 6 个列名，rad13 就是物理通道名。
+        # 硬件通道名（right_hand_joints）始终不变，供 Bridge2 逐字比对。
+        if not self.right_hand_action_joints:
+            self.right_hand_action_joints = (
+                _pos(pico6_action_joints("right")) if self._pico6
+                else list(self.right_hand_joints)
+            )
         if not self.topic_right_hand_cmd:
             self.topic_right_hand_cmd = TOPIC_HAND_CMD_BY_VARIANT[self.hand_variant]
         if not self.hand_open_position:
-            hand = hand_open_pose(self.hand_variant)
-            self.hand_open_position = [
-                hand[name.removesuffix(".pos")] for name in self.right_hand_joints
-            ]
+            if self._pico6:
+                # pico6 的"张开"= 6 维全 0（展开后是各通道码上限 = HAND_TARGET）
+                self.hand_open_position = [0.0] * len(self.right_hand_action_joints)
+            else:
+                hand = hand_open_pose(self.hand_variant)
+                self.hand_open_position = [
+                    hand[name.removesuffix(".pos")] for name in self.right_hand_joints
+                ]
 
         self._inactive_fill = inactive_fill_for(self.hand_variant, self.joint_config, enum_cls)
 
@@ -177,15 +221,23 @@ class TienKungDexRobotConfig(RobotConfig):
             self.left_hand_joints = _pos([
                 joints[0] for joints in hand_channel_joints(self.left_hand_variant, "left")
             ])
+        if not self.left_hand_action_joints:
+            self.left_hand_action_joints = (
+                _pos(pico6_action_joints("left")) if self._pico6
+                else list(self.left_hand_joints)
+            )
         if not self.topic_left_hand_cmd:
             self.topic_left_hand_cmd = TOPIC_HAND_CMD_BY_VARIANT[self.left_hand_variant].replace(
                 "/right_hand/", "/left_hand/"
             )
         if self.enable_left_hand and not self.left_hand_open_position:
-            hand = hand_open_pose(self.left_hand_variant)
-            self.left_hand_open_position = [
-                hand[name.removesuffix(".pos")] for name in self.left_hand_joints
-            ]
+            if self._pico6:
+                self.left_hand_open_position = [0.0] * len(self.left_hand_action_joints)
+            else:
+                hand = hand_open_pose(self.left_hand_variant)
+                self.left_hand_open_position = [
+                    hand[name.removesuffix(".pos")] for name in self.left_hand_joints
+                ]
 
         if len(self.left_arm_joints) != len(self.left_arm_motor_ids):
             raise ValueError(
@@ -197,18 +249,19 @@ class TienKungDexRobotConfig(RobotConfig):
                 f"head_motor_ids count ({len(self.head_motor_ids)}) must match "
                 f"head_joints count ({len(self.head_joints)})"
             )
-        if self.enable_left_hand and len(self.left_hand_open_position) != len(self.left_hand_joints):
+        if self.enable_left_hand and len(self.left_hand_open_position) != len(self.left_hand_action_joints):
             raise ValueError(
                 f"left_hand_open_position count ({len(self.left_hand_open_position)}) must match "
-                f"left_hand_joints count ({len(self.left_hand_joints)})"
+                f"left_hand_action_joints count ({len(self.left_hand_action_joints)})"
             )
 
-        # Validate all_joints is a subset of the hardware groups (no extra joints)
-        group_set = set(self.right_arm_joints + self.right_hand_joints)
+        # Validate all_joints is a subset of the hardware groups (no extra joints).
+        # pico6 下策略手列名是 6 个 r13 列名，不是 13 个物理通道名，必须按策略侧校验。
+        group_set = set(self.right_arm_joints + self.right_hand_action_joints)
         if self.enable_left_arm:
             group_set |= set(self.left_arm_joints)
         if self.enable_left_hand:
-            group_set |= set(self.left_hand_joints)
+            group_set |= set(self.left_hand_action_joints)
         if self.enable_head:
             group_set |= set(self.head_joints)
         all_set = set(self.all_joints)
@@ -229,11 +282,15 @@ class TienKungDexRobotConfig(RobotConfig):
                 f"right_arm_joints count ({len(self.right_arm_joints)})"
             )
 
-        # Validate hand_open_position matches hand joint count
-        if len(self.hand_open_position) != len(self.right_hand_joints):
+        # Validate hand_open_position matches the policy-side hand action dim
+        if len(self.hand_open_position) != len(self.right_hand_action_joints):
             raise ValueError(
                 f"hand_open_position count ({len(self.hand_open_position)}) must match "
-                f"right_hand_joints count ({len(self.right_hand_joints)})"
+                f"right_hand_action_joints count ({len(self.right_hand_action_joints)})"
+            )
+        if self._pico6 and len(self.right_hand_action_joints) != 6:
+            raise ValueError(
+                f"pico6 需要 6 个策略手列名，实际 {len(self.right_hand_action_joints)}"
             )
 
         # Validate home_position dimension
@@ -255,10 +312,16 @@ class TienKungDexRobotConfig(RobotConfig):
             "ros_namespace": self.ros_namespace,
             "cmd_namespace": self.cmd_namespace,
             "hand_variant": self.hand_variant,
+            # 因时手动作量纲：pico6 = 6 维 0~1 展开成 13 码；rad13 = 老 13 维 rad。
+            "hand_action_mode": self.hand_action_mode,
             "right_arm_motor_ids": self.right_arm_motor_ids,
             # 帧内关节序（物理通道序）。桥接拿它与自己的通道表逐字比对，
             # 不一致直接拒启——两边的常量副本漂移时这是唯一能拦住的检查。
             "right_hand_joints": self.right_hand_joints,
+            # pico6 的 6 维策略列名（r13 数据集顺序），桥接启动逐字比对；
+            # rad13 时与 right_hand_joints 相同，桥接不会使用。
+            "right_hand_action_joints": self.right_hand_action_joints,
+            "left_hand_action_joints": self.left_hand_action_joints,
             # 可选组：左侧 / 头部（组级开关 + 关节级列表，可为子集）
             "enable_left_arm": self.enable_left_arm,
             "enable_left_hand": self.enable_left_hand,
