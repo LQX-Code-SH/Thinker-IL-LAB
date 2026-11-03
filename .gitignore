@@ -67,6 +67,9 @@ ubt_IL/walker_s2/walker_sdk_ros2/build/
 ubt_IL/walker_s2/walker_sdk_ros2/install/
 ubt_IL/walker_s2/walker_sdk_ros2/log/
 ubt_IL/walker_s2/walker_sdk_ros2/robot_control/camera_frame_*.png
+ubt_IL/walker/walker_sdk_ros2/build/
+ubt_IL/walker/walker_sdk_ros2/install/
+ubt_IL/walker/walker_sdk_ros2/log/
 
 # Python cache under migrated plugins
 ubt_IL/walker_s2/**/__pycache__/
