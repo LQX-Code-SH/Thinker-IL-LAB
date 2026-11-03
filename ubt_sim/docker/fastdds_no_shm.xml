@@ -15,7 +15,7 @@
             <interfaceWhiteList>
                 <address>127.0.0.1</address>
                 <!-- ⚠️ 随机型切换（见文件头注释）：当前 192.168.11.99 -->
-                <address>192.168.11.99</address>
+                <address>192.168.41.99</address>
             </interfaceWhiteList>
             <maxInitialPeersRange>10</maxInitialPeersRange>
             <maxMessageSize>65500</maxMessageSize>

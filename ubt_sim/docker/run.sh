@@ -38,6 +38,9 @@ case "${1:-}" in
 
             xhost + 2>/dev/null || true
 
+            # 基础镜像 ENTRYPOINT 为 /isaac-sim/runheadless.sh，无论 CMD 是什么都会拉起
+            # isaacsim.exp.full.streaming.kit（WebRTC 流式 app，常驻 ~1.8GB 显存 + 高 CPU）。
+            # 本项目仿真由 start_sim.sh 启动，不用流式客户端，故覆盖 entrypoint 让容器纯闲置。
             docker run -d --name "$CONTAINER_NAME" \
                 --gpus all \
                 --network host \
@@ -58,7 +61,8 @@ case "${1:-}" in
                 -e "FASTRTPS_DEFAULT_PROFILES_FILE=$FASTRTPS_DEFAULT_PROFILES_FILE" \
                 -w /ubt_sim \
                 --privileged \
-                "$IMAGE" tail -f /dev/null
+                --entrypoint /bin/sh \
+                "$IMAGE" -c "tail -f /dev/null"
 
             echo "[INFO] Container '$CONTAINER_NAME' created and started."
         fi
