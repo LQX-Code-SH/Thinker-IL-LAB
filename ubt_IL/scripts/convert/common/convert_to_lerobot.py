@@ -58,12 +58,18 @@ def _read_hdf5_part(file, spec) -> np.ndarray:
     spec can be:
       - str: direct HDF5 key, read full array
       - dict: {"hdf5_key": ..., "indices": [...], "expand_dims": true, "repeat": N, "pad": [...], "invert": true,
+                "shift": K, "scale": s, "offset": o,
                 "extract": "position_by_name" | "field", ...}
         "indices" (optional): slice array along last axis, e.g. [7,8,9,10,11,12,13]
         "extract" (optional): how to parse JSON-list data —
           "position_by_name" + "names": [...] → extract joint positions by name
           "field" + "field": "pos"            → extract a scalar field from each JSON object
         "expand_dims" (optional): if true and data is 1D, expand to (T, 1)
+        "scale"/"offset" (optional): affine data = data*scale + offset along value axis
+          (真机通道码 -> rad 等线性换算)
+        "shift" (optional): shift along time axis by K frames, edge-padded (last
+          frame repeated). 用于 action = 下一帧状态（action[t] = puppet[t+1]）等
+          真实采集数据语义；不做回绕，避免最后一帧接到第一帧上。
         "repeat" (optional): repeat the value N times along last axis
         "pad" (optional): append constant values along last axis
         "invert" (optional): if true, apply 1 - value to flip the range
@@ -109,6 +115,16 @@ def _read_hdf5_part(file, spec) -> np.ndarray:
     # --- transforms (applied after extraction, if any) ---
     if spec.get("expand_dims", False) and data.ndim == 1:
         data = data[:, None]
+
+    if "scale" in spec or "offset" in spec:
+        data = data * float(spec.get("scale", 1.0)) + float(spec.get("offset", 0.0))
+
+    if "shift" in spec:
+        k = int(spec["shift"])
+        if k:
+            data = np.concatenate(
+                [data[k:], np.repeat(data[-1:], k, axis=0)], axis=0
+            )
 
     if "invert" in spec and spec["invert"]:
         data = 1.0 - data
@@ -614,6 +630,15 @@ def process_episode(
         with h5py.File(episode_path, "r") as file:
             compose_fields = {}   # lerobot_key -> (parts_list, dtype)
             image_fields = {}     # lerobot_key -> numpy array (T, H, W, C)
+            image_windows = {}    # lerobot_key -> (窗口首帧绝对下标, 窗口尾) ; (0, None)=整集
+
+            # label 分段模式下只读段覆盖的帧区间：真机 HDF5 可能几十 GB
+            # （如 75GB 的 720p 裸 RGB），整集逐帧解码+缩放极慢且无谓。
+            # 重采样需要全时序，不启用窗口。
+            read_start, read_end = 0, None
+            if segment_ranges and resample_fps is None:
+                read_start = min(s for s, _ in segment_ranges)
+                read_end = max(e for _, e in segment_ranges)
 
             for lerobot_key, field_spec in mapping.items():
                 if isinstance(field_spec, list):
@@ -627,6 +652,20 @@ def process_episode(
                     encoding = field_spec["encoding"]
                     image_size = tuple(field_spec["image_size"])  # (W, H)
                     raw = file[hdf5_key]
+                    iter_start, iter_end = 0, None
+                    if read_end is not None and encoding != "mp4_value_list":
+                        iter_start, iter_end = read_start, read_end
+                        image_windows[lerobot_key] = (read_start, read_end)
+
+                    # 分块批量读取：h5py 对 (T,H,W,C) 大数组逐行迭代会在每个
+                    # 小 chunk 上反复做选择（真机 75GB 裸 RGB 的
+                    # chunks=(530,23,40,1)，单帧横跨 ~3000 个 chunk），慢到
+                    # 不可用。按块整体切片让每个 chunk 只读一次；且每块独立
+                    # 物化，label 窗口覆盖整集（几十 GB）时也不会一次性撑爆内存。
+                    def _iter_rows_blocked(view, start=0, end=None, block=256):
+                        end = len(view) if end is None else end
+                        for s in range(start, end, block):
+                            yield from view[s:s + block]
 
                     if encoding in ("jpeg", "png"):
                         # 已编码图像字节流：cv2.imdecode 自动识别 JPEG/PNG。
@@ -634,7 +673,7 @@ def process_episode(
                         # jpeg 分支行为保持不变（向后兼容）。
                         import cv2
                         images = []
-                        for buf in raw:
+                        for buf in _iter_rows_blocked(raw, iter_start, iter_end):
                             img = cv2.imdecode(np.frombuffer(buf, np.uint8), cv2.IMREAD_COLOR)
                             if img is None:
                                 raise ValueError(
@@ -646,16 +685,17 @@ def process_episode(
                         import cv2
                         depth_clip_mm = field_spec.get("depth_clip_mm", 8000)
                         images = []
-                        for buf in raw:
+                        for buf in _iter_rows_blocked(raw, iter_start, iter_end):
                             d16 = cv2.imdecode(np.frombuffer(buf, np.uint8), cv2.IMREAD_UNCHANGED)
                             d16 = cv2.resize(d16, image_size, interpolation=cv2.INTER_NEAREST)
                             d8 = np.clip(d16, 0, depth_clip_mm).astype(np.float32)
                             d8 = (d8 * (255.0 / depth_clip_mm)).astype(np.uint8)
                             images.append(np.stack([d8, d8, d8], axis=-1))
                     elif encoding == "raw":
+                        import cv2
                         images = [
                             cv2.resize(img, image_size)
-                            for img in raw
+                            for img in _iter_rows_blocked(raw, iter_start, iter_end)
                         ]
                     elif encoding == "mp4_value_list":
                         # Real robot: value_list → MP4 path → video frames
@@ -688,13 +728,15 @@ def process_episode(
                     )
                     return 0
 
-        for arr in image_fields.values():
-            if num_frames is None:
+        for key, arr in image_fields.items():
+            ws, we = image_windows.get(key, (0, None))
+            expected = (we - ws) if we is not None else (num_frames if num_frames is not None else None)
+            if expected is None:
                 num_frames = len(arr)
-            elif len(arr) != num_frames:
+            elif len(arr) != expected:
                 logging.error(
                     f"Frame count mismatch in {episode_path}: "
-                    f"expected {num_frames}, got {len(arr)} for image"
+                    f"expected {expected}, got {len(arr)} for image"
                 )
                 return 0
 
@@ -816,7 +858,7 @@ def process_episode(
                         [p[i] for p in parts]
                     ).astype(dtype)
                 for lerobot_key, arr in image_fields.items():
-                    frame[lerobot_key] = arr[i]
+                    frame[lerobot_key] = arr[i - image_windows.get(lerobot_key, (0, None))[0]]
                 frame["task"] = task_name
                 dataset.add_frame(frame)
             # parallel_encoding=True 时多集编码会排队，可能在某一集一次性删除
