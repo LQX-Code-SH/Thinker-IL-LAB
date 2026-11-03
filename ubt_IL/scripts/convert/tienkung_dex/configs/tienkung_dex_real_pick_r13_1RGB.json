@@ -1,0 +1,100 @@
+{
+  "observation.images.head": {
+    "dtype": "video",
+    "shape": [3, 720, 1280],
+    "names": ["channel", "height", "width"]
+  },
+  "observation.state": {
+    "dtype": "float32",
+    "shape": [13],
+    "names": [
+      "shoulder_pitch_r_joint",
+      "shoulder_roll_r_joint",
+      "shoulder_yaw_r_joint",
+      "elbow_pitch_r_joint",
+      "elbow_yaw_r_joint",
+      "wrist_pitch_r_joint",
+      "wrist_roll_r_joint",
+      "right_thumb_proximal_joint",
+      "right_thumb_metacarpal_joint",
+      "right_index_proximal_joint",
+      "right_middle_proximal_joint",
+      "right_ring_proximal_joint",
+      "right_pinky_proximal_joint"
+    ]
+  },
+  "action": {
+    "dtype": "float32",
+    "shape": [13],
+    "names": [
+      "shoulder_pitch_r_joint",
+      "shoulder_roll_r_joint",
+      "shoulder_yaw_r_joint",
+      "elbow_pitch_r_joint",
+      "elbow_yaw_r_joint",
+      "wrist_pitch_r_joint",
+      "wrist_roll_r_joint",
+      "right_thumb_proximal_joint",
+      "right_thumb_metacarpal_joint",
+      "right_index_proximal_joint",
+      "right_middle_proximal_joint",
+      "right_ring_proximal_joint",
+      "right_pinky_proximal_joint"
+    ]
+  },
+  "lerobot_mapping": {
+    "observation.images.head": {
+      "source": "observation.images.head"
+    },
+    "observation.state": {
+      "source": "observation.state",
+      "names": [
+        "shoulder_pitch_r_joint",
+        "shoulder_roll_r_joint",
+        "shoulder_yaw_r_joint",
+        "elbow_pitch_r_joint",
+        "elbow_yaw_r_joint",
+        "wrist_pitch_r_joint",
+        "wrist_roll_r_joint",
+        "right_thumb_proximal_joint",
+        "right_thumb_metacarpal_joint",
+        "right_index_proximal_joint",
+        "right_middle_proximal_joint",
+        "right_ring_proximal_joint",
+        "right_pinky_proximal_joint"
+      ]
+    },
+    "action": {
+      "source": "action",
+      "names": [
+        "shoulder_pitch_r_joint",
+        "shoulder_roll_r_joint",
+        "shoulder_yaw_r_joint",
+        "elbow_pitch_r_joint",
+        "elbow_yaw_r_joint",
+        "wrist_pitch_r_joint",
+        "wrist_roll_r_joint",
+        "right_thumb_proximal_joint",
+        "right_thumb_metacarpal_joint",
+        "right_index_proximal_joint",
+        "right_middle_proximal_joint",
+        "right_ring_proximal_joint",
+        "right_pinky_proximal_joint"
+      ]
+    }
+  },
+  "repair": {
+    "trim": "lead_tail",
+    "stationary_window": 0,
+    "stationary_thresh": 0.03,
+    "range_eps": 0.001,
+    "keep_head": 0,
+    "keep_tail": 0,
+    "min_frames": 45,
+    "cap": 8,
+    "min_run": 3,
+    "fill_state_from_action": "auto",
+    "fill_eps": 1e-06,
+    "task": null
+  }
+}
