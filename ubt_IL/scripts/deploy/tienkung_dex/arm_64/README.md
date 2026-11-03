@@ -39,6 +39,7 @@
 | `camera_preview.sh` | 头相机预览：实时窗口 / `--snapshot` 存图 / `--size raw` 看 720p |
 | `hold_test.py` | 控制通路零位移验收（目标 = 当前实测角度，不产生动作） |
 | `staged_test.sh` | **分步微动**：头 / 手 / 臂各 ±0.05 rad（手 80 码）偏出再回位，带实测核对 |
+| `robot_home_host.sh` | **回站立位**：按预备位四段航点倒序走（手全程在桌面以上），目标为 `HOME_POSE` + 真机微偏移 |
 
 ## 3 使用顺序
 
@@ -86,3 +87,7 @@ POLICY_PATH=/abs/pretrained_model \
 - **`robot_ready` 与 Bridge2 互斥**：两者都写 `/arm/cmd`，顺序永远是先 ready 再 rollout。
 - **急停**：Bridge2 监听 `/power/board/key_status` 的 `is_estop`，为 true 时停发；已下发目标仍在驱动器里，
   必要时要按物理急停。
+- **`wrist_roll_l` 的 40 Hz 摩擦极限环**（2026-11-03 实测）：目标停在 ≈0 时位置只抖 0.15°，
+  但速度峰峰 1.36 rad/s、电流峰峰 2.4，听感是持续高频嗡嗡；偏到 +0.03 rad 后速度峰峰 0.002、
+  电流 0，往复 2 轮 100% 复现。已由 `constants.DEPLOY_HOME_OFFSETS` 在**真机** home/预备位上
+  叠加 +0.03（仿真常量与训练姿态不动）。若换手/换机后右腕也出现，同样往该表里加一条即可。

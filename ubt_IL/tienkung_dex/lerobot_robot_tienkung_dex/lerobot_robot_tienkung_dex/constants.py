@@ -360,6 +360,25 @@ HOME_POSE = {
 # 上肢站立位（home 默认不动腿——真机站立时腿由行走控制器持有）
 HOME_UPPER_POSE = {name: value for name, value in HOME_POSE.items() if name not in LEG_JOINTS}
 
+# ── 真机 home/预备位的微偏移（不改仿真与数据集那份姿态）─────────────────────
+# 依据（2026-11-03 Thor 真机实测）：``wrist_roll_l_joint`` 目标 ≈0 时，驱动器
+# 会进入 ~40 Hz 摩擦极限环——位置峰峰仅 2.6 mrad（0.15°），但速度峰峰 1.36 rad/s、
+# 电流峰峰 2.4，听感是持续高频嗡嗡。HOME(-0.0006) 与 +0.03 往复 2 轮 100% 复现：
+# 在 0 点必抖（1.360/1.361 rad/s），在 +0.03 完全安静（0.001/0.002 rad/s、电流 0）。
+# 右腕 roll 同位置不抖，故只偏左腕。
+# **只作用于真机**（``ready_final_pose(real=True)`` 与回位脚本），仿真常量保持原值，
+# 避免与训练数据/仿真姿态产生常量漂移。
+DEPLOY_HOME_OFFSETS = {
+    "wrist_roll_l_joint": 0.03,
+}
+
+
+def deploy_home_pose() -> dict[str, float]:
+    """真机 home：``HOME_UPPER_POSE`` 叠加 :data:`DEPLOY_HOME_OFFSETS`。"""
+    pose = dict(HOME_UPPER_POSE)
+    pose.update(DEPLOY_HOME_OFFSETS)
+    return pose
+
 # 预备位四段。机器人正前方有桌面（parlor 场景桌面 0.987 m），站立位手臂自然
 # 下垂时手在世界 0.80 m——比桌面还低，直接在体侧屈肘会让前臂从桌面前沿扫过去。
 # 因此四段走法：先纯肩外展把整条手臂侧向抬到桌面以上，再在高位折前臂，然后把
@@ -485,7 +504,10 @@ def ready_final_pose(real: bool = False) -> dict[str, float]:
     ``real=True``（真机）：``READY_POSE`` —— 驱动器闭环，没有仿真那段下垂。
     """
     if real:
-        return dict(READY_POSE)
+        # 真机叠加 DEPLOY_HOME_OFFSETS：避开 wrist_roll_l 在 0 点附近的摩擦极限环
+        pose = dict(READY_POSE)
+        pose.update(DEPLOY_HOME_OFFSETS)
+        return pose
     return {**READY_POSE, **READY_POSE_TARGET}
 
 
