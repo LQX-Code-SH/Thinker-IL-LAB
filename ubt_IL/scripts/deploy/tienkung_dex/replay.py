@@ -17,6 +17,8 @@ action 布局（13 维，与 convert/tienkung_dex/configs/tienkung_dex_13d_1RGB_
           -> /right_hand/set_motor_multi (brainco_hand_msgs/SetMotorMulti)，
           通道码 = round(1 + v*999)，1=伸直 1000=弯曲（与 constants.hand_percent_to_code 一致）
 
+运行流程：读当前实测位姿 → 平滑过渡到首帧 → 保持首帧 lead-in → 按 rate 逐帧回放。
+
 在机器人（或 lerobot-tienkung 容器）内运行：
     source /opt/ros/humble/setup.bash
     python3 /ubt_IL/scripts/deploy/tienkung_dex/replay.py --episode 0 --rate 30
@@ -50,6 +52,9 @@ ARM_CUR = 40.0
 # 强脑 Revo2 通道码值域
 BRAINCO_CODE_MIN, BRAINCO_CODE_MAX = 1, 1000
 
+# 右手 6 个驱动关节（action[7:13]）
+HAND_DIM = 6
+
 # 右臂关节限位 (lower, upper) rad，顺序 = RIGHT_ARM_MOTOR_IDS
 # （与 Bridge2 constants.BODY_JOINT_LIMITS 一致，超限裁剪后再下发）
 RIGHT_ARM_LIMITS = [
@@ -65,6 +70,11 @@ RIGHT_ARM_LIMITS = [
 TOPIC_ARM_CMD = "/arm/cmd"
 TOPIC_RIGHT_HAND_CMD = "/right_hand/set_motor_multi"
 
+# 状态反馈（过渡用的起点）：/robot_state 的 RobotState.arm.status[]（name=电机ID, pos=rad）
+# 右手 MotorStatus.positions = 通道码 1~1000（与下发同域，闭合度 = (code-1)/999）
+TOPIC_ROBOT_STATE = "/robot_state"
+TOPIC_RIGHT_HAND_STATE = "/right_hand/motor_status"
+
 # 默认数据集：本仓库最近一次 brainco 真机转换产物
 DEFAULT_DATASET = Path(__file__).resolve().parents[3] / "dataset" / "tienkung_dex_real_pick_apple_brainco_13d"
 
@@ -74,16 +84,50 @@ def _import_ros2():
     global rclpy, Node
     import rclpy as _rclpy
     from rclpy.node import Node as _Node
-    from ros2_bridge_msgs.msg import ArmCtrl, MotorCtrl
-    from brainco_hand_msgs.msg import SetMotorMulti
+    from ros2_bridge_msgs.msg import ArmCtrl, MotorCtrl, RobotState
+    from brainco_hand_msgs.msg import MotorStatus, SetMotorMulti
     globals().update({"rclpy": _rclpy, "Node": _Node})
-    return {"ArmCtrl": ArmCtrl, "MotorCtrl": MotorCtrl, "SetMotorMulti": SetMotorMulti}
+    return {
+        "ArmCtrl": ArmCtrl,
+        "MotorCtrl": MotorCtrl,
+        "SetMotorMulti": SetMotorMulti,
+        "RobotState": RobotState,
+        "MotorStatus": MotorStatus,
+    }
+
+
+def _status_qos(depth: int = 10):
+    """状态订阅用 BEST_EFFORT：兼容 RELIABLE / BEST_EFFORT 两种发布端。
+
+    默认（RELIABLE）订阅只收 RELIABLE 发布端；真机各节点 QoS 不由我们决定，
+    一旦 /robot_state 是 BEST_EFFORT，就会"话题可见但收不到数"。
+    """
+    from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+
+    return QoSProfile(
+        reliability=ReliabilityPolicy.BEST_EFFORT,
+        durability=DurabilityPolicy.VOLATILE,
+        history=HistoryPolicy.KEEP_LAST,
+        depth=depth,
+    )
+
+
+def smoothstep(s: float) -> float:
+    """五次平滑（quintic）：起止速度/加速度均为 0，避免端点抖动。"""
+    s = min(max(float(s), 0.0), 1.0)
+    return s * s * s * (s * (s * 6.0 - 15.0) + 10.0)
 
 
 def hand_percent_to_code(percent: float) -> int:
     """闭合度 [0,1] -> 强脑通道码（取整并夹在值域内）。"""
     ratio = min(max(float(percent), 0.0), 1.0)
     return int(round(BRAINCO_CODE_MIN + ratio * (BRAINCO_CODE_MAX - BRAINCO_CODE_MIN)))
+
+
+def hand_code_to_percent(code: float) -> float:
+    """强脑通道码 -> 闭合度 [0,1]（hand_percent_to_code 的逆运算）。"""
+    clipped = min(max(float(code), BRAINCO_CODE_MIN), BRAINCO_CODE_MAX)
+    return (clipped - BRAINCO_CODE_MIN) / float(BRAINCO_CODE_MAX - BRAINCO_CODE_MIN)
 
 
 def load_episode_actions(dataset_root: Path, episode: int):
@@ -134,6 +178,45 @@ class DexReplayNode:
         self.arm_pub = self._node.create_publisher(self._ArmCtrl, TOPIC_ARM_CMD, 10)
         self.hand_pub = self._node.create_publisher(self._SetMotorMulti, TOPIC_RIGHT_HAND_CMD, 10)
 
+        # 状态缓存（过渡起点）：臂按电机 ID 取，手按通道码取
+        self._arm_state = None   # list[7] rad，None = 尚未收到
+        self._hand_state = None  # list[6] 通道码，None = 尚未收到
+        qos = _status_qos()
+        self._node.create_subscription(
+            msgs["RobotState"], TOPIC_ROBOT_STATE, self._on_robot_state, qos
+        )
+        self._node.create_subscription(
+            msgs["MotorStatus"], TOPIC_RIGHT_HAND_STATE, self._on_hand_state, qos
+        )
+
+    # -- 状态反馈 -------------------------------------------------------------
+
+    def _on_robot_state(self, msg) -> None:
+        """按电机 ID 取右臂 7 维（不按位取，缺 ID 时整帧丢弃）。"""
+        status = getattr(msg, "arm", None)
+        pos_by_id = {int(m.name): float(m.pos) for m in getattr(status, "status", [])}
+        if all(mid in pos_by_id for mid in RIGHT_ARM_MOTOR_IDS):
+            self._arm_state = [pos_by_id[mid] for mid in RIGHT_ARM_MOTOR_IDS]
+
+    def _on_hand_state(self, msg) -> None:
+        values = [float(v) for v in list(getattr(msg, "positions", []))[:HAND_DIM]]
+        if len(values) >= HAND_DIM:
+            self._hand_state = values
+
+    def read_state(self, timeout: float):
+        """等一帧状态，返回 (右臂7 rad | None, 右手6 闭合度 | None)。"""
+        deadline = time.monotonic() + max(0.0, timeout)
+        while time.monotonic() < deadline:
+            rclpy.spin_once(self._node, timeout_sec=0.02)
+            if self._arm_state is not None and self._hand_state is not None:
+                break
+        arm = list(self._arm_state) if self._arm_state is not None else None
+        hand = (
+            [hand_code_to_percent(c) for c in self._hand_state]
+            if self._hand_state is not None else None
+        )
+        return arm, hand
+
     def publish_frame(self, action: np.ndarray) -> None:
         # 右臂：位置模式（mode=0），rad 目标 + 限幅裁剪 + 速度/电流限幅
         # （限幅行为与 Bridge2 ros2_deploy_bridge.py 一致）
@@ -176,10 +259,58 @@ def parse_args():
                    help="发送频率 Hz（默认取数据集 info.json 的 fps）")
     p.add_argument("--start", type=int, default=0, help="起始帧索引（默认 0）")
     p.add_argument("--end", type=int, default=-1, help="结束帧索引，-1 表示到末尾（默认 -1）")
+    p.add_argument("--transition", type=float, default=3.0,
+                   help="从当前实测位姿平滑过渡到首帧的秒数（0=跳过，直接发首帧）")
+    p.add_argument("--state-timeout", type=float, default=2.0,
+                   help="等 /robot_state 与右手状态首帧的超时秒数（超时则跳过过渡）")
     p.add_argument("--lead-in", type=float, default=1.0,
-                   help="回放前先发送首帧并保持的秒数，让手臂平滑到达起点（默认 1.0，0=关闭）")
+                   help="过渡到位后再保持首帧的秒数（默认 1.0，0=关闭）")
     p.add_argument("--dry-run", action="store_true", help="只打印不发布")
     return p.parse_args()
+
+
+def run_transition(node, target: np.ndarray, duration: float, rate: float,
+                   state_timeout: float) -> bool:
+    """把当前实测位姿平滑过渡到首帧 target（13 维）。
+
+    起点 = ``/robot_state`` 右臂 7 维 + 右手通道码换算的闭合度；端点 = 首帧 action。
+    quintic 插值（起止速度/加速度连续）按 rate 逐帧下发。
+
+    Returns:
+        True = 已完成过渡；False = 拿不到位姿，调用方应直接发首帧。
+    """
+    arm_now, hand_now = node.read_state(state_timeout)
+    if arm_now is None:
+        print(f"[replay] 警告: {state_timeout:.1f}s 内未收到 {TOPIC_ROBOT_STATE}"
+              f"（或缺少右臂电机 ID {RIGHT_ARM_MOTOR_IDS}），跳过过渡，直接发首帧")
+        print("[replay] 如需强制过渡：确认桥接/真机已启动、ROS_DOMAIN_ID 正确。")
+        return False
+    if hand_now is None:
+        print(f"[replay] 警告: 未收到 {TOPIC_RIGHT_HAND_STATE}，过渡期间手指保持首帧目标")
+        hand_now = [float(v) for v in target[7:13]]
+
+    begin = np.concatenate([np.asarray(arm_now, dtype=np.float32),
+                            np.asarray(hand_now, dtype=np.float32)])
+    goal = np.asarray(target, dtype=np.float32)
+    diff = np.abs(goal - begin)
+    print(f"[replay] 过渡 {duration:.1f}s：当前 -> 首帧，"
+          f"最大臂差 {float(diff[:7].max()):.3f} rad，"
+          f"最大闭合度差 {float(diff[7:].max()):.3f}")
+
+    steps = max(1, int(round(duration * rate)))
+    period = 1.0 / rate
+    next_t = time.monotonic()
+    for k in range(1, steps + 1):
+        w = smoothstep(k / steps)
+        node.publish_frame(begin + (goal - begin) * w)
+        next_t += period
+        sleep_for = next_t - time.monotonic()
+        if sleep_for > 0:
+            time.sleep(sleep_for)
+        else:
+            # 落后于节奏，重新对齐基准防止越拖越多
+            next_t = time.monotonic()
+    return True
 
 
 def run_replay(args, actions: np.ndarray, rate: float) -> None:
@@ -200,7 +331,8 @@ def run_replay(args, actions: np.ndarray, rate: float) -> None:
         time.sleep(1.0)  # 等 publisher 上线（沿用 deploy 其它脚本的做法）
 
     print(f"[replay] episode={args.episode} frames=[{start},{end}) total={end - start} rate={rate}Hz "
-          f"dry_run={args.dry_run} arm_ids={RIGHT_ARM_MOTOR_IDS} topic_arm={TOPIC_ARM_CMD} "
+          f"dry_run={args.dry_run} transition={args.transition}s "
+          f"arm_ids={RIGHT_ARM_MOTOR_IDS} topic_arm={TOPIC_ARM_CMD} "
           f"topic_hand={TOPIC_RIGHT_HAND_CMD}")
 
     last_printed = None
@@ -219,7 +351,15 @@ def run_replay(args, actions: np.ndarray, rate: float) -> None:
             node.publish_frame(a)
 
     try:
-        # 首帧保持 lead-in 秒，让手臂平滑运动到录制起点再开始逐帧回放
+        # ① 当前实测位姿 -> 首帧：先平滑过渡，避免从任意位姿直接跳变到录制起点
+        if node is not None and args.transition > 0:
+            run_transition(node, actions[start], args.transition, rate,
+                           args.state_timeout)
+        elif args.dry_run and args.transition > 0:
+            print(f"[replay] dry-run：实际运行时先从当前位姿过渡 {args.transition:.1f}s "
+                  "到首帧（此处未读取状态、未发布）")
+
+        # ② 过渡到位后再保持首帧 lead-in 秒，让手臂稳定下来
         if args.lead_in > 0:
             print(f"[replay] 首帧保持 {args.lead_in}s ...")
             deadline = time.monotonic() + args.lead_in

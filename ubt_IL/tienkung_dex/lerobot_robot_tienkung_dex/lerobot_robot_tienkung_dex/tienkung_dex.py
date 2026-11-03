@@ -101,6 +101,9 @@ class TienKungDexRobot(Robot):
         # Joint definitions from config (replace module-level constants)
         self._right_arm_joints = config.right_arm_joints
         self._right_hand_joints = config.right_hand_joints
+        self._left_arm_joints = config.left_arm_joints
+        self._left_hand_joints = config.left_hand_joints
+        self._head_joints = config.head_joints
         self._all_joints = config.all_joints
         # 非激活关节(不在 all_joints 中的硬件关节)的静态填充值,部署时用于
         # 把 policy 的子集 action 散射回完整硬件维度。键已带 .pos 后缀。
@@ -116,6 +119,10 @@ class TienKungDexRobot(Robot):
         self._state_lock = threading.Lock()
         self._right_arm_jpos: list[float] = [0.0] * len(config.right_arm_joints)
         self._right_hand_pos: list[float] = [0.0] * len(config.right_hand_joints)
+        # 可选组（左侧 / 头部）：未启用时保持空缓存，状态里不会出现
+        self._left_arm_jpos: list[float] = [0.0] * len(config.left_arm_joints)
+        self._left_hand_pos: list[float] = [0.0] * len(config.left_hand_joints)
+        self._head_pos: list[float] = [0.0] * len(config.head_joints)
         self._estop_engaged = False
         self._state_ready = threading.Event()
 
@@ -249,13 +256,22 @@ class TienKungDexRobot(Robot):
     def _process_status(self, data: dict) -> None:
         right_arm = data.get("right_arm", [])
         right_hand = data.get("right_hand", [])
+        left_arm = data.get("left_arm", [])
+        left_hand = data.get("left_hand", [])
+        head = data.get("head", [])
 
-        if len(right_arm) >= len(self._right_arm_joints):
-            with self._state_lock:
+        with self._state_lock:
+            if len(right_arm) >= len(self._right_arm_joints):
                 self._right_arm_jpos[:] = right_arm[:len(self._right_arm_joints)]
-        if len(right_hand) >= len(self._right_hand_joints):
-            with self._state_lock:
+            if len(right_hand) >= len(self._right_hand_joints):
                 self._right_hand_pos[:] = right_hand[:len(self._right_hand_joints)]
+            # 以下三组只在桥接启用时才会出现
+            if len(left_arm) >= len(self._left_arm_joints):
+                self._left_arm_jpos[:] = left_arm[:len(self._left_arm_joints)]
+            if len(left_hand) >= len(self._left_hand_joints):
+                self._left_hand_pos[:] = left_hand[:len(self._left_hand_joints)]
+            if len(head) >= len(self._head_joints):
+                self._head_pos[:] = head[:len(self._head_joints)]
 
         estop = bool(data.get("estop", False))
         if estop != self._estop_engaged:
@@ -269,13 +285,19 @@ class TienKungDexRobot(Robot):
 
     @check_if_not_connected
     def get_observation(self) -> RobotObservation:
-        # 先构建完整硬件状态(2 组,物理通道序),再只返回 policy 关节(self._all_joints)。
+        # 先构建完整硬件状态(按组、物理通道序),再只返回 policy 关节(self._all_joints)。
         full: dict[str, float] = {}
         with self._state_lock:
             for i, name in enumerate(self._right_arm_joints):
                 full[name] = self._right_arm_jpos[i]
             for i, name in enumerate(self._right_hand_joints):
                 full[name] = self._right_hand_pos[i]
+            for i, name in enumerate(self._left_arm_joints):
+                full[name] = self._left_arm_jpos[i]
+            for i, name in enumerate(self._left_hand_joints):
+                full[name] = self._left_hand_pos[i]
+            for i, name in enumerate(self._head_joints):
+                full[name] = self._head_pos[i]
 
         obs: RobotObservation = {name: full[name] for name in self._all_joints}
 
@@ -288,7 +310,7 @@ class TienKungDexRobot(Robot):
     @check_if_not_connected
     def send_action(self, action: RobotAction) -> RobotAction:
         # action 仅含 policy 关节(self._all_joints);非激活关节用 _inactive_fill 填充,
-        # 以组装完整硬件命令(2 组物理通道序)。按名查找,与 policy 顺序无关。
+        # 以组装完整硬件命令(按组、物理通道序)。按名查找,与 policy 顺序无关。
         inactive = self._inactive_fill
 
         def get_val(name: str) -> float:
@@ -296,7 +318,16 @@ class TienKungDexRobot(Robot):
                 return action[name]
             return inactive.get(name, 0.0)
 
+        def group_values(joints: list[str]) -> list[float] | None:
+            """该组只要有一个关节名出现在 action 里就整组下发；否则视为不驱动。"""
+            if joints and any(name in action for name in joints):
+                return [get_val(name) for name in joints]
+            return None
+
+        # 右侧保持既有语义（即使个别名字缺失也用 inactive_fill 补齐）
         right_arm = [get_val(name) for name in self._right_arm_joints]
+        # 手部量纲随 hand_variant 而定，与训练数据集一致：
+        #   brainco = 闭合度 0~1（桥接内部 round(1+v*999) 出码）；inspire = 关节角 rad
         right_hand = [get_val(name) for name in self._right_hand_joints]
 
         # Apply safety clipping if configured
@@ -306,12 +337,32 @@ class TienKungDexRobot(Robot):
 
             right_arm = self._clip_relative(right_arm, current_right, self.config.max_relative_target)
 
-        # Publish action via ZMQ
-        action_msg = {
+        # Publish action via ZMQ（可选组只在启用且被本帧 action 覆盖时下发）
+        action_msg: dict = {
             "right_arm": right_arm,
             "right_hand": right_hand,
             "ts": time.time(),
         }
+        left_arm = left_hand = head = None
+        if self.config.enable_left_arm:
+            left_arm = group_values(self._left_arm_joints)
+            if left_arm is not None:
+                if self.config.max_relative_target is not None:
+                    with self._state_lock:
+                        current_left = list(self._left_arm_jpos)
+                    left_arm = self._clip_relative(
+                        left_arm, current_left, self.config.max_relative_target
+                    )
+                action_msg["left_arm"] = left_arm
+        if self.config.enable_left_hand:
+            left_hand = group_values(self._left_hand_joints)
+            if left_hand is not None:
+                action_msg["left_hand"] = left_hand
+        if self.config.enable_head:
+            head = group_values(self._head_joints)
+            if head is not None:
+                action_msg["head"] = head
+
         try:
             self._cmd_socket.send_json(action_msg, flags=zmq.NOBLOCK)
         except zmq.Again:
@@ -327,7 +378,22 @@ class TienKungDexRobot(Robot):
             sent_map[name] = right_arm[i]
         for i, name in enumerate(self._right_hand_joints):
             sent_map[name] = right_hand_sent[i]
-        sent_action: RobotAction = {name: sent_map[name] for name in self._all_joints}
+        if left_arm is not None:
+            for i, name in enumerate(self._left_arm_joints):
+                sent_map[name] = left_arm[i]
+        if left_hand is not None:
+            left_hand_sent = clip_hand_position(
+                left_hand, self.config.left_hand_variant, self._left_hand_joints
+            )
+            for i, name in enumerate(self._left_hand_joints):
+                sent_map[name] = left_hand_sent[i]
+        if head is not None:
+            for i, name in enumerate(self._head_joints):
+                sent_map[name] = head[i]
+
+        sent_action: RobotAction = {
+            name: sent_map.get(name, float(action.get(name, 0.0))) for name in self._all_joints
+        }
         return sent_action
 
     @staticmethod
@@ -414,6 +480,8 @@ class TienKungDexRobot(Robot):
                 "right_hand": list(self.config.hand_open_position),
                 "ts": time.time(),
             }
+            if self.config.enable_left_hand:
+                home_action["left_hand"] = list(self.config.left_hand_open_position)
             try:
                 self._cmd_socket.send_json(home_action, flags=zmq.NOBLOCK)
             except zmq.Again:

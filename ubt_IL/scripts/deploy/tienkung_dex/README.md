@@ -10,6 +10,7 @@
 | [rollout.sh](rollout.sh) | 单次 rollout（DURATION 秒） |
 | [inference_server.sh](inference_server.sh) / [inference_client.sh](inference_client.sh) | 常驻推理服务 + 客户端 |
 | [reset.py](reset.py) | 复位**仿真**场景（`/sim/cmd_reset`） |
+| [replay.py](replay.py) | 真机回放 LeRobot 数据集动作（右臂 7 + 强脑右手 6，含当前位姿→首帧过渡）。**与 Bridge2 互斥** |
 
 ## 正确顺序
 
@@ -120,6 +121,37 @@ bash /ubt_IL/scripts/deploy/tienkung_dex/rollout.sh
 顺序的真正保险是：`TienKungDex20JointIndex` 的成员顺序 == 转换配置里的 `names` ==
 数据集顺序，Bridge2 全程**按关节名**寻址、不按位。
 
+## replay.py（真机动作回放）
+
+把 LeRobot 数据集（`tienkung_dex_13d_1RGB_brainco_real` 布局）里某条 episode 的
+`action` 原样发回真机，用来验证链路 / 回看采集质量 / 复现场景，**不经过模型**。
+
+```bash
+# 先停掉推理服务（Bridge2 也写 /arm/cmd，两个发布端会抢话题）
+bash inference_client.sh shutdown        # 或确认没有 rollout / 桥接在跑
+
+source /opt/ros/humble/setup.bash
+python3 /ubt_IL/scripts/deploy/tienkung_dex/replay.py --episode 0 --dry-run   # 先空跑
+python3 /ubt_IL/scripts/deploy/tienkung_dex/replay.py --episode 0
+```
+
+运行时按四步走：**读当前实测位姿 → quintic 平滑过渡到首帧 → 保持首帧 lead-in → 逐帧回放**。
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `--episode` | `0` | `episode_index` |
+| `--rate` | `info.json` 的 fps（当前 30） | 发送频率 Hz |
+| `--transition` | `3.0` | 当前位姿 → 首帧的过渡秒数，`0` = 直接发首帧（旧行为） |
+| `--state-timeout` | `2.0` | 等 `/robot_state` 与 `/right_hand/motor_status` 首帧的超时；超时则跳过过渡并告警 |
+| `--lead-in` | `1.0` | 过渡到位后再保持首帧的秒数 |
+| `--start` / `--end` | `0` / 末尾 | 帧索引，`--end` 开区间 |
+| `--dry-run` | 关 | 只打印，不连 ROS |
+
+过渡起点来自反馈而非指令：右臂取 `/robot_state` 的 `arm.status[]`（按电机 ID 21~27 寻址），
+右手取 `/right_hand/motor_status` 的通道码并换算回闭合度 `(code-1)/999`；插值按同一套
+`/arm/cmd` + `/right_hand/set_motor_multi` 下发，臂目标依旧按 `BODY_JOINT_LIMITS` 裁剪。
+拿不到状态时只告警、退化为“直接发首帧”，不会静默乱动。
+
 ## inference_server.sh（常驻预热）
 
 `rollout.sh` 每次都冷启动（policy 加载到 CUDA + 桥接拉起）。常驻服务一次性预热，
@@ -184,6 +216,69 @@ ROS_DOMAIN_ID=146 /usr/bin/python3 reset.py           # 默认重复发 3 次
 ⚠️ **数据集手序 ≠ 因时通道序**。数据集按 URDF（thumb→pinky），`INSPIRE_CHANNELS`
 按 pinky→thumb，落地映射是 `[10,11,12,5,4,9,3,2,8,1,7,0,6]`。Bridge2 按关节名
 散列，不按位；启动时逐字比对关节名，不一致直接拒启。
+
+### 手部量纲（强脑 13D）
+
+```
+[0-6]   右臂 7 : shoulder_pitch_r … wrist_roll_r     单位 rad
+[7-12]  右手 6 : thumb_proximal, thumb_metacarpal,
+                 index/middle/ring/pinky_proximal     单位 **闭合度 0~1**
+```
+
+训练数据集（`tienkung_dex_real_pick_apple_brainco_13d`）的 `action` 与
+`observation.state` 手部 6 维都是 **0~1**（convert 配置
+`scale=1/999, offset=-1/999`）。因此 Bridge2 与插件对 `brainco` 统一按该口径：
+
+| 方向 | 换算 |
+|---|---|
+| 动作（ZMQ → 真机） | `code = round(1 + v*999)`（1=伸直，1000=弯曲） |
+| 状态（真机 → ZMQ） | `v = (code-1)/999` |
+
+`inspire`（20D 因时）暂时仍是 rad 口径，后续再改归一化 + 13 维展开。
+注意：绕过插件直接给 Bridge2 喂 `right_hand` 时，`brainco` 必须给 0~1，给 rad 会被
+当成 "0~1 上限" 截断（最多到码 644~955，手指抓不紧）。
+
+### Bridge2 组组合与颗粒度
+
+Bridge2 支持**任意组组合**，用显式开关启用（默认只开右侧，13D/20D 行为不变）：
+
+| 开关 | 默认 | 说明 |
+|------|------|------|
+| `enable_right_arm` / `enable_right_hand` | `true` | 右侧（既有行为） |
+| `enable_left_arm` / `enable_left_hand` | `false` | 左侧，需显式打开 |
+| `enable_head` | `false` | 头部（HeadCtrl，ID 1=head_yaw / 2=head_pitch） |
+
+**颗粒度**：
+
+- **臂 / 头部是关节级**：`{side}_arm_joints` 与 `{side}_arm_motor_ids` 成对传入，
+  `head_joints` 与 `head_motor_ids` 成对传入，长度必须一致，**可以是子集**
+  （例：左臂只控 `[shoulder_pitch_l, elbow_pitch_l]` + `[11, 14]`；头部只控 pitch + `[2]`）。
+  ZMQ 里该组的数组长度 = 该组关节数。
+- **手是整只**：`SetMotorMulti(speeds/currents/pwms)` / `SetAngle` 是**定长数组**
+  （强脑 6 / 因时 13），少给会错位，所以只能整只手启停，不能只控某几根手指。
+- **左右手可不同型**：`right_hand_variant` / `left_hand_variant` 各自独立
+  （例：左因时 + 右强脑），桥接按 side 分别加载消息类、分别校验通道表。
+
+ZMQ 协议（键名即组名，缺省表示该组未启用）：
+
+```text
+action:   right_arm | left_arm | right_hand | left_hand | head
+status:   right_arm | left_arm | right_hand | left_hand | head | estop | ts
+```
+
+最小示例（只测左臂 2 关节 + 头部 pitch）：
+
+```json
+{
+  "hand_variant": "brainco",
+  "enable_left_arm": true,
+  "left_arm_joints": ["shoulder_pitch_l_joint.pos", "elbow_pitch_l_joint.pos"],
+  "left_arm_motor_ids": [11, 14],
+  "enable_head": true,
+  "head_joints": ["head_pitch_joint.pos"],
+  "head_motor_ids": [2]
+}
+```
 
 ## 已知待确认
 

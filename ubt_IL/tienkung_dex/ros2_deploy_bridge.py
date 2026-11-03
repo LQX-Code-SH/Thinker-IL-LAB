@@ -54,20 +54,52 @@ logger = logging.getLogger("ros2_deploy_bridge")
 
 DEFAULT_VARIANT = "inspire"
 
-# 右臂 7 关节，顺序 = motor id 21..27 的顺序 = 插件 right_arm_joints 的顺序
-RIGHT_ARM_JOINTS = [
-    "shoulder_pitch_r_joint",
-    "shoulder_roll_r_joint",
-    "shoulder_yaw_r_joint",
-    "elbow_pitch_r_joint",
-    "elbow_yaw_r_joint",  # 真机命名 right_wrist_yaw
-    "wrist_pitch_r_joint",
-    "wrist_roll_r_joint",
-]
-RIGHT_ARM_MOTOR_IDS = [21, 22, 23, 24, 25, 26, 27]
+# 双臂关节表：顺序 = 电机 ID 顺序 = 插件 *_arm_joints 的顺序。
+# 真机命名差异：ID 15/25 在线缆上叫 wrist_yaw，URDF 里是 elbow_yaw_{l,r}_joint。
+ARM_JOINTS = {
+    "left": [
+        "shoulder_pitch_l_joint",
+        "shoulder_roll_l_joint",
+        "shoulder_yaw_l_joint",
+        "elbow_pitch_l_joint",
+        "elbow_yaw_l_joint",
+        "wrist_pitch_l_joint",
+        "wrist_roll_l_joint",
+    ],
+    "right": [
+        "shoulder_pitch_r_joint",
+        "shoulder_roll_r_joint",
+        "shoulder_yaw_r_joint",
+        "elbow_pitch_r_joint",
+        "elbow_yaw_r_joint",
+        "wrist_pitch_r_joint",
+        "wrist_roll_r_joint",
+    ],
+}
+ARM_MOTOR_IDS = {
+    "left": [11, 12, 13, 14, 15, 16, 17],
+    "right": [21, 22, 23, 24, 25, 26, 27],
+}
 
-# 右臂 URDF 限位 (lower, upper)，单位 rad。Bridge2 是最后一道机械保护。
+# 兼容旧引用（右侧）
+RIGHT_ARM_JOINTS = ARM_JOINTS["right"]
+RIGHT_ARM_MOTOR_IDS = ARM_MOTOR_IDS["right"]
+
+# 头部 2 关节（HeadCtrl，ID 1=head_yaw / 2=head_pitch）
+HEAD_JOINTS = ["head_yaw_joint", "head_pitch_joint"]
+HEAD_MOTOR_IDS = [1, 2]
+HEAD_CMD_LIMITS = {"spd": 0.3, "cur": 10.0}
+
+# 双臂 + 头部 URDF 限位 (lower, upper)，单位 rad。Bridge2 是最后一道机械保护。
+# 左侧按镜像对称（shoulder_roll_l / elbow_pitch_l 的符号与右侧相反）。
 BODY_JOINT_LIMITS = {
+    "shoulder_pitch_l_joint": (-2.844887, 2.844887),
+    "shoulder_roll_l_joint": (-0.191986, 3.333579),
+    "shoulder_yaw_l_joint": (-2.844887, 2.844887),
+    "elbow_pitch_l_joint": (-2.548181, 0.191986),
+    "elbow_yaw_l_joint": (-2.844887, 2.844887),
+    "wrist_pitch_l_joint": (-1.32645, 1.32645),
+    "wrist_roll_l_joint": (-1.32645, 1.32645),
     "shoulder_pitch_r_joint": (-2.844887, 2.844887),
     "shoulder_roll_r_joint": (-3.333579, 0.191986),
     "shoulder_yaw_r_joint": (-2.844887, 2.844887),
@@ -75,6 +107,9 @@ BODY_JOINT_LIMITS = {
     "elbow_yaw_r_joint": (-2.844887, 2.844887),
     "wrist_pitch_r_joint": (-1.32645, 1.32645),
     "wrist_roll_r_joint": (-1.32645, 1.32645),
+    "head_yaw_joint": (-1.047198, 1.047198),
+    # 正值 = 低头（URDF 轴向 (0,1,0)）：低头到 +58°、仰头到 -15°。
+    "head_pitch_joint": (-0.261799, 1.012291),
 }
 
 # 真机各组位置指令的 spd/cur（沿用 SDK demo 实测值：手臂 cur=40 才够扛重力）。
@@ -130,7 +165,9 @@ HAND_CHANNEL_COUNT = {
 # 因时通道码的物理单位：0.1° 一个码
 INSPIRE_CODE_DEG = 0.1
 
-# 强脑关节限位（rad）。hand_rad_to_code 按 action_limit 归一化成闭合度。
+# 强脑关节限位（rad）。仅用于"rad 语义"的换算（hand_rad_to_code / hand_code_to_rad，
+# 遥操作/兼容路径）；**策略链路（本文件与插件）对强脑手统一用 0~1 闭合度**，
+# 与训练数据集（convert 配置 scale=1/999, offset=-1/999）同口径。
 HAND_JOINT_LIMITS = {
     "brainco": {
         "thumb_metacarpal": (0.0, 1.55334),
@@ -197,8 +234,37 @@ def hand_percent_to_code(variant: str, percent: float) -> int:
     return int(round(BRAINCO_CODE_MIN + ratio * (BRAINCO_CODE_MAX - BRAINCO_CODE_MIN)))
 
 
+def hand_code_to_percent(variant: str, code: int) -> float:
+    """强脑通道值 -> 闭合度 [0, 1]（hand_percent_to_code 的逆运算）。"""
+    if variant != "brainco":
+        raise ValueError(f"{variant} 通道不是闭合度语义，请用 inspire_code_to_rad")
+    clipped = min(max(int(code), BRAINCO_CODE_MIN), BRAINCO_CODE_MAX)
+    return (clipped - BRAINCO_CODE_MIN) / float(BRAINCO_CODE_MAX - BRAINCO_CODE_MIN)
+
+
+def hand_action_to_code(variant: str, channel: int, value: float, joint_name: str) -> int:
+    """ZMQ 控制量 -> 真机通道码。量纲按手型区分（与训练数据集一致）。
+
+    - ``brainco``：**闭合度 [0, 1]**（数据集 action 就是 0~1）-> ``round(1 + v*999)``；
+    - ``inspire``：关节角 rad -> 0.1° 角码（暂不变，因时后续再改归一化）。
+    """
+    if variant == "brainco":
+        return hand_percent_to_code(variant, value)
+    return inspire_rad_to_code(channel, value)
+
+
+def hand_code_to_value(variant: str, channel: int, code: int, joint_name: str) -> float:
+    """真机通道码 -> ZMQ 状态量（brainco: 闭合度 0~1；inspire: rad）。"""
+    if variant == "brainco":
+        return hand_code_to_percent(variant, code)
+    return inspire_code_to_rad(channel, code)
+
+
 def hand_code_to_rad(variant: str, channel: int, code: int, joint_name: str) -> float:
-    """真机通道值 -> 仿真关节角（rad），两个变体的统一入口。"""
+    """真机通道值 -> 关节角（rad）。**rad 语义路径**（遥操作/仿真复用）。
+
+    策略链路（ZMQ）请用 :func:`hand_code_to_value`：brainco 返回闭合度 0~1。
+    """
     if variant == "brainco":
         clipped = min(max(int(code), BRAINCO_CODE_MIN), BRAINCO_CODE_MAX)
         percent = (clipped - BRAINCO_CODE_MIN) / float(BRAINCO_CODE_MAX - BRAINCO_CODE_MIN)
@@ -207,7 +273,10 @@ def hand_code_to_rad(variant: str, channel: int, code: int, joint_name: str) -> 
 
 
 def hand_rad_to_code(variant: str, channel: int, rad: float, joint_name: str) -> int:
-    """仿真关节角（rad）-> 真机通道值，两个变体的统一入口。"""
+    """关节角（rad）-> 真机通道值。**rad 语义路径**（遥操作/仿真复用）。
+
+    brainco 的策略控制量是闭合度 0~1，请用 :func:`hand_action_to_code`。
+    """
     if variant == "brainco":
         limit = action_limit(joint_name, variant)
         ratio = float(rad) / limit if abs(limit) > 1e-6 else 0.0
@@ -215,32 +284,36 @@ def hand_rad_to_code(variant: str, channel: int, rad: float, joint_name: str) ->
     return inspire_rad_to_code(channel, rad)
 
 
-def _assert_hand_table(variant: str, joints_from_plugin: list[str] | None) -> list[str]:
+def _assert_hand_table(
+    variant: str, side: str, joints_from_plugin: list[str] | None
+) -> list[str]:
     """校验手部通道表完整，并与插件传下来的硬件关节序逐字比对。
 
     "13 个手部关节名全部命中通道表、无重复、无遗漏"是这套映射唯一能自证的地方：
     数据集手序（URDF: thumb→pinky）与真机通道序（pinky→thumb）不是同一个排列，
     只要有一处错位，策略下发的手指就会整体错位，而画面看不出来。
     """
-    table = hand_channel_joints(variant, "right")
+    if side not in ("left", "right"):
+        raise RuntimeError(f"未知的手部 side: {side!r}")
+    table = hand_channel_joints(variant, side)
     names = [entry[0] if entry else "" for entry in table]
     expected = HAND_CHANNEL_COUNT[variant]
 
     if len(table) != expected:
         raise RuntimeError(
-            f"{variant} 通道表长度 {len(table)} != HAND_CHANNEL_COUNT {expected}"
+            f"{variant}/{side} 通道表长度 {len(table)} != HAND_CHANNEL_COUNT {expected}"
         )
     empty = [i for i, name in enumerate(names) if not name]
     if empty:
-        raise RuntimeError(f"{variant} 通道表有空通道: {empty}")
+        raise RuntimeError(f"{variant}/{side} 通道表有空通道: {empty}")
     if len(set(names)) != len(names):
-        raise RuntimeError(f"{variant} 通道表有重复关节: {names}")
+        raise RuntimeError(f"{variant}/{side} 通道表有重复关节: {names}")
 
     if joints_from_plugin:
         stripped = [name.removesuffix(".pos") for name in joints_from_plugin]
         if stripped != names:
             raise RuntimeError(
-                "插件传入的右手关节序与本文件通道表不一致（插件与桥接的常量副本已漂移）：\n"
+                f"插件传入的{side}手关节序与本文件通道表不一致（常量副本已漂移）：\n"
                 f"  插件: {stripped}\n  桥接: {names}"
             )
     return names
@@ -254,10 +327,19 @@ _DEFAULT_CFG = {
     "cmd_namespace": "",
     "hand_variant": DEFAULT_VARIANT,
     "right_arm_motor_ids": list(RIGHT_ARM_MOTOR_IDS),
+    # 左侧/头部默认关闭：老配置（13D/20D 只有右臂右手）行为完全不变。
+    # 双臂数据训练时由插件 to_bridge_config() 打开对应开关。
+    "enable_right_arm": True,
+    "enable_left_arm": False,
+    "enable_right_hand": True,
+    "enable_left_hand": False,
+    "enable_head": False,
     "arm_speed": GROUP_CMD_LIMITS["arm"]["spd"],
     "arm_current": GROUP_CMD_LIMITS["arm"]["cur"],
     "topic_arm_cmd": "/arm/cmd",
+    "topic_head_cmd": "/head/cmd",
     "topic_right_hand_cmd": "",  # 留空 = 按 hand_variant 选
+    "topic_left_hand_cmd": "",   # 同上（left）
     "topic_robot_state": "/robot_state",
     "topic_estop": "/power/board/key_status",
     "topic_reset": "/sim/cmd_reset",
@@ -275,10 +357,16 @@ _DEFAULT_CFG = {
     "image_compressed": False,
 }
 
-# 手型 -> (指令话题, 状态话题)，与真机话题表一致
+# 手型 -> side -> (指令话题, 状态话题)，与真机话题表一致
 _HAND_TOPICS = {
-    "inspire": ("/right_hand/angle_set", "/right_hand/angle_actual"),
-    "brainco": ("/right_hand/set_motor_multi", "/right_hand/motor_status"),
+    "inspire": {
+        "left": ("/left_hand/angle_set", "/left_hand/angle_actual"),
+        "right": ("/right_hand/angle_set", "/right_hand/angle_actual"),
+    },
+    "brainco": {
+        "left": ("/left_hand/set_motor_multi", "/left_hand/motor_status"),
+        "right": ("/right_hand/set_motor_multi", "/right_hand/motor_status"),
+    },
 }
 
 
@@ -372,28 +460,92 @@ class RealRobotBridge:
     def __init__(self, zmq_bridge: ZMQInternalBridge, cfg: dict):
         self.zmq_bridge = zmq_bridge
         self._cfg = cfg
-        self._variant = cfg["hand_variant"]
-        if self._variant not in HAND_CHANNEL_COUNT:
-            raise RuntimeError(f"未知 hand_variant: {self._variant!r}")
+        # ---- 组开关：支持任意组合（只左臂 / 只右手 / 左因时右强脑 / 加头部）----
+        # 显式开关，默认只开右侧（与 13D/20D 既有行为一致）。
+        # 注意：不能用"配置里是否有 left_xxx"来判断——_DEFAULT_CFG 会给默认值，
+        # 那样任何配置都会把左侧判成启用（实测踩过）。
+        self._enable = {
+            "right_arm": bool(cfg.get("enable_right_arm", True)),
+            "left_arm": bool(cfg.get("enable_left_arm", False)),
+            "right_hand": bool(cfg.get("enable_right_hand", True)),
+            "left_hand": bool(cfg.get("enable_left_hand", False)),
+            "head": bool(cfg.get("enable_head", False)),
+        }
+        if not any(self._enable.values()):
+            raise RuntimeError(f"至少需要启用一个组: {self._enable}")
 
-        self._right_arm_motor_ids = [int(m) for m in cfg["right_arm_motor_ids"]]
-        if len(self._right_arm_motor_ids) != len(RIGHT_ARM_JOINTS):
+        # 左右手可以是不同手型（例：左因时 / 右强脑）
+        self._hand_variant = {
+            side: (cfg.get(f"{side}_hand_variant") or cfg.get("hand_variant") or DEFAULT_VARIANT)
+            for side in ("left", "right")
+        }
+        for side, variant in self._hand_variant.items():
+            if variant not in HAND_CHANNEL_COUNT:
+                raise RuntimeError(f"未知 {side}_hand_variant: {variant!r}")
+
+        self._arm_sides = [s for s in ("right", "left") if self._enable[f"{s}_arm"]]
+        self._hand_sides = [s for s in ("right", "left") if self._enable[f"{s}_hand"]]
+        self._sides = [s for s in ("right", "left") if s in self._arm_sides or s in self._hand_sides]
+        # 兼容旧字段 self._variant：右手手型（未启用右手时取左手）
+        self._variant = (
+            self._hand_variant["right"] if self._enable["right_hand"]
+            else self._hand_variant["left"]
+        )
+
+        self._arm_motor_ids = {
+            "right": [int(m) for m in (cfg.get("right_arm_motor_ids") or ARM_MOTOR_IDS["right"])],
+            "left": [int(m) for m in (cfg.get("left_arm_motor_ids") or ARM_MOTOR_IDS["left"])],
+        }
+        # 臂的关节级配置：{side}_arm_joints 与 {side}_arm_motor_ids 成对，可为子集。
+        # 插件传下来的名字带 ``.pos`` 后缀（LeRobot 约定），这里统一剥掉。
+        self._arm_joints = {
+            side: [j.removesuffix(".pos") for j in (cfg.get(f"{side}_arm_joints") or ARM_JOINTS[side])]
+            for side in ("left", "right")
+        }
+        for side in ("left", "right"):
+            joints, ids = self._arm_joints[side], self._arm_motor_ids[side]
+            if len(joints) != len(ids):
+                raise RuntimeError(
+                    f"{side} 臂配置不一致：{side}_arm_joints={len(joints)} 个，"
+                    f"{side}_arm_motor_ids={len(ids)} 个（必须一一对应）"
+                )
+            unknown = [j for j in joints if j not in BODY_JOINT_LIMITS]
+            if unknown:
+                raise RuntimeError(f"{side} 臂含未知/无限位关节: {unknown}")
+            if len(set(joints)) != len(joints):
+                raise RuntimeError(f"{side} 臂关节重复: {joints}")
+
+        # 头部关节级配置：head_joints 与 head_motor_ids 成对，可只启用其中一个轴
+        self._head_joints = [
+            j.removesuffix(".pos") for j in (cfg.get("head_joints") or HEAD_JOINTS)
+        ]
+        self._head_motor_ids = [int(m) for m in (cfg.get("head_motor_ids") or HEAD_MOTOR_IDS)]
+        if len(self._head_joints) != len(self._head_motor_ids):
             raise RuntimeError(
-                f"right_arm_motor_ids 需要 {len(RIGHT_ARM_JOINTS)} 个，"
-                f"收到 {len(self._right_arm_motor_ids)} 个"
+                f"头部配置不一致：head_joints={len(self._head_joints)} 个，"
+                f"head_motor_ids={len(self._head_motor_ids)} 个（必须一一对应）"
             )
+        unknown = [j for j in self._head_joints if j not in BODY_JOINT_LIMITS]
+        if unknown:
+            raise RuntimeError(f"头部含未知/无限位关节: {unknown}")
+
         self._arm_speed = float(cfg.get("arm_speed", GROUP_CMD_LIMITS["arm"]["spd"]))
         self._arm_current = float(cfg.get("arm_current", GROUP_CMD_LIMITS["arm"]["cur"]))
 
-        hand_cmd_topic, hand_state_topic = _HAND_TOPICS[self._variant]
-        self._topic_right_hand_cmd = cfg.get("topic_right_hand_cmd") or hand_cmd_topic
-        self._topic_right_hand_state = hand_state_topic
-
-        # 启动断言：通道表自洽 + 与插件传下来的关节序一致（不一致拒启）
-        self._right_hand_joints = _assert_hand_table(
-            self._variant, cfg.get("right_hand_joints")
-        )
-        self._hand_channel_count = HAND_CHANNEL_COUNT[self._variant]
+        # 手部话题 / 通道表 / 每只手的消息类：全按该 side 自己的 hand_variant
+        self._hand_topic_cmd: dict[str, str] = {}
+        self._hand_topic_state: dict[str, str] = {}
+        self._hand_joints: dict[str, list[str]] = {}
+        self._hand_channel_count: dict[str, int] = {}
+        for side in self._hand_sides:
+            variant = self._hand_variant[side]
+            default_cmd, default_state = _HAND_TOPICS[variant][side]
+            self._hand_topic_cmd[side] = cfg.get(f"topic_{side}_hand_cmd") or default_cmd
+            self._hand_topic_state[side] = cfg.get(f"topic_{side}_hand_state") or default_state
+            self._hand_joints[side] = _assert_hand_table(
+                variant, side, cfg.get(f"{side}_hand_joints")
+            )
+            self._hand_channel_count[side] = HAND_CHANNEL_COUNT[variant]
 
         ros_namespace = (cfg.get("ros_namespace") or "").rstrip("/")
         cmd_namespace = (cfg.get("cmd_namespace") or "").rstrip("/")
@@ -409,9 +561,18 @@ class RealRobotBridge:
 
         self._node = Node("ros2_deploy_bridge")
 
-        # State caches
-        self._right_arm_jpos = [0.0] * len(self._right_arm_motor_ids)
-        self._right_hand_pos = [0.0] * self._hand_channel_count
+        # State caches（左右两侧都建，便于未启用侧也有确定值/别名）
+        self._arm_jpos = {side: [0.0] * len(self._arm_motor_ids[side]) for side in ("left", "right")}
+        self._hand_pos = {
+            side: [0.0] * HAND_CHANNEL_COUNT[self._hand_variant[side]]
+            for side in ("left", "right")
+        }
+        self._head_pos = [0.0] * len(self._head_motor_ids)
+        # 兼容旧引用
+        self._right_arm_motor_ids = self._arm_motor_ids["right"]
+        self._right_arm_jpos = self._arm_jpos["right"]
+        self._right_hand_pos = self._hand_pos["right"]
+        self._right_hand_joints = self._hand_joints.get("right", [])
         self._estop = False
         self._state_lock = threading.Lock()
 
@@ -420,13 +581,20 @@ class RealRobotBridge:
         self._arm_cmd_pub = self._node.create_publisher(
             self._msgs["ArmCtrl"], arm_topic, 10
         )
-        hand_cmd_full = (
-            f"{cmd_namespace}{self._topic_right_hand_cmd}"
-            if cmd_namespace else self._topic_right_hand_cmd
-        )
-        self._right_hand_pub = self._node.create_publisher(
-            self._msgs["hand_command"], hand_cmd_full, 10
-        )
+        self._hand_pubs: dict[str, Any] = {}
+        for side in self._hand_sides:
+            topic = self._hand_topic_cmd[side]
+            full = f"{cmd_namespace}{topic}" if cmd_namespace else topic
+            self._hand_pubs[side] = self._node.create_publisher(
+                self._hand_msgs[side]["command"], full, 10
+            )
+        self._head_pub = None
+        if self._enable["head"]:
+            head_topic = cfg.get("topic_head_cmd", "/head/cmd")
+            head_full = f"{cmd_namespace}{head_topic}" if cmd_namespace else head_topic
+            self._head_pub = self._node.create_publisher(
+                self._msgs["HeadCtrl"], head_full, 10
+            )
 
         # Subscribers — status side (ros_namespace)
         status_qos = _status_qos()
@@ -435,11 +603,12 @@ class RealRobotBridge:
             f"{ros_namespace}{cfg['topic_robot_state']}",
             self._robot_state_callback, status_qos,
         )
-        self._node.create_subscription(
-            self._msgs["hand_state"],
-            f"{ros_namespace}{self._topic_right_hand_state}",
-            self._hand_state_callback, status_qos,
-        )
+        for side in self._hand_sides:
+            self._node.create_subscription(
+                self._hand_msgs[side]["state"],
+                f"{ros_namespace}{self._hand_topic_state[side]}",
+                self._make_hand_state_callback(side), status_qos,
+            )
         self._create_estop_subscription(cfg, ros_namespace)
 
         # 头相机：只有真机才需要转发（仿真里 AsyncJpegCameraSender 直发 5758）
@@ -473,17 +642,40 @@ class RealRobotBridge:
         self._action_thread.start()
 
         logger.info(
-            "Real robot bridge started (ns=%s, cmd_ns=%s, hand=%s, motors=%s, spd=%.2f, cur=%.0f)",
-            ros_namespace, cmd_namespace, self._variant,
-            self._right_arm_motor_ids, self._arm_speed, self._arm_current,
+            "Real robot bridge started (ns=%s, cmd_ns=%s, arm_sides=%s, hand_sides=%s, "
+            "head=%s, spd=%.2f, cur=%.0f)",
+            ros_namespace, cmd_namespace, self._arm_sides, self._hand_sides,
+            self._enable["head"], self._arm_speed, self._arm_current,
         )
-        logger.info("右手通道 -> 关节: %s", dict(enumerate(self._right_hand_joints)))
+        for side in self._arm_sides:
+            logger.info(
+                "%s臂 motors=%s", "左" if side == "left" else "右",
+                self._arm_motor_ids[side],
+            )
+        for side in self._hand_sides:
+            variant = self._hand_variant[side]
+            logger.info(
+                "%s手(%s) 通道 -> 关节: %s", "左" if side == "left" else "右", variant,
+                dict(enumerate(self._hand_joints[side])),
+            )
+            logger.info(
+                "%s手控制量口径: %s", "左" if side == "left" else "右",
+                "闭合度 0~1 -> 码 1~1000（brainco，与训练数据集一致）"
+                if variant == "brainco"
+                else "关节角 rad -> 0.1° 角码（inspire）",
+            )
+        if not self._enable["head"]:
+            logger.info("头部未启用（enable_head=false）")
 
     # ------------------------------------------------------------------ 消息包
     def _load_msgs(self) -> dict[str, Any]:
-        """导入真机消息包；缺包时给出可执行的修复提示。"""
+        """导入真机消息包；缺包时给出可执行的修复提示。
+
+        左右手可以是不同手型，因此按 side 分别加载对应的手部消息类
+        （brainco = SetMotorMulti/MotorStatus，inspire = SetAngle/GetAngleAct）。
+        """
         try:
-            from ros2_bridge_msgs.msg import ArmCtrl, MotorCtrl, RobotState
+            from ros2_bridge_msgs.msg import ArmCtrl, HeadCtrl, MotorCtrl, RobotState
         except ImportError as exc:
             raise RuntimeError(
                 f"{exc}：需要 ros2_bridge_msgs。容器内先 bash run.sh check，"
@@ -492,19 +684,21 @@ class RealRobotBridge:
 
         msgs: dict[str, Any] = {
             "ArmCtrl": ArmCtrl,
+            "HeadCtrl": HeadCtrl,
             "MotorCtrl": MotorCtrl,
             "RobotState": RobotState,
         }
-        if self._variant == "brainco":
-            try:
-                from brainco_hand_msgs.msg import MotorStatus, SetMotorMulti
-            except ImportError as exc:
-                raise RuntimeError(
-                    f"{exc}：brainco 变体需要 brainco_hand_msgs，"
-                    "容器内先 bash run.sh check"
-                ) from exc
-            msgs.update({"hand_command": SetMotorMulti, "hand_state": MotorStatus})
-        else:
+
+        def hand_classes(variant: str) -> dict[str, Any]:
+            if variant == "brainco":
+                try:
+                    from brainco_hand_msgs.msg import MotorStatus, SetMotorMulti
+                except ImportError as exc:
+                    raise RuntimeError(
+                        f"{exc}：brainco 变体需要 brainco_hand_msgs，"
+                        "容器内先 bash run.sh check"
+                    ) from exc
+                return {"command": SetMotorMulti, "state": MotorStatus}
             try:
                 from inspire_hand_msgs.msg import GetAngleAct, SetAngle
             except ImportError as exc:
@@ -512,7 +706,11 @@ class RealRobotBridge:
                     f"{exc}：inspire 变体需要 inspire_hand_msgs，"
                     "容器内先 bash run.sh check"
                 ) from exc
-            msgs.update({"hand_command": SetAngle, "hand_state": GetAngleAct})
+            return {"command": SetAngle, "state": GetAngleAct}
+
+        self._hand_msgs = {
+            side: hand_classes(self._hand_variant[side]) for side in self._hand_sides
+        }
         return msgs
 
     def _create_estop_subscription(self, cfg: dict, ros_namespace: str) -> None:
@@ -581,38 +779,104 @@ class RealRobotBridge:
 
     # ---------------------------------------------------------------- 回调
     def _robot_state_callback(self, msg: Any) -> None:
-        """/robot_state：按关节 ID 取右臂 7 维（不是按位取）。"""
-        pos_by_id = {int(motor.name): float(motor.pos) for motor in msg.arm.status}
-        missing = [mid for mid in self._right_arm_motor_ids if mid not in pos_by_id]
-        if missing:
-            if not getattr(self, "_warned_missing_ids", None):
-                self._warned_missing_ids = set()
-            new = [mid for mid in missing if mid not in self._warned_missing_ids]
-            if new:
-                self._warned_missing_ids.update(new)
-                logger.warning("/robot_state 缺少右臂关节 ID %s，本帧状态不更新", new)
-            return
+        """/robot_state：按关节 ID 取双臂 + 头部（不是按位取）。
 
+        只更新已启用的组；某组缺 ID 时该组本帧不更新（首次告警，避免刷屏）。
+        """
+        pos_by_id: dict[int, float] = {}
+        for group in ("head", "arm"):
+            status = getattr(msg, group, None)
+            for motor in getattr(status, "status", []):
+                pos_by_id[int(motor.name)] = float(motor.pos)
+
+        updated = False
         with self._state_lock:
-            for i, mid in enumerate(self._right_arm_motor_ids):
-                self._right_arm_jpos[i] = pos_by_id[mid]
+            for side in self._arm_sides:
+                ids = self._arm_motor_ids[side]
+                missing = [mid for mid in ids if mid not in pos_by_id]
+                if missing:
+                    self._warn_missing(f"{side}_arm", missing)
+                    continue
+                for i, mid in enumerate(ids):
+                    self._arm_jpos[side][i] = pos_by_id[mid]
+                updated = True
+
+            if self._enable["head"]:
+                missing = [mid for mid in self._head_motor_ids if mid not in pos_by_id]
+                if missing:
+                    self._warn_missing("head", missing)
+                else:
+                    for i, mid in enumerate(self._head_motor_ids):
+                        self._head_pos[i] = pos_by_id[mid]
+                    updated = True
+
+        if not updated:
+            return
         now = time.monotonic()
         if now - self._last_status_ts >= self._status_min_interval:
             self._last_status_ts = now
             self._publish_status()
 
-    def _hand_state_callback(self, msg: Any) -> None:
-        """右手反馈：因时 GetAngleAct(13 码) / 强脑 MotorStatus(6 闭合度) → rad。"""
-        values = list(msg.positions) if self._variant == "brainco" else list(msg.joint_values)
-        if len(values) < self._hand_channel_count:
-            return
-        rad = [
-            hand_code_to_rad(self._variant, ch, values[ch], self._right_hand_joints[ch])
-            for ch in range(self._hand_channel_count)
-        ]
-        with self._state_lock:
-            self._right_hand_pos[:] = rad
-        self._publish_status()
+    def _warn_missing(self, group: str, missing: list[int]) -> None:
+        """缺 ID 只首次告警（/robot_state 200Hz，不节流会刷屏）。"""
+        warned = getattr(self, "_warned_missing_ids", None)
+        if warned is None:
+            warned = self._warned_missing_ids = set()
+        new = [mid for mid in missing if (group, mid) not in warned]
+        if new:
+            warned.update((group, mid) for mid in new)
+            logger.warning("/robot_state 缺少 %s 关节 ID %s，该组本帧不更新", group, new)
+
+    def _make_hand_state_callback(self, side: str):
+        """为某只手生成反馈回调（左右手可能是不同变体，消息类型也不同）。
+
+        因时 GetAngleAct：13 个 0.1° 角码 -> rad；
+        强脑 MotorStatus：6 个通道码（1~1000，**不是**闭合度）-> 闭合度 [0,1]，
+        与训练数据集 ``observation.state`` 同口径。
+
+        强脑的空闲/忙时无效帧（现场实测 ``positions=65535``、``states=255``）不参与
+        换算——``(65535-1)/999`` 夹取后是 1.0，会让策略把"无数据"看成"全闭合"。
+        这类通道保留上一帧有效值。
+        """
+        variant = self._hand_variant[side]
+        count = self._hand_channel_count[side]
+        joints = self._hand_joints[side]
+        label = "左" if side == "left" else "右"
+
+        def callback(msg: Any) -> None:
+            raw = list(msg.positions) if variant == "brainco" else list(msg.joint_values)
+            if len(raw) < count:
+                return
+
+            if variant == "brainco":
+                # 反馈域允许 0（硬件全伸时实测就是 0），指令域才是 1~1000
+                valid = [
+                    (ch, int(code)) for ch, code in enumerate(raw[:count])
+                    if 0 <= int(code) <= BRAINCO_CODE_MAX
+                ]
+                if not valid:
+                    if not getattr(self, "_warned_hand_invalid", None):
+                        self._warned_hand_invalid = set()
+                    if side not in self._warned_hand_invalid:
+                        self._warned_hand_invalid.add(side)
+                        logger.warning("%s手反馈整帧无效（positions=%s），保留上一帧状态", label, raw)
+                    return
+                with self._state_lock:
+                    for ch, code in valid:
+                        self._hand_pos[side][ch] = hand_code_to_value(
+                            variant, ch, code, joints[ch]
+                        )
+                self._publish_status()
+                return
+
+            values = [
+                hand_code_to_value(variant, ch, raw[ch], joints[ch]) for ch in range(count)
+            ]
+            with self._state_lock:
+                self._hand_pos[side][:] = values
+            self._publish_status()
+
+        return callback
 
     def _estop_callback(self, msg: Any) -> None:
         engaged = bool(getattr(msg, "is_estop").data)
@@ -674,13 +938,15 @@ class RealRobotBridge:
 
     # ---------------------------------------------------------------- 状态
     def _publish_status(self) -> None:
+        """ZMQ 状态：只回传已启用的组（键名 = 动作空间的键名）。"""
         with self._state_lock:
-            status = {
-                "right_arm": list(self._right_arm_jpos),
-                "right_hand": list(self._right_hand_pos),
-                "estop": self._estop,
-                "ts": time.time(),
-            }
+            status: dict[str, Any] = {"estop": self._estop, "ts": time.time()}
+            for side in self._arm_sides:
+                status[f"{side}_arm"] = list(self._arm_jpos[side])
+            for side in self._hand_sides:
+                status[f"{side}_hand"] = list(self._hand_pos[side])
+            if self._enable["head"]:
+                status["head"] = list(self._head_pos)
         self.zmq_bridge.send_status(status)
 
     # ---------------------------------------------------------------- 指令
@@ -689,18 +955,25 @@ class RealRobotBridge:
             action = self.zmq_bridge.recv_action(timeout_ms=50)
             if action is None:
                 continue
-            self._publish_arm_command(action.get("right_arm", []))
-            self._publish_hand_command(action.get("right_hand", []))
+            for side in self._arm_sides:
+                self._publish_arm_command(action.get(f"{side}_arm", []), side)
+            for side in self._hand_sides:
+                self._publish_hand_command(action.get(f"{side}_hand", []), side)
+            if self._enable["head"]:
+                self._publish_head_command(action.get("head", []))
 
-    def _publish_arm_command(self, right_arm: list) -> None:
-        if not right_arm:
+    def _publish_arm_command(self, values: list, side: str) -> None:
+        """单侧臂位置指令；关节集合/ID/限位都可按配置裁剪（关节级颗粒度）。"""
+        if not values:
             return
         if self._estop:
             return
-        if len(right_arm) != len(RIGHT_ARM_JOINTS):
+        joints = self._arm_joints[side]
+        ids = self._arm_motor_ids[side]
+        if len(values) != len(joints):
             logger.warning(
-                "Arm command dimension mismatch: right_arm=%d (expect %d). Skipping.",
-                len(right_arm), len(RIGHT_ARM_JOINTS),
+                "%s_arm 维度不匹配: %d (期望 %d). Skipping.",
+                side, len(values), len(joints),
             )
             return
 
@@ -709,9 +982,7 @@ class RealRobotBridge:
         msg.header.frame_id = "arm"
         msg.mode = CONTROL_MODE_POSITION
 
-        for joint_name, motor_id, value in zip(
-            RIGHT_ARM_JOINTS, self._right_arm_motor_ids, right_arm
-        ):
+        for joint_name, motor_id, value in zip(joints, ids, values):
             low, high = BODY_JOINT_LIMITS[joint_name]
             pos = min(max(float(value), low), high)
             if pos != float(value):
@@ -725,27 +996,53 @@ class RealRobotBridge:
 
         self._arm_cmd_pub.publish(msg)
 
-    def _publish_hand_command(self, position: list) -> None:
+    def _publish_head_command(self, values: list) -> None:
+        """头部位置指令（HeadCtrl）。head_joints 可只含一个轴。"""
+        if not values:
+            return
+        if self._estop:
+            return
+        if len(values) != len(self._head_joints):
+            logger.warning(
+                "head 维度不匹配: %d (期望 %d). Skipping.", len(values), len(self._head_joints)
+            )
+            return
+
+        msg = self._msgs["HeadCtrl"]()
+        msg.header.stamp = self._node.get_clock().now().to_msg()
+        msg.header.frame_id = "head"
+        msg.mode = CONTROL_MODE_POSITION
+        for joint_name, motor_id, value in zip(self._head_joints, self._head_motor_ids, values):
+            low, high = BODY_JOINT_LIMITS[joint_name]
+            pos = min(max(float(value), low), high)
+            cmd = self._msgs["MotorCtrl"]()
+            cmd.name = int(motor_id)
+            cmd.pos = pos
+            cmd.spd = HEAD_CMD_LIMITS["spd"]
+            cmd.cur = HEAD_CMD_LIMITS["cur"]
+            msg.ctrl.append(cmd)
+        self._head_pub.publish(msg)
+
+    def _publish_hand_command(self, position: list, side: str) -> None:
+        """单只手的手指指令。手部通道是定长数组，只能整只手启停。"""
         if not position:
             return
         if self._estop:
             return
-        if len(position) != self._hand_channel_count:
+        variant = self._hand_variant[side]
+        count = self._hand_channel_count[side]
+        joints = self._hand_joints[side]
+        if len(position) != count:
             logger.warning(
-                "Hand command dimension mismatch: right_hand=%d (expect %d). Skipping.",
-                len(position), self._hand_channel_count,
+                "%s_hand 维度不匹配: %d (期望 %d). Skipping.", side, len(position), count
             )
             return
 
-        # rad -> 真机通道码（因时按通道上下限夹取；强脑按关节行程折算闭合度）
-        codes = [
-            hand_rad_to_code(self._variant, ch, position[ch], self._right_hand_joints[ch])
-            for ch in range(self._hand_channel_count)
-        ]
+        # 控制量 -> 真机通道码：强脑=闭合度[0,1] -> 1~1000；因时=rad -> 0.1° 角码
+        codes = [hand_action_to_code(variant, ch, position[ch], joints[ch]) for ch in range(count)]
 
-        msg = self._msgs["hand_command"]()
-        if self._variant == "brainco":
-            count = HAND_CHANNEL_COUNT["brainco"]
+        msg = self._hand_msgs[side]["command"]()
+        if variant == "brainco":
             msg.mode = HAND_CMD_MODE
             msg.positions = codes[:count]
             msg.speeds = [0] * count
@@ -753,9 +1050,10 @@ class RealRobotBridge:
             msg.pwms = [0] * count
             msg.durations = [0] * count
         else:
-            msg.hand_id = INSPIRE_RIGHT_HAND_ID
+            # 因时 SetAngle.hand_id：1=左手 2=右手
+            msg.hand_id = 1 if side == "left" else INSPIRE_RIGHT_HAND_ID
             msg.joint_values = codes
-        self._right_hand_pub.publish(msg)
+        self._hand_pubs[side].publish(msg)
 
     def stop(self) -> None:
         self._running = False

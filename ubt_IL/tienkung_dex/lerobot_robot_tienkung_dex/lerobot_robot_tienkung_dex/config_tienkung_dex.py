@@ -6,8 +6,10 @@ from lerobot.cameras.configs import CameraConfig
 from lerobot.robots.config import RobotConfig
 
 from .constants import (
+    ARM_JOINTS,
     DOF_HAND_VARIANT,
     GROUP_CMD_LIMITS,
+    HEAD_JOINTS,
     HOME_POSE,
     JOINT_INDEX_ENUMS,
     RIGHT_ARM_JOINTS,
@@ -17,6 +19,7 @@ from .constants import (
     TOPIC_HAND_CMD_BY_VARIANT,
     TOPIC_IMAGE_HEAD,
     TOPIC_ROBOT_STATE,
+    hand_channel_joints,
     hand_open_pose,
     inactive_fill_for,
     joint_names_with_pos,
@@ -57,6 +60,21 @@ class TienKungDexRobotConfig(RobotConfig):
     right_arm_joints: list[str] = field(default_factory=lambda: _pos(RIGHT_ARM_JOINTS))
     right_hand_joints: list[str] = field(default_factory=list)  # 由 hand_variant 派生
 
+    # ---- 任意组组合（可选）：左侧 / 头部默认关闭，13D/20D 行为完全不变 ----
+    # 关节级颗粒度：*_joints 与 *_motor_ids 一一对应，可为子集（臂/头部）；
+    # 手部通道是定长数组，只能整只手启停。
+    enable_left_arm: bool = False
+    enable_left_hand: bool = False
+    enable_head: bool = False
+    left_arm_joints: list[str] = field(default_factory=lambda: _pos(ARM_JOINTS["left"]))
+    left_arm_motor_ids: list[int] = field(default_factory=lambda: list(range(11, 18)))
+    left_hand_joints: list[str] = field(default_factory=list)   # 由 left_hand_variant 派生
+    left_hand_variant: str = ""  # 留空 = 跟随 hand_variant（左右手可不同型）
+    left_hand_open_position: list[float] = field(default_factory=list)
+    head_joints: list[str] = field(default_factory=lambda: _pos(HEAD_JOINTS))
+    head_motor_ids: list[int] = field(default_factory=lambda: [1, 2])
+    topic_head_cmd: str = "/head/cmd"
+
     # Full joint ordering (determines model action/observation tensor dimension mapping).
     # __post_init__ 会按 joint_config 从对应 DOF 枚举派生覆盖。
     all_joints: list[str] = field(default_factory=list)
@@ -74,6 +92,7 @@ class TienKungDexRobotConfig(RobotConfig):
     # ROS2 topic names (command side / publish)
     topic_arm_cmd: str = TOPIC_ARM_CMD
     topic_right_hand_cmd: str = ""  # 留空 = 按 hand_variant 选（因时/强脑话题名不同）
+    topic_left_hand_cmd: str = ""   # 留空 = 按 left_hand_variant 选
 
     # ROS2 topic names (status side / subscribe)
     topic_robot_state: str = TOPIC_ROBOT_STATE
@@ -146,8 +165,52 @@ class TienKungDexRobotConfig(RobotConfig):
 
         self._inactive_fill = inactive_fill_for(self.hand_variant, self.joint_config, enum_cls)
 
+        # --- 左侧 / 头部（可选组合）：左侧手型留空则跟随右手 ---
+        if not self.left_hand_variant:
+            self.left_hand_variant = self.hand_variant
+        if self.left_hand_variant not in RIGHT_HAND_JOINTS_BY_VARIANT:
+            raise ValueError(
+                f"left_hand_variant must be one of {sorted(RIGHT_HAND_JOINTS_BY_VARIANT)}, "
+                f"got {self.left_hand_variant!r}"
+            )
+        if self.enable_left_hand and not self.left_hand_joints:
+            self.left_hand_joints = _pos([
+                joints[0] for joints in hand_channel_joints(self.left_hand_variant, "left")
+            ])
+        if not self.topic_left_hand_cmd:
+            self.topic_left_hand_cmd = TOPIC_HAND_CMD_BY_VARIANT[self.left_hand_variant].replace(
+                "/right_hand/", "/left_hand/"
+            )
+        if self.enable_left_hand and not self.left_hand_open_position:
+            hand = hand_open_pose(self.left_hand_variant)
+            self.left_hand_open_position = [
+                hand[name.removesuffix(".pos")] for name in self.left_hand_joints
+            ]
+
+        if len(self.left_arm_joints) != len(self.left_arm_motor_ids):
+            raise ValueError(
+                f"left_arm_motor_ids count ({len(self.left_arm_motor_ids)}) must match "
+                f"left_arm_joints count ({len(self.left_arm_joints)})"
+            )
+        if len(self.head_joints) != len(self.head_motor_ids):
+            raise ValueError(
+                f"head_motor_ids count ({len(self.head_motor_ids)}) must match "
+                f"head_joints count ({len(self.head_joints)})"
+            )
+        if self.enable_left_hand and len(self.left_hand_open_position) != len(self.left_hand_joints):
+            raise ValueError(
+                f"left_hand_open_position count ({len(self.left_hand_open_position)}) must match "
+                f"left_hand_joints count ({len(self.left_hand_joints)})"
+            )
+
         # Validate all_joints is a subset of the hardware groups (no extra joints)
         group_set = set(self.right_arm_joints + self.right_hand_joints)
+        if self.enable_left_arm:
+            group_set |= set(self.left_arm_joints)
+        if self.enable_left_hand:
+            group_set |= set(self.left_hand_joints)
+        if self.enable_head:
+            group_set |= set(self.head_joints)
         all_set = set(self.all_joints)
         if not all_set.issubset(group_set):
             raise ValueError(
@@ -196,6 +259,18 @@ class TienKungDexRobotConfig(RobotConfig):
             # 帧内关节序（物理通道序）。桥接拿它与自己的通道表逐字比对，
             # 不一致直接拒启——两边的常量副本漂移时这是唯一能拦住的检查。
             "right_hand_joints": self.right_hand_joints,
+            # 可选组：左侧 / 头部（组级开关 + 关节级列表，可为子集）
+            "enable_left_arm": self.enable_left_arm,
+            "enable_left_hand": self.enable_left_hand,
+            "enable_head": self.enable_head,
+            "left_arm_joints": self.left_arm_joints,
+            "left_arm_motor_ids": self.left_arm_motor_ids,
+            "left_hand_joints": self.left_hand_joints,
+            "left_hand_variant": self.left_hand_variant,
+            "head_joints": self.head_joints,
+            "head_motor_ids": self.head_motor_ids,
+            "topic_left_hand_cmd": self.topic_left_hand_cmd,
+            "topic_head_cmd": self.topic_head_cmd,
             "arm_speed": self.arm_speed,
             "arm_current": self.arm_current,
             "hand_open_position": self.hand_open_position,

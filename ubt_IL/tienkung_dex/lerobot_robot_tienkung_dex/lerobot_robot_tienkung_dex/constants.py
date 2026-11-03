@@ -514,10 +514,13 @@ def ready_final_pose(real: bool = False) -> dict[str, float]:
 # ===========================================================================
 # 灵巧手：真机通道 <-> 仿真关节
 # ===========================================================================
-# 强脑 Revo2：6 电机，1~1000（1=伸直，1000=弯曲），按"闭合度"解释；
-# 因时 RH56：13 通道，单位 **0.1°**（1200 = 120°），每通道一个关节。
-# 仿真侧与 ROS 侧的统一中间量是"关节弧度"：桥接下发的就是 ``{关节名: rad}`` 的
-# 位置语义，只是真机线缆上走的是通道码。
+# 强脑 Revo2：6 电机，线缆上 1~1000（1=伸直，1000=弯曲），按"闭合度"解释；
+# 因时 RH56：13 通道，线缆上单位 **0.1°**（1200 = 120°），每通道一个关节。
+#
+# **策略链路（数据集/桥接/插件）的中间量按手型区分**：
+#   强脑 = 闭合度 0~1（与数据集 action/state 一致，桥接负责 round(1+v*999) 出码）；
+#   因时 = 关节角 rad（后续改成归一化 + 13 维展开，届时与强脑统一）。
+# 也就是说"码值"只出现在真机线缆上，不要把码塞进动作向量。
 BRAINCO_CODE_MIN, BRAINCO_CODE_MAX = 1, 1000
 
 # 强脑 Revo2：6 电机顺序 thumb_flex / thumb_rot / index / middle / ring / pinky。
@@ -606,8 +609,34 @@ def hand_percent_to_code(variant: str, percent: float) -> int:
     return int(round(BRAINCO_CODE_MIN + ratio * (BRAINCO_CODE_MAX - BRAINCO_CODE_MIN)))
 
 
+def hand_code_to_percent(variant: str, code: int) -> float:
+    """强脑通道值 -> 闭合度 [0, 1]（hand_percent_to_code 的逆运算）。"""
+    if variant != "brainco":
+        raise ValueError(f"{variant} 通道不是闭合度语义，请用 inspire_code_to_rad")
+    clipped = min(max(int(code), BRAINCO_CODE_MIN), BRAINCO_CODE_MAX)
+    return (clipped - BRAINCO_CODE_MIN) / float(BRAINCO_CODE_MAX - BRAINCO_CODE_MIN)
+
+
+def hand_action_to_code(variant: str, channel: int, value: float, joint_name: str) -> int:
+    """策略动作 -> 真机通道码。量纲按手型区分（与训练数据集一致）。
+
+    - ``brainco``：**闭合度 [0, 1]**（数据集 action 就是 0~1）-> ``round(1 + v*999)``；
+    - ``inspire``：关节角 rad -> 0.1° 角码（因时后续再改归一化 + 13 维展开）。
+    """
+    if variant == "brainco":
+        return hand_percent_to_code(variant, value)
+    return inspire_rad_to_code(channel, value)
+
+
+def hand_code_to_value(variant: str, channel: int, code: int, joint_name: str) -> float:
+    """真机通道码 -> 策略状态量（brainco: 闭合度 0~1；inspire: rad）。"""
+    if variant == "brainco":
+        return hand_code_to_percent(variant, code)
+    return inspire_code_to_rad(channel, code)
+
+
 def hand_code_to_rad(variant: str, channel: int, code: int, joint_name: str) -> float:
-    """真机通道值 -> 仿真关节角（rad），两个变体的统一入口。"""
+    """真机通道值 -> 仿真关节角（rad），rad 语义路径（仿真/遥操作）。"""
     if variant == "brainco":
         percent = (min(max(int(code), BRAINCO_CODE_MIN), BRAINCO_CODE_MAX) - BRAINCO_CODE_MIN) / float(
             BRAINCO_CODE_MAX - BRAINCO_CODE_MIN
@@ -617,7 +646,7 @@ def hand_code_to_rad(variant: str, channel: int, code: int, joint_name: str) -> 
 
 
 def hand_rad_to_code(variant: str, channel: int, rad: float, joint_name: str) -> int:
-    """仿真关节角（rad）-> 真机通道值，两个变体的统一入口。"""
+    """仿真关节角（rad）-> 真机通道值，rad 语义路径（仿真/遥操作）。"""
     if variant == "brainco":
         limit = action_limit(joint_name, variant)
         return hand_percent_to_code(variant, float(rad) / limit if abs(limit) > 1e-6 else 0.0)
