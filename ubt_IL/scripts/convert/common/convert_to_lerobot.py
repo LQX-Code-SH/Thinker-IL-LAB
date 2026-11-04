@@ -684,6 +684,7 @@ def process_episode(
     try:
         with h5py.File(episode_path, "r") as file:
             compose_fields = {}   # lerobot_key -> (parts_list, dtype)
+            compose_shifts = {}   # lerobot_key -> [每个 part 的 shift 帧数]，供段尾修正用
             image_fields = {}     # lerobot_key -> numpy array (T, H, W, C)
             image_windows = {}    # lerobot_key -> (窗口首帧绝对下标, 窗口尾) ; (0, None)=整集
             image_fields_lazy = {}  # lerobot_key -> (raw ds, encoding, image_size)，按段懒解码
@@ -702,6 +703,10 @@ def process_episode(
                     parts = [_read_hdf5_part(file, item) for item in field_spec]
                     dtype = np.dtype(features[lerobot_key]["dtype"])
                     compose_fields[lerobot_key] = (parts, dtype)
+                    compose_shifts[lerobot_key] = [
+                        int(item.get("shift", 0)) if isinstance(item, dict) else 0
+                        for item in field_spec
+                    ]
                 elif isinstance(field_spec, dict):
                     # Image field
                     hdf5_key = field_spec["hdf5_key"]
@@ -861,6 +866,32 @@ def process_episode(
             return 0
         logging.info("%s: tail_trim=%d frames (%s)", episode_path.name, tail_trim, ranges[-1])
         ranges = trimmed_ranges
+
+    # --- 分段模式下修正 shift 的段尾 ---
+    # shift=K 是在整条时序数组上做的：action[t] = state[t+K]。但段之间是拼接的，
+    # 每段最后 K 帧会取到"下一段开头"的状态（跨段大跳变，实测中位数 0.16 rad /
+    # 最大 0.79 rad，而正常相邻帧只有 0.006 rad）。段尾没有下一帧，语义上应复制
+    # 本段最后一个状态；这里把它们改写掉。整集单段时末帧本就按此填充，不受影响。
+    if segment_ranges is not None and any(k for ks in compose_shifts.values() for k in ks):
+        fixed = 0
+        for lerobot_key, shifts in compose_shifts.items():
+            parts = compose_fields[lerobot_key][0]
+            for part, k in zip(parts, shifts):
+                if not k:
+                    continue
+                n = len(part)
+                for (s, e) in ranges:
+                    # 段内最后一帧的状态 = raw[e-1] = part[e-1-k]（shift 后的数组里）
+                    src = min(max(e - 1 - k, 0), n - 1)
+                    val = np.array(part[src], copy=True)
+                    for t in range(max(s, e - k), min(e, n)):
+                        part[t] = val
+                        fixed += 1
+        if fixed:
+            logging.info(
+                "%s: 段尾 shift 修正 %d 帧（各段最后 K 帧复制本段末状态）",
+                episode_path.name, fixed,
+            )
 
     # --- emit frames per segment ---
     saved_count = 0
