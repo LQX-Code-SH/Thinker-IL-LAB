@@ -1,7 +1,7 @@
 {
   "observation.images.head": {
     "dtype": "video",
-    "shape": [3, 720, 1280],
+    "shape": [3, 360, 640],
     "names": ["channels", "height", "width"]
   },
   "observation.state": {
@@ -65,16 +65,16 @@
   "hdf5_mapping": {
     "observation.state": [
       "puppet/arm_right_position_align/data",
-      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [0, 1, 2, 3, 4, 5], "scale": 0.0010010010, "offset": -0.0010010010}
+      {"hdf5_key": "puppet/end_effector_right_position_align/data", "indices": [1, 2, 3, 4, 5, 5], "scale": 0.0010010010, "offset": -0.0010010010}
     ],
     "action": [
-      {"hdf5_key": "master/arm_right_position_align/data"},
+      {"hdf5_key": "puppet/arm_right_position_align/data", "shift": 1},
       {"hdf5_key": "master/end_effector_right_position_align/data"}
     ],
     "observation.images.head": {
       "hdf5_key": "camera_observations/color_images/camera_head",
       "encoding": "raw",
-      "image_size": [1280, 720]
+      "image_size": [640, 360]
     }
   }
 }
