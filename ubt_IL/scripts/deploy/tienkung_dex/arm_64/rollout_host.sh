@@ -31,7 +31,7 @@ IMAGE_ENABLED="${IMAGE_ENABLED:-1}"
 IMAGE_COMPRESSED="${IMAGE_COMPRESSED:-1}"            # 走 .../image_raw/compressed，帧率高一倍
 CAMERA_WIDTH="${CAMERA_WIDTH:-640}"
 CAMERA_HEIGHT="${CAMERA_HEIGHT:-360}"
-DISPLAY_CAM="${DISPLAY_CAM:-false}"                  # SSH 无 X 保持 false
+DISPLAY_CAM="${DISPLAY_CAM:-true}"                   # 默认弹窗预览（与 tienkung_pro 一致）；SSH 无 X 时设 false
 MAX_RELATIVE_TARGET="${MAX_RELATIVE_TARGET:-}"       # 首轮 0.01；确认后置空
 ALLOW_DIM_ONLY_POLICY="${ALLOW_DIM_ONLY_POLICY:-1}"
 INFERENCE_TYPE="${INFERENCE_TYPE:-sync}"             # Dex 桥接只消费单步动作
@@ -89,16 +89,27 @@ PY
 fi
 
 # ── 组装参数 ────────────────────────────────────────────────────────────────
+# draccus 只认 true/false，不认 1/0（`Couldn't parse '1' into a bool`），
+# 而上面的开关习惯用 1/0，这里统一转换。
+_to_bool() {
+    case "$(printf '%s' "${1:-0}" | tr '[:upper:]' '[:lower:]')" in
+        1|true|yes|on) echo true ;;
+        *)             echo false ;;
+    esac
+}
+IMAGE_ENABLED_B="$(_to_bool "$IMAGE_ENABLED")"
+IMAGE_COMPRESSED_B="$(_to_bool "$IMAGE_COMPRESSED")"
+
 ROBOT_ARGS=(
     --robot.type=tienkung_dex
     --robot.bridge_enabled=true
     --robot.bridge_script="$BRIDGE_SCRIPT"        # 覆盖插件里写死的 /ubt_IL/...
     --robot.joint_config="$JOINT_CONFIG"
-    --robot.image_enabled="${IMAGE_ENABLED}"
+    --robot.image_enabled="$IMAGE_ENABLED_B"
     --robot.image_port="${CAMERA_PORT}"
     --robot.image_width="${CAMERA_WIDTH}"         # Bridge2 编码前缩放（720p→360p）
     --robot.image_height="${CAMERA_HEIGHT}"
-    --robot.image_compressed="${IMAGE_COMPRESSED}"
+    --robot.image_compressed="$IMAGE_COMPRESSED_B"
 )
 [ -n "$HAND_VARIANT" ] && ROBOT_ARGS+=(--robot.hand_variant="$HAND_VARIANT")
 [ -n "$HAND_ACTION_MODE" ] && ROBOT_ARGS+=(--robot.hand_action_mode="$HAND_ACTION_MODE")
@@ -106,9 +117,16 @@ ROBOT_ARGS=(
 
 cd "$PROJECT_ROOT/lerobot"
 
+# 串行推理开关：N_ACTION_STEPS 决定"一次推理后连续执行多少步动作再重新取图"。
+#   默认（不设）= 用训练配置里的 n_action_steps（本模型 20 步 ≈ 0.67 s）
+#   设成 chunk 大小（50）= 一次把预测的整个动作块执行完，再重新取图推理
+POLICY_ARGS=()
+[ -n "$N_ACTION_STEPS" ] && POLICY_ARGS+=(--policy.n_action_steps="$N_ACTION_STEPS")
+
 exec "$VENV/bin/lerobot-rollout" \
     --strategy.type="$STRATEGY" \
     --policy.path="$POLICY_PATH" \
+    "${POLICY_ARGS[@]}" \
     "${ROBOT_ARGS[@]}" \
     --robot.cameras="{head: {type: dex_camera, server_address: '${ZMQ_HOST}', port: ${CAMERA_PORT}, offset_x: 0, width: ${CAMERA_WIDTH}, height: ${CAMERA_HEIGHT}, fps: ${FPS}, display: ${DISPLAY_CAM}}}" \
     --task="$TASK" \

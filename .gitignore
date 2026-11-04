@@ -47,6 +47,9 @@ ubt_sim/dataset/
 
 ubt_IL/.cache/
 
+# 运行产物：回放对比图、相机抓图等
+ubt_IL/logs/
+
 # ===== ubt_IL 忽略规则 =====
 ubt_IL/.gitignore
 

@@ -933,6 +933,12 @@ class RealRobotBridge:
             int(cfg.get("image_width", 0)),
             int(cfg.get("image_height", 0)),
         )
+        # JPEG 直传判定（None = 尚未探测）。目标尺寸与源尺寸一致时没有必要解码再
+        # 重编码：实测 720p 的 imdecode+resize+imencode 会把帧间隔拉到 p95≈110ms、
+        # 偶发 1.4s 空洞（策略 20 步取一次观测，会连续两次拿到同一帧 -> 重复动作）；
+        # 直传后稳定 ≈30fps（源帧率）。
+        self._image_passthrough: bool | None = None
+        self._image_src_size: tuple[int, int] | None = None
 
         self.zmq_bridge.bind_image(int(cfg["image_port"]))
 
@@ -1111,8 +1117,31 @@ class RealRobotBridge:
             if compressed:
                 import numpy as np
 
+                raw = bytes(msg.data)
+                if self._image_passthrough is None:
+                    # 首次到达：解码一帧拿源尺寸，决定后面走直传还是解码+缩放。
+                    probe = self._cv2.imdecode(
+                        np.frombuffer(raw, dtype=np.uint8), self._cv2.IMREAD_COLOR
+                    )
+                    if probe is None:
+                        return
+                    self._image_src_size = (probe.shape[1], probe.shape[0])
+                    need_resize = all(self._image_size) and self._image_src_size != self._image_size
+                    self._image_passthrough = not need_resize
+                    logger.info(
+                        "图像源 %dx%d -> 目标 %s：%s",
+                        self._image_src_size[0], self._image_src_size[1],
+                        f"{self._image_size[0]}x{self._image_size[1]}"
+                        if all(self._image_size) else "原尺寸",
+                        "JPEG 直传（不解码/不重编码）" if self._image_passthrough
+                        else "解码+缩放+重编码",
+                    )
+                if self._image_passthrough:
+                    # 直接把相机 JPEG 原样推给 DexCamera（它自己解码一次）。
+                    self.zmq_bridge.send_image(raw)
+                    return
                 frame = self._cv2.imdecode(
-                    np.frombuffer(bytes(msg.data), dtype=np.uint8), self._cv2.IMREAD_COLOR
+                    np.frombuffer(raw, dtype=np.uint8), self._cv2.IMREAD_COLOR
                 )
                 if frame is None:
                     return

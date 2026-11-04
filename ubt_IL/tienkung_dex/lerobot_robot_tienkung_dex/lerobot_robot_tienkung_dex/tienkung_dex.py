@@ -97,6 +97,11 @@ class TienKungDexRobot(Robot):
         super().__init__(config)
         self.config = config
         self.cameras = make_cameras_from_configs(config.cameras)
+        # 图像断流兜底：相机/桥接被 CPU 抢占时会出现 1s 级空档，直接抛异常会中断
+        # 整段 rollout。这里缓存上一帧并在超过 max_age 时沿用（限频告警）。
+        self._image_max_age_ms = 2000
+        self._last_frames: dict[str, object] = {}
+        self._last_frame_warn_ts = 0.0
 
         # Joint definitions from config (replace module-level constants)
         self._right_arm_joints = config.right_arm_joints
@@ -123,6 +128,7 @@ class TienKungDexRobot(Robot):
         self._cmd_socket: zmq.Socket | None = None
         self._status_socket: zmq.Socket | None = None
         self._bridge_process: subprocess.Popen | None = None
+        self._bridge_log: object | None = None
 
         # Thread-safe state caches
         self._state_lock = threading.Lock()
@@ -235,10 +241,21 @@ class TienKungDexRobot(Robot):
         ]
 
         logger.info("Starting Bridge2: %s --config <json>", self.config.bridge_script)
+        # 子进程输出写日志文件，不要用 PIPE：PIPE 无人读取时缓冲（64 KiB）写满会把
+        # Bridge2 阻塞在 write 上，图像流整段停掉（表现为 DexCamera
+        # "latest frame is too old"），且崩溃原因完全看不到。
+        bridge_log_path = os.environ.get(
+            "TIENKUNG_DEX_BRIDGE_LOG", "/tmp/tienkung_dex_bridge.log"
+        )
+        try:
+            self._bridge_log = open(bridge_log_path, "ab", buffering=0)
+        except OSError:
+            logger.warning("打不开桥接日志 %s，输出丢弃", bridge_log_path)
+            self._bridge_log = None
         self._bridge_process = subprocess.Popen(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=self._bridge_log or subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
         )
 
         # Write config to a known location for external scripts (reset.py, robot_ready.py)
@@ -313,7 +330,29 @@ class TienKungDexRobot(Robot):
 
         # Capture images from cameras
         for cam_key, cam in self.cameras.items():
-            obs[cam_key] = cam.read_latest()
+            getter = getattr(cam, "get_latest_frame", None)
+            if getter is None:
+                obs[cam_key] = cam.read_latest()
+                continue
+            frame, frame_ts = getter()
+            if frame is None:
+                raise TimeoutError(f"{cam_key} 尚未收到任何图像帧")
+            now = time.perf_counter()
+            age_ms = (now - frame_ts) * 1e3
+            # 断流超过硬阈值（5 s）说明相机/桥接真的死了，继续跑就是盲动，直接中断。
+            if age_ms > 5000.0:
+                raise TimeoutError(f"{cam_key} 图像已断流 {age_ms:.0f} ms，中止")
+            # 同一帧被反复取用 = 图像流冻结。正常节奏下策略每 n_action_steps 步才
+            # 取一次观测（本模型 20 步 @15 Hz ≈ 1.33 s），所以 1 s 阈值必然误报；
+            # 取 3 s 只兜住"连续多个 chunk 看到同一帧"的真实冻结。
+            if age_ms > 3000.0 and now - self._last_frame_warn_ts > 2.0:
+                self._last_frame_warn_ts = now
+                logger.warning(
+                    "%s 图像已 %.0f ms 未更新（同一帧），策略将基于旧画面出动作",
+                    cam_key, age_ms,
+                )
+            self._last_frames[cam_key] = frame
+            obs[cam_key] = frame
 
         return obs
 
@@ -409,6 +448,33 @@ class TienKungDexRobot(Robot):
             name: sent_map.get(name, float(action.get(name, 0.0))) for name in self._all_joints
         }
         return sent_action
+
+    def send_action_chunk(
+        self,
+        action_chunk: dict[str, list[float]],
+        *,
+        inference_time_sec: float = 0.0,
+        obs_time_sec: float = 0.0,
+        chunk_id: int = 0,
+        fps: float | None = None,
+        record: bool = True,
+    ) -> None:
+        """按 fps 把整段 chunk 拆成单步逐帧下发。
+
+        Dex 桥接只吃单步 action、没有 chunk 通道；但 ``RobotWrapper`` 的
+        ``hasattr(robot, "send_action_chunk")`` 恒为真，缺这个方法时 rollout
+        退出前的"回初始位"会被 AttributeError 吞掉，只留一条 warning 且机器人
+        停在任务末态。这里按 fps 顺序 send_action，等价于框架的通用回退路径。
+        """
+        if not action_chunk:
+            return
+        steps = max(len(values) for values in action_chunk.values())
+        period = 1.0 / float(fps) if fps else 0.02
+        for i in range(steps):
+            self.send_action(
+                {name: values[i] for name, values in action_chunk.items() if len(values) > i}
+            )
+            time.sleep(period)
 
     @staticmethod
     def _clip_relative(
@@ -529,6 +595,13 @@ class TienKungDexRobot(Robot):
                 self._bridge_process.kill()
                 self._bridge_process.wait(timeout=2.0)
             self._bridge_process = None
+
+        if self._bridge_log is not None:
+            try:
+                self._bridge_log.close()
+            except OSError:
+                pass
+            self._bridge_log = None
 
         # Disconnect cameras
         for cam in self.cameras.values():
