@@ -26,13 +26,38 @@ import time
 import numpy as np
 
 
+def _encoding_str(msg) -> str:
+    """取 encoding 字段：sensor_msgs/Image 是 str，shm_msgs 是定长 char[256]+size。"""
+    raw = getattr(msg, "encoding", "")
+    if hasattr(raw, "data"):
+        size = int(getattr(raw, "size", 0)) or len(raw.data)
+        return bytes(raw.data)[:size].decode("utf-8", "replace")
+    return str(raw)
+
+
 def _decode(msg) -> np.ndarray | None:
-    """sensor_msgs/Image -> BGR ndarray (no cv_bridge dependency)."""
+    """sensor_msgs/Image 或 shm_msgs/Image6m -> BGR ndarray（不依赖 cv_bridge）。"""
     import cv2
 
     h, w = int(msg.height), int(msg.width)
-    enc = str(msg.encoding).lower()
+    step = int(getattr(msg, "step", 0) or 0)
+    enc = _encoding_str(msg).strip().lower()
     buf = np.frombuffer(bytes(msg.data), dtype=np.uint8)
+
+    # Walker C1 真机：yuv422（UYVY），step = 2*width
+    if enc in ("yuv422", "uyvy", "uyvy422", "yuyv", "yuyv422"):
+        if step <= 0:
+            step = w * 2
+        # OpenCV 的 YUV422 转换要 (h, w, 2) 的打包字节视图（UYVY = U Y V Y…），
+        # 每行前 w*2 字节；reshape 成 (h, w//2, 2) 会把宽度砍半。
+        rows = buf[: h * step].reshape(h, step)[:, : w * 2]
+        yuv = rows.reshape(h, w, 2)
+        code = (
+            cv2.COLOR_YUV2BGR_YUYV if enc.startswith(("yuyv", "yuyv422"))
+            else cv2.COLOR_YUV2BGR_UYVY
+        )
+        return cv2.cvtColor(yuv, code)
+
     if enc in ("rgb8", "bgr8"):
         channels = 3
     elif enc in ("rgba8", "bgra8"):
@@ -40,15 +65,14 @@ def _decode(msg) -> np.ndarray | None:
     elif enc in ("mono8", "8uc1"):
         channels = 1
     else:
-        print(f"[preview] unsupported encoding: {msg.encoding}", file=sys.stderr)
+        print(f"[preview] unsupported encoding: {enc}", file=sys.stderr)
         return None
 
-    if msg.step and int(msg.step) != w * channels:
+    if step <= 0:
+        step = w * channels
+    if step != w * channels:
         # 行有 padding：按 step 截断每一行
-        rows = [
-            buf[i * int(msg.step): i * int(msg.step) + w * channels]
-            for i in range(h)
-        ]
+        rows = [buf[i * step: i * step + w * channels] for i in range(h)]
         buf = np.concatenate(rows)
     img = buf.reshape(h, w, channels) if channels > 1 else buf.reshape(h, w)
     if enc == "rgb8":
@@ -82,8 +106,9 @@ def main() -> int:
     parser.add_argument(
         "--msg-type",
         default="auto",
-        choices=["auto", "image", "compressed"],
-        help="消息类型：auto=按话题名推断（/compressed 结尾即 CompressedImage）",
+        choices=["auto", "image", "compressed", "image6m"],
+        help="消息类型：auto=按话题名推断（/compressed→压缩图，其余→sensor_msgs/Image）；"
+        "真机 shm_msgs/Image6m 需显式指定 image6m",
     )
     parser.add_argument("--width", type=int, default=0, help="Resize width (0 = keep)")
     parser.add_argument("--height", type=int, default=0, help="Resize height (0 = keep)")
@@ -103,8 +128,14 @@ def main() -> int:
     msg_type = args.msg_type
     if msg_type == "auto":
         msg_type = "compressed" if args.topic.rstrip("/").endswith("/compressed") else "image"
-    sub_type = CompressedImage if msg_type == "compressed" else Image
-    decode = _decode_compressed if msg_type == "compressed" else _decode
+    if msg_type == "compressed":
+        sub_type, decode = CompressedImage, _decode_compressed
+    elif msg_type == "image6m":
+        from shm_msgs.msg import Image6m
+
+        sub_type, decode = Image6m, _decode
+    else:
+        sub_type, decode = Image, _decode
 
     qos = QoSProfile(
         reliability=ReliabilityPolicy.BEST_EFFORT,

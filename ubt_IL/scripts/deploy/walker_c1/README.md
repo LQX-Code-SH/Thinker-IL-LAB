@@ -12,11 +12,12 @@
 LeRobot (3.12) ──ZMQ 5661/5662──► ros2_walker_c1_bridge.py (3.10) ──ROS2 DDS──► 真机 / ubt_sim
                                   ▲
 walker_c1_camera_relay.py ──ZMQ 5663──┘   (仿真: sensor_msgs/Image @ /sensor/camera/head/color/raw)
-                                           (真机: sensor_msgs/CompressedImage @ /sensor/camera/head_stereo_left/color/compressed)
+                                           (真机: shm_msgs/Image6m @ /sensor/camera/head_stereo_left/color/raw)
 ```
 
-相机话题可用 `CAMERA_TOPIC`（rollout.sh）/ `WALKER_C1_CAMERA_TOPIC`（插件）覆盖，消息类型
-按话题名自动推断（`/compressed` → CompressedImage）。
+相机话题/类型可用 `CAMERA_TOPIC` + `CAMERA_MSG_TYPE`（rollout.sh）或
+`WALKER_C1_CAMERA_TOPIC` + `WALKER_C1_CAMERA_MSG_TYPE`（插件）覆盖。`/compressed` 结尾自动
+推断成压缩图，其余默认 `sensor_msgs/Image`；真机 `shm_msgs/Image6m` 必须显式给类型。
 
 ## 文件
 
@@ -24,7 +25,8 @@ walker_c1_camera_relay.py ──ZMQ 5663──┘   (仿真: sensor_msgs/Image @
 |---|---|
 | `configs/walker_c1_26d.json` | 机器人硬件配置（26 维 action_order、双臂分组、手部限位、端口） |
 | `rollout.sh` | 单集/多集 rollout（每集复位 + 进程重启） |
-| `robot_ready.py` / `.sh` | 三段式摆位（抬肩 → 收肘 → 预备位）+ 手张开 |
+| `robot_ready.py` / `.sh` | 三段式摆位（抬肩 → 收肘 → 预备位）+ 手张开；每段默认 ≥5 s |
+| `robot_home.py` / `.sh` | 回 home（14 臂关节全 0），路径为上面三段的严格逆序（腕/肩俯仰回零 → 展开肘 → 放下肩） |
 | `reset.sh` / `reset.py` | `--mode sim-scene`（`/sim/cmd_reset`）/ `task`（调用 robot_ready）；**必须走 `.sh`**（需系统 python3 的 rclpy） |
 | `inference_server.sh` | 常驻推理服务（ZMQ 5690/5691） |
 | `inference_client.py` / `.sh` | launch/load/start/stop/home/status/watch |

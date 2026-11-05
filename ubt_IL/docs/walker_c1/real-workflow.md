@@ -60,7 +60,7 @@ LeRobot (3.12) ──ZMQ 5661/5662──► ros2_walker_c1_bridge.py (3.10) ─�
    source /ubt_IL/walker_s2/walker_sdk_ros2/install/setup.bash
    export ROS_DOMAIN_ID=0
    ros2 topic hz /mc/sdk/robot_state                     # Thor 实测 ≈ 460-490 Hz
-   ros2 topic hz /sensor/camera/head_stereo_left/color/compressed   # ≈ 21 Hz
+   ros2 topic hz /sensor/camera/head_stereo_left/color/raw          # shm_msgs/Image6m
    ros2 topic info -v /mc/sdk/robot_command              # 应有订阅者（SDK 控制已切）
    ```
 
@@ -82,12 +82,17 @@ bash teleoperation/control/walker_c1/save_data.sh --batch 20
 
 | 话题 | 类型 | 说明 |
 |---|---|---|
-| `/sensor/camera/head_stereo_left/color/compressed` | `sensor_msgs/CompressedImage` | **策略输入默认用它**（≈21 Hz） |
+| `/sensor/camera/head_stereo_left/color/raw` | `shm_msgs/Image6m` | **策略输入用它**：1920×1536、yuv422(UYVY)、step=3840、6 MB 定长 |
+| ~~`/sensor/camera/head_stereo_left/color/compressed`~~ | `sensor_msgs/CompressedImage` | 本机视觉栈重启后**已不再发布**（早前存在过） |
 | `/sensor/camera/head_stereo_left/color/raw` | `sensor_msgs/Image` | 未压缩同源画面 |
 | `head_stereo_right` / `head_fisheye_left,right` / `mono_chin` / `wrist_left,right` | 同族 | 其它视角 |
 
-采集/部署时用 `WALKER_C1_CAMERA_TOPIC`（部署脚本用 `CAMERA_TOPIC`）指到上面的话题即可，
-消息类型按话题名自动推断（`/compressed` 结尾 = CompressedImage）。
+> 宽高比待定：真机原生 1920×1536（5:4），部署当前按 320×240（4:3）直接缩放，横向约拉伸 6.7%。
+> 是否改为裁剪/改分辨率，等拿到真机采集数据后再定（暂不做裁剪）。
+
+采集/部署时用 `WALKER_C1_CAMERA_TOPIC` + `WALKER_C1_CAMERA_MSG_TYPE`（部署脚本用
+`CAMERA_TOPIC` / `CAMERA_MSG_TYPE`）指定。注意：`/compressed` 结尾会推断成压缩图，其余默认
+`sensor_msgs/Image`，**真机的 `shm_msgs/Image6m` 必须显式给类型**，否则订阅类型不匹配。
 
 ## 3. 容器
 
@@ -140,16 +145,34 @@ python /ubt_IL/scripts/eval/eval_policy.py \
 ```bash
 # ① 相机自检（真机用压缩话题；--msg-type 默认 auto，按话题名推断）
 python3 /ubt_IL/scripts/deploy/walker_c1/preview_camera.py --once --save-frame /tmp/c1.jpg \
-  --topic /sensor/camera/head_stereo_left/color/compressed
+  --msg-type image6m --topic /sensor/camera/head_stereo_left/color/raw
 
-# ② 摆到预备位（先 dry-run 看目标位姿）
+# ② 摆到预备位（先 dry-run 看目标位姿与每段时长）
 bash /ubt_IL/scripts/deploy/walker_c1/robot_ready.sh --dry-run
 bash /ubt_IL/scripts/deploy/walker_c1/robot_ready.sh
+
+#    预备位含低头 head_pitch=0.65 rad（37.2°）——实测 0.50 只能看到桌面下缘，
+#    0.65 才能覆盖完整桌面；可用 --head-pitch 调整，--no-head 不动头。
+
+#    三段：抬肩 → 收肘 → 预备位；每段默认 ≥5s（共 15s + hold 0.5s），
+#    日志会打印每段最大位移与峰值角速度（≈0.5 rad/s ≈28°/s）。
+#    更慢/更快：
+#      --min-segment-s 8   每段下限 8s
+#      --segment-s 8       按比例放大（0.6/0.6/1.0 段时长，仍受下限约束）
+#      --hold-s 1.0        末端保持时间
+
+# ②' 回 home（home = 14 个臂关节全 0，手臂竖直贴身，手张开）
+bash /ubt_IL/scripts/deploy/walker_c1/robot_home.sh --dry-run
+bash /ubt_IL/scripts/deploy/walker_c1/robot_home.sh
+#    路径 = ready 三段的严格逆序：腕/肩俯仰回零 → 展开肘 → 放下肩，每段默认 ≥5s，
+#    实测到位 max |pos| ≈0.02 rad。只动臂+手，头/腰/腿不碰。
+#    注意：插件里的 home_position（rollout 断开自动回位）仍是 READY_POSE，未改成零位。
 
 # ③ 单集 rollout
 POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained_model \
 DURATION=10 FPS=15 RESET_MODE=task \
-CAMERA_TOPIC=/sensor/camera/head_stereo_left/color/compressed \
+CAMERA_TOPIC=/sensor/camera/head_stereo_left/color/raw \
+CAMERA_MSG_TYPE=shm_msgs/Image6m \
   bash /ubt_IL/scripts/deploy/walker_c1/rollout.sh
 
 # ④ 常驻推理服务（可选，见 inference-server.md）
@@ -177,5 +200,5 @@ bash /ubt_IL/scripts/deploy/walker_c1/inference_server.sh
 | 推理服务连不上 | 端口 5690/5691；`inference_client.sh status` 看状态机 |
 | 话题列表空 / 收不到 `/mc/*` | RMW 不一致：真机必须 `rmw_cyclonedds_cpp` + `cyclonedds_thor.xml`（见 1.3） |
 | `Failed to find a free participant index` | CycloneDDS 默认 participant 上限太低，用 `ParticipantIndex=none` + `MaxAutoParticipantIndex=120` |
-| 相机话题不存在 | 真机无 `/sensor/camera/head/color/raw`，用 `CAMERA_TOPIC=.../head_stereo_left/color/compressed` |
+| 相机话题不存在/收不到图 | 真机用 `CAMERA_TOPIC=.../head_stereo_left/color/raw` + `CAMERA_MSG_TYPE=shm_msgs/Image6m`；颜色发绿/发紫说明把 UYVY 当 YUYV 解了 |
 | `torch.cuda.is_available()` 为 False | 容器缺 `NVIDIA_VISIBLE_DEVICES=all`/`NVIDIA_DRIVER_CAPABILITIES=all`（`run.sh start` 已带；手工 `docker run` 需补） |

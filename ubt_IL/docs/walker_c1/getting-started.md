@@ -7,7 +7,7 @@ ACT 训练 → 离线评估 → 仿真/真机部署。
 - **不控制**：头 2 / 腰 3 / 腿 12（机器人自身保持当前位；仿真锚定 HOME_POSE）
 - **相机**：头部单目 RGB，训练分辨率 320×240
   - 仿真：`/sensor/camera/head/color/raw`（`sensor_msgs/Image`）
-  - 真机：`/sensor/camera/head_stereo_left/color/compressed`（`sensor_msgs/CompressedImage`）
+  - 真机：`/sensor/camera/head_stereo_left/color/raw`（`shm_msgs/Image6m`，1920×1536 yuv422/UYVY）
 - **手部**：真机 SDK 6 个压缩通道（`thumb_swing / thumb_mcp / index_mcp / middle_mcp / ring_mcp / little_mcp`）
 
 ## 目录
@@ -121,10 +121,11 @@ POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained
 
 # 真机（Thor 本体）：相机走压缩话题，DDS 走 CycloneDDS（run.sh 已注入）
 python3 /ubt_IL/scripts/deploy/walker_c1/preview_camera.py --once --save-frame /tmp/c1_real.jpg \
-  --topic /sensor/camera/head_stereo_left/color/compressed
+  --msg-type image6m --topic /sensor/camera/head_stereo_left/color/raw
 
 POLICY_PATH=/path/to/pretrained_model DURATION=10 RESET_MODE=task \
-CAMERA_TOPIC=/sensor/camera/head_stereo_left/color/compressed \
+CAMERA_TOPIC=/sensor/camera/head_stereo_left/color/raw \
+CAMERA_MSG_TYPE=shm_msgs/Image6m \
   bash /ubt_IL/scripts/deploy/walker_c1/rollout.sh
 ```
 
@@ -143,7 +144,7 @@ CAMERA_TOPIC=/sensor/camera/head_stereo_left/color/compressed \
 | 转换报「维度 = '31 6' 要求不符」 | 数据不是 ubt_sim walker_c1 采集；确认来源或 `CONFIG=` 显式指定 |
 | 训练报相机 key 不存在 | 转换配置的 `observation.images.camera_head` 未被写入：检查 `meta/info.json` |
 | rollout 预检维度不符 | 策略不是 26 维；确认训练用的是 `walker_c1_sim_26d_1RGB` |
-| 相机超时 | 话题名/`ROS_DOMAIN_ID`/QoS（必须 BEST_EFFORT）；真机话题是 `head_stereo_left/color/compressed` |
+| 相机超时 | 话题名/`ROS_DOMAIN_ID`/QoS（必须 BEST_EFFORT）；真机是 `head_stereo_left/color/raw` + `shm_msgs/Image6m` |
 | `torch.cuda.is_available()` False | 容器缺 `NVIDIA_VISIBLE_DEVICES`/`NVIDIA_DRIVER_CAPABILITIES`；用 `run.sh start` 启动 |
 | 左手完全不动 | 当前采集批次左手全程 ≈0（任务只用右手），属于数据特性 |
 

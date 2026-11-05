@@ -77,6 +77,9 @@ def _resolve_camera_source(ros_topic: str, msg_type: str | None) -> tuple[str, s
     """
     env_topic = os.environ.get("WALKER_C1_CAMERA_TOPIC", "").strip()
     env_msg_type = os.environ.get("WALKER_C1_CAMERA_MSG_TYPE", "").strip()
+    # 真机常见组合（供注释参考）：
+    #   WALKER_C1_CAMERA_TOPIC=/sensor/camera/head_stereo_left/color/raw
+    #   WALKER_C1_CAMERA_MSG_TYPE=shm_msgs/Image6m
     if env_topic:
         ros_topic = env_topic
         if not env_msg_type:

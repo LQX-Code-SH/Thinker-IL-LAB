@@ -49,9 +49,14 @@ PREVIEW_CAMERA="${PREVIEW_CAMERA:-0}"
 # 真机 = /sensor/camera/head_stereo_left/color/compressed（CompressedImage，JPEG）。
 # 消息类型由插件按话题名自动推断，这里只透传话题覆盖。
 CAMERA_TOPIC="${CAMERA_TOPIC:-}"
+# 真机图像是 shm_msgs/Image6m（不是 sensor_msgs/Image），必须显式给类型
+CAMERA_MSG_TYPE="${CAMERA_MSG_TYPE:-}"
 PREVIEW_TOPIC="${PREVIEW_TOPIC:-${CAMERA_TOPIC:-/sensor/camera/head/color/raw}}"
 if [[ -n "$CAMERA_TOPIC" ]]; then
     export WALKER_C1_CAMERA_TOPIC="$CAMERA_TOPIC"
+fi
+if [[ -n "$CAMERA_MSG_TYPE" ]]; then
+    export WALKER_C1_CAMERA_MSG_TYPE="$CAMERA_MSG_TYPE"
 fi
 LEROBOT_DIR="${LEROBOT_DIR:-/ubt_IL/lerobot}"
 if [[ ! -d "$LEROBOT_DIR" ]]; then

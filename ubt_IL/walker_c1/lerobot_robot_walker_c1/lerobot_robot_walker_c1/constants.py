@@ -168,8 +168,10 @@ TOPIC_RIGHT_HAND_STATE = "/mc/right_hand/joint_states"
 # 相机：C1 只有头部单目 RGB（无腕部相机、无深度）
 # 仿真：ubt_sim 桥接发布未压缩 sensor_msgs/Image
 TOPIC_CAMERA_HEAD = "/sensor/camera/head/color/raw"
-# 真机（Thor 版本机器人系统）：头双目的左目，只有 JPEG 压缩话题
-TOPIC_CAMERA_HEAD_STEREO_COMPRESSED = "/sensor/camera/head_stereo_left/color/compressed"
+# 真机（Thor 版本机器人系统）：头双目左目。实测发布 shm_msgs/Image6m
+# （1920x1536 yuv422/UYVY、step=3840、6 MB 定长数组）；早前出现过的
+# `/sensor/camera/head_stereo_left/color/compressed`（JPEG）在本机已不再发布。
+TOPIC_CAMERA_HEAD_REAL = "/sensor/camera/head_stereo_left/color/raw"
 
 # ============================================================================
 # 6. 相机默认参数
@@ -181,6 +183,8 @@ DEFAULT_CAMERA_WARMUP_S = 3
 DEFAULT_CAMERA_TIMEOUT_MS = 5000
 MSG_TYPE_IMAGE = "sensor_msgs/Image"
 MSG_TYPE_COMPRESSED_IMAGE = "sensor_msgs/CompressedImage"
+# Walker S2/C1 真机视觉栈的定长共享内存图像（6 MB，yuv422/UYVY）
+MSG_TYPE_SHM_IMAGE6M = "shm_msgs/Image6m"
 DEFAULT_CAMERA_MSG_TYPE = MSG_TYPE_IMAGE
 
 # ============================================================================
