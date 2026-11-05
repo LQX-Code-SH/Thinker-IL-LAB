@@ -1,0 +1,110 @@
+{
+  "observation.images.camera_head": {
+    "dtype": "video",
+    "shape": [3, 512, 640],
+    "names": ["channels", "height", "width"]
+  },
+  "observation.state": {
+    "dtype": "float32",
+    "shape": [26],
+    "names": [
+      "L_shoulder_pitch_joint",
+      "L_shoulder_roll_joint",
+      "L_shoulder_yaw_joint",
+      "L_elbow_pitch_joint",
+      "L_elbow_yaw_joint",
+      "L_wrist_pitch_joint",
+      "L_wrist_roll_joint",
+      "R_shoulder_pitch_joint",
+      "R_shoulder_roll_joint",
+      "R_shoulder_yaw_joint",
+      "R_elbow_pitch_joint",
+      "R_elbow_yaw_joint",
+      "R_wrist_pitch_joint",
+      "R_wrist_roll_joint",
+      "left_thumb_swing",
+      "left_thumb_mcp",
+      "left_index_mcp",
+      "left_middle_mcp",
+      "left_ring_mcp",
+      "left_little_mcp",
+      "right_thumb_swing",
+      "right_thumb_mcp",
+      "right_index_mcp",
+      "right_middle_mcp",
+      "right_ring_mcp",
+      "right_little_mcp"
+    ]
+  },
+  "action": {
+    "dtype": "float32",
+    "shape": [26],
+    "names": [
+      "L_shoulder_pitch_joint",
+      "L_shoulder_roll_joint",
+      "L_shoulder_yaw_joint",
+      "L_elbow_pitch_joint",
+      "L_elbow_yaw_joint",
+      "L_wrist_pitch_joint",
+      "L_wrist_roll_joint",
+      "R_shoulder_pitch_joint",
+      "R_shoulder_roll_joint",
+      "R_shoulder_yaw_joint",
+      "R_elbow_pitch_joint",
+      "R_elbow_yaw_joint",
+      "R_wrist_pitch_joint",
+      "R_wrist_roll_joint",
+      "left_thumb_swing",
+      "left_thumb_mcp",
+      "left_index_mcp",
+      "left_middle_mcp",
+      "left_ring_mcp",
+      "left_little_mcp",
+      "right_thumb_swing",
+      "right_thumb_mcp",
+      "right_index_mcp",
+      "right_middle_mcp",
+      "right_ring_mcp",
+      "right_little_mcp"
+    ]
+  },
+  "episode_index": {
+    "dtype": "int64",
+    "shape": [1],
+    "names": null
+  },
+  "frame_index": {
+    "dtype": "int64",
+    "shape": [1],
+    "names": null
+  },
+  "index": {
+    "dtype": "int64",
+    "shape": [1],
+    "names": null
+  },
+  "task_index": {
+    "dtype": "int64",
+    "shape": [1],
+    "names": null
+  },
+  "hdf5_mapping": {
+    "observation.state": [
+      "puppet/arm_left_position_align/data",
+      "puppet/arm_right_position_align/data",
+      "puppet/end_effector_left_position_align/data",
+      "puppet/end_effector_right_position_align/data"
+    ],
+    "action": [
+      "master/arm_left_position_align/data",
+      "master/arm_right_position_align/data",
+      "master/end_effector_left_position_align/data",
+      "master/end_effector_right_position_align/data"
+    ],
+    "observation.images.camera_head": {
+      "hdf5_key": "camera_observations/color_images/camera_head",
+      "encoding": "raw",
+      "image_size": [640, 512]
+    }
+  }
+}

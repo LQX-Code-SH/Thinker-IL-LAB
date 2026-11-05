@@ -248,6 +248,21 @@ def validate_features(features: dict) -> None:
             )
 
 
+def _resolve_hdf5_path(base: Path, rel_path: str) -> Path | None:
+    """Resolve the per-episode HDF5 file under *base*, supporting glob patterns.
+
+    Real-robot dumps often name the file after the recording with an extra
+    sub-directory (``hdf5/20261105_145920.hdf5``), so a fixed relative path
+    cannot match every episode. In that case pass a pattern, e.g.
+    ``--hdf5_rel_path 'hdf5/*.hdf5'``; the first match (sorted) is used.
+    """
+    if any(ch in rel_path for ch in "*?["):
+        matches = sorted(p for p in base.glob(rel_path) if p.is_file())
+        return matches[0] if matches else None
+    candidate = base / rel_path
+    return candidate if candidate.is_file() else None
+
+
 def _read_timestamps(ds: h5py.Dataset):
     """Read HDF5 timestamps, auto-detect ns vs seconds, return float64 relative seconds.
 
@@ -1057,8 +1072,8 @@ def main():
     episode_pairs = []  # list of (ep_dir, hdf5_path)
     skipped = []
     for top_dir in top_dirs:
-        flat_hdf5 = top_dir / args.hdf5_rel_path
-        if flat_hdf5.exists():
+        flat_hdf5 = _resolve_hdf5_path(top_dir, args.hdf5_rel_path)
+        if flat_hdf5 is not None:
             episode_pairs.append((top_dir, flat_hdf5))
             continue
 
@@ -1066,8 +1081,8 @@ def main():
         sub_dirs = sorted([d for d in top_dir.iterdir() if d.is_dir()])
         found = False
         for sub_dir in sub_dirs:
-            hdf5_path = sub_dir / args.hdf5_rel_path
-            if hdf5_path.exists():
+            hdf5_path = _resolve_hdf5_path(sub_dir, args.hdf5_rel_path)
+            if hdf5_path is not None:
                 episode_pairs.append((sub_dir, hdf5_path))
                 found = True
         if not found:

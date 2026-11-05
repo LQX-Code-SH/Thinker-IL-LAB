@@ -87,8 +87,9 @@ bash teleoperation/control/walker_c1/save_data.sh --batch 20
 | `/sensor/camera/head_stereo_left/color/raw` | `sensor_msgs/Image` | 未压缩同源画面 |
 | `head_stereo_right` / `head_fisheye_left,right` / `mono_chin` / `wrist_left,right` | 同族 | 其它视角 |
 
-> 宽高比待定：真机原生 1920×1536（5:4），部署当前按 320×240（4:3）直接缩放，横向约拉伸 6.7%。
-> 是否改为裁剪/改分辨率，等拿到真机采集数据后再定（暂不做裁剪）。
+> 宽高比：真机原生 1920×1536（5:4），采集侧 pkl 存 JPEG 时已缩一半（960×768，仍是 5:4）。
+> 部署与训练统一按 **640×512（5:4，1920×1536 的精确 1/3）** 处理，不做裁剪、不改变比例
+> （早前按 320×240 会横向拉伸 6.7%，已改掉）。
 
 采集/部署时用 `WALKER_C1_CAMERA_TOPIC` + `WALKER_C1_CAMERA_MSG_TYPE`（部署脚本用
 `CAMERA_TOPIC` / `CAMERA_MSG_TYPE`）指定。注意：`/compressed` 结尾会推断成压缩图，其余默认

@@ -176,8 +176,10 @@ TOPIC_CAMERA_HEAD_REAL = "/sensor/camera/head_stereo_left/color/raw"
 # ============================================================================
 # 6. 相机默认参数
 # ============================================================================
-DEFAULT_CAMERA_WIDTH = 320
-DEFAULT_CAMERA_HEIGHT = 240
+# 5:4，与真机源（1920x1536，双目左目）及训练数据集
+# （walker_c1_real_13d_1RGB 的 640x512）一致；改成 320x240 会把画面横向拉伸。
+DEFAULT_CAMERA_WIDTH = 640
+DEFAULT_CAMERA_HEIGHT = 512
 DEFAULT_CAMERA_FPS = 15
 DEFAULT_CAMERA_WARMUP_S = 3
 DEFAULT_CAMERA_TIMEOUT_MS = 5000

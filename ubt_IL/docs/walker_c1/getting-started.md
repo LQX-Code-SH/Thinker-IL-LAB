@@ -5,9 +5,9 @@ ACT 训练 → 离线评估 → 仿真/真机部署。
 
 - **策略维度**：26（左臂 7 + 右臂 7 + 左手 6 + 右手 6）或 13（右臂 7 + 右手 6，左臂/左手保持 home）
 - **不控制**：头 2 / 腰 3 / 腿 12（机器人自身保持当前位；仿真锚定 HOME_POSE）
-- **相机**：头部单目 RGB，训练分辨率 320×240
-  - 仿真：`/sensor/camera/head/color/raw`（`sensor_msgs/Image`）
-  - 真机：`/sensor/camera/head_stereo_left/color/raw`（`shm_msgs/Image6m`，1920×1536 yuv422/UYVY）
+- **相机**：头部单目 RGB，训练分辨率 仿真 320×240 / 真机 640×512（两者均为各自源图的等比例缩放）
+  - 仿真：`/sensor/camera/head/color/raw`（`sensor_msgs/Image`，320×240）
+  - 真机：`/sensor/camera/head_stereo_left/color/raw`（`shm_msgs/Image6m`，1920×1536 yuv422/UYVY → 640×512，5:4 不变形）
 - **手部**：真机 SDK 6 个压缩通道（`thumb_swing / thumb_mcp / index_mcp / middle_mcp / ring_mcp / little_mcp`）
 
 ## 目录

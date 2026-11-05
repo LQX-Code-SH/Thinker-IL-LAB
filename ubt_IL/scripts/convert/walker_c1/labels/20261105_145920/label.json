@@ -1,0 +1,48 @@
+{
+    "datas": [
+        {
+            "end_frame": 279,
+            "msg": "pick_the_apple",
+            "sortNo": 1,
+            "start_frame": 0
+        },
+        {
+            "end_frame": 601,
+            "msg": "pick_the_apple",
+            "sortNo": 2,
+            "start_frame": 279
+        },
+        {
+            "end_frame": 906,
+            "msg": "pick_the_apple",
+            "sortNo": 3,
+            "start_frame": 601
+        },
+        {
+            "end_frame": 1155,
+            "msg": "pick_the_apple",
+            "sortNo": 4,
+            "start_frame": 906
+        },
+        {
+            "end_frame": 1486,
+            "msg": "pick_the_apple",
+            "sortNo": 5,
+            "start_frame": 1155
+        },
+        {
+            "end_frame": 1804,
+            "msg": "pick_the_apple",
+            "sortNo": 6,
+            "start_frame": 1486
+        },
+        {
+            "end_frame": 2148,
+            "msg": "pick_the_apple",
+            "sortNo": 7,
+            "start_frame": 1804
+        }
+    ],
+    "result": "pass",
+    "src": "/data/work/UBTECH-IL-LAB/ubt_IL/dataset/20261105_145920/label.json (frames remapped to HDF5 space)"
+}

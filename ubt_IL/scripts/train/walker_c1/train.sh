@@ -1,6 +1,6 @@
 #!/bin/bash
 # Walker C1 模型训练（lerobot-train + config_path 方式）
-# 容器内运行；默认 ACT / 26 维 / 1 路头部 RGB (240x320)。
+# 容器内运行；默认 ACT / 26 维 / 1 路头部 RGB（仿真数据 240x320，真机数据 512x640）。
 #
 # 环境变量（仅在显式设置时才覆盖 config 文件同名值）：
 #   CONFIG            完整训练配置 JSON
