@@ -14,6 +14,7 @@ Two configuration paths are supported:
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -41,6 +42,7 @@ from .constants import (
     HEAD_JOINTS,
     HOME_POSITION,
     LEFT_ARM_JOINTS,
+    MSG_TYPE_COMPRESSED_IMAGE,
     READY_POSE,
     RIGHT_ARM_JOINTS,
     ROBOT_MODELS,
@@ -58,6 +60,37 @@ from .constants import (
 
 _BODY_GROUPS = ("left_arm", "right_arm", "head", "waist")
 _END_EFFECTOR_GROUPS = ("left_hand", "right_hand")
+
+
+def _resolve_camera_source(ros_topic: str, msg_type: str | None) -> tuple[str, str]:
+    """解析相机话题与消息类型（支持仿真/真机同配置切换）。
+
+    仿真：ubt_sim 桥接发布未压缩 ``sensor_msgs/Image``（``/sensor/camera/head/color/raw``）；
+    真机（Thor 版机器人系统）：head 相机只提供 JPEG 压缩话题
+    （``/sensor/camera/head_stereo_left/color/compressed``，``sensor_msgs/CompressedImage``）。
+
+    因此支持环境变量覆盖，避免同一份部署 JSON 为真机单独复制一份：
+
+    - ``WALKER_C1_CAMERA_TOPIC``：覆盖话题名；
+    - ``WALKER_C1_CAMERA_MSG_TYPE``：覆盖消息类型（留空则按话题名推断，
+      以 ``/compressed`` 结尾即 CompressedImage）。
+    """
+    env_topic = os.environ.get("WALKER_C1_CAMERA_TOPIC", "").strip()
+    env_msg_type = os.environ.get("WALKER_C1_CAMERA_MSG_TYPE", "").strip()
+    if env_topic:
+        ros_topic = env_topic
+        if not env_msg_type:
+            # 显式覆盖话题时忽略 JSON 里的 msg_type，按话题名重新推断
+            msg_type = None
+
+    resolved = (env_msg_type or msg_type or "").strip()
+    if not resolved:
+        resolved = (
+            MSG_TYPE_COMPRESSED_IMAGE
+            if ros_topic.rstrip("/").endswith("/compressed")
+            else DEFAULT_CAMERA_MSG_TYPE
+        )
+    return ros_topic, resolved
 _PLACEHOLDER_RE = re.compile(r"(?:^|_)(?:j|joint)\d+$")
 
 # C1 手部 JointCommand 的 SDK 模式（与 walker_c1 分支 bridge 一致）
@@ -397,15 +430,16 @@ class WalkerC1RobotConfig(RobotConfig):
         topics: dict[str, str] = spec["camera_topics"]
         per_camera_types: dict[str, str] = spec.get("camera_msg_types", {})
         camera_sizes: dict[str, tuple] = spec.get("camera_sizes", {})
-        self.camera_topics = {
-            k: {
-                "topic": v,
-                "msg_type": per_camera_types.get(k, DEFAULT_CAMERA_MSG_TYPE),
-                "width": camera_sizes.get(k, (DEFAULT_CAMERA_WIDTH, DEFAULT_CAMERA_HEIGHT))[0],
-                "height": camera_sizes.get(k, (DEFAULT_CAMERA_WIDTH, DEFAULT_CAMERA_HEIGHT))[1],
+        self.camera_topics = {}
+        for key, spec_topic in topics.items():
+            topic, msg_type = _resolve_camera_source(spec_topic, per_camera_types.get(key))
+            width, height = camera_sizes.get(key, (DEFAULT_CAMERA_WIDTH, DEFAULT_CAMERA_HEIGHT))
+            self.camera_topics[key] = {
+                "topic": topic,
+                "msg_type": msg_type,
+                "width": width,
+                "height": height,
             }
-            for k, v in topics.items()
-        }
         self.cameras = {
             k: WalkerC1CameraConfig(
                 width=camera_sizes.get(k, (DEFAULT_CAMERA_WIDTH, DEFAULT_CAMERA_HEIGHT))[0],
@@ -430,10 +464,13 @@ class WalkerC1RobotConfig(RobotConfig):
             cam_type = cam_cfg.get("type", "walker_c1_camera")
             if cam_type != "walker_c1_camera":
                 raise ValueError(f"Unsupported Walker C1 camera type for {name}: {cam_type!r}")
-            ros_topic = cam_cfg.get("ros_topic", TOPIC_CAMERA_HEAD)
+            ros_topic, msg_type = _resolve_camera_source(
+                cam_cfg.get("ros_topic", TOPIC_CAMERA_HEAD),
+                cam_cfg.get("msg_type"),
+            )
             self.camera_topics[name] = {
                 "topic": ros_topic,
-                "msg_type": cam_cfg.get("msg_type", DEFAULT_CAMERA_MSG_TYPE),
+                "msg_type": msg_type,
                 "width": int(cam_cfg.get("width", DEFAULT_CAMERA_WIDTH)),
                 "height": int(cam_cfg.get("height", DEFAULT_CAMERA_HEIGHT)),
             }

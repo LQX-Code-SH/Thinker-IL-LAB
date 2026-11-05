@@ -11,8 +11,12 @@
 ```
 LeRobot (3.12) ──ZMQ 5661/5662──► ros2_walker_c1_bridge.py (3.10) ──ROS2 DDS──► 真机 / ubt_sim
                                   ▲
-walker_c1_camera_relay.py ──ZMQ 5663──┘   (/sensor/camera/head/color/raw, sensor_msgs/Image)
+walker_c1_camera_relay.py ──ZMQ 5663──┘   (仿真: sensor_msgs/Image @ /sensor/camera/head/color/raw)
+                                           (真机: sensor_msgs/CompressedImage @ /sensor/camera/head_stereo_left/color/compressed)
 ```
+
+相机话题可用 `CAMERA_TOPIC`（rollout.sh）/ `WALKER_C1_CAMERA_TOPIC`（插件）覆盖，消息类型
+按话题名自动推断（`/compressed` → CompressedImage）。
 
 ## 文件
 

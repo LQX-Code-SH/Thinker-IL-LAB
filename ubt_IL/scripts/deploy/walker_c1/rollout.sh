@@ -18,6 +18,8 @@
 #   INFERENCE_HZ       act_async 重规划频率
 #   EXECUTION_HORIZON  act_async chunk 截断步数
 #   PREVIEW_CAMERA     1=同时开相机预览窗口
+#   CAMERA_TOPIC       相机话题覆盖（真机：/sensor/camera/head_stereo_left/color/compressed）
+#   PREVIEW_TOPIC      预览窗口用话题（默认跟随 CAMERA_TOPIC）
 #
 # 示例：
 #   POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained_model \
@@ -43,7 +45,14 @@ INFERENCE_TYPE="${INFERENCE_TYPE:-sync}"
 INFERENCE_HZ="${INFERENCE_HZ:-2}"
 EXECUTION_HORIZON="${EXECUTION_HORIZON:-0}"
 PREVIEW_CAMERA="${PREVIEW_CAMERA:-0}"
-PREVIEW_TOPIC="${PREVIEW_TOPIC:-/sensor/camera/head/color/raw}"
+# 相机源：仿真 = /sensor/camera/head/color/raw（sensor_msgs/Image）；
+# 真机 = /sensor/camera/head_stereo_left/color/compressed（CompressedImage，JPEG）。
+# 消息类型由插件按话题名自动推断，这里只透传话题覆盖。
+CAMERA_TOPIC="${CAMERA_TOPIC:-}"
+PREVIEW_TOPIC="${PREVIEW_TOPIC:-${CAMERA_TOPIC:-/sensor/camera/head/color/raw}}"
+if [[ -n "$CAMERA_TOPIC" ]]; then
+    export WALKER_C1_CAMERA_TOPIC="$CAMERA_TOPIC"
+fi
 LEROBOT_DIR="${LEROBOT_DIR:-/ubt_IL/lerobot}"
 if [[ ! -d "$LEROBOT_DIR" ]]; then
     LEROBOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)/lerobot"

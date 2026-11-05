@@ -18,8 +18,13 @@ case "${1:-}" in
         echo "[INFO] Base image: $BASE_IMAGE"
         echo "[INFO] GPU args: $DOCKER_GPU_ARGS"
         echo "[INFO] This may take a few minutes on first build..."
+        BUILD_ARGS=(--build-arg BASE_IMAGE="$BASE_IMAGE")
+        if [ -n "${TORCH_SRC_IMAGE:-}" ]; then
+            echo "[INFO] Torch source image: $TORCH_SRC_IMAGE"
+            BUILD_ARGS+=(--build-arg TORCH_SRC_IMAGE="$TORCH_SRC_IMAGE")
+        fi
         sudo docker build \
-            --build-arg BASE_IMAGE="$BASE_IMAGE" \
+            "${BUILD_ARGS[@]}" \
             -t "$IMAGE" \
             -f "$DOCKERFILE" \
             "$PROJECT_ROOT"
@@ -54,6 +59,9 @@ case "${1:-}" in
                 : > "$_DOCKER_XAUTH"   # 无 X11 时建空文件，保证挂载源是普通文件
             fi
 
+            # Jetson（Orin/Thor）用 --runtime nvidia：必须显式给 NVIDIA_VISIBLE_DEVICES /
+            # NVIDIA_DRIVER_CAPABILITIES，否则只注入 /dev/nvidia* 节点、不挂 libcuda.so，
+            # 容器内 torch.cuda.is_available() 为 False（下面 run 段已带这两个 -e）。
             GPU_ARGS=()
             if [ -n "$DOCKER_GPU_ARGS" ]; then
                 read -r -a GPU_ARGS <<< "$DOCKER_GPU_ARGS"
@@ -81,6 +89,11 @@ case "${1:-}" in
                 -e HF_HOME="$HF_HOME" \
                 -e TORCH_HOME="$TORCH_HOME" \
                 -e UV_INDEX_URL="$UV_INDEX_URL" \
+                -e FASTRTPS_DEFAULT_PROFILES_FILE=/opt/fastdds_no_shm.xml \
+                -e NVIDIA_VISIBLE_DEVICES=all \
+                -e NVIDIA_DRIVER_CAPABILITIES=all \
+                "${DDS_ENV_ARGS[@]}" \
+                "${DDS_MOUNT_ARGS[@]}" \
                 -v "$PROJECT_ROOT":/ubt_IL \
                 "${SIM_MOUNT_ARGS[@]}" \
                 -e DISPLAY="${_HOST_DISPLAY}" \
@@ -311,6 +324,9 @@ PY' >/dev/null 2>&1
         # 或走宿主机转换时用不到），只提示。
         if sudo docker exec "$CONTAINER_NAME" test -d /ubt_sim/dataset 2>/dev/null; then
             echo "[OK] ubt_sim mounted: /ubt_sim (read-only)"
+        elif sudo docker exec "$CONTAINER_NAME" test -d /ubt_sim 2>/dev/null; then
+            echo "[WARN] ubt_sim mounted but empty: /ubt_sim/dataset 不存在（还没采集数据）"
+            WARNINGS=$((WARNINGS + 1))
         else
             echo "[WARN] ubt_sim NOT mounted: /ubt_sim 不存在，容器内转换需先手工拷贝数据"
             WARNINGS=$((WARNINGS + 1))
@@ -450,6 +466,26 @@ PY" 2>/dev/null; then
         else
             echo "[FAIL] GPU: not detected"
             ERRORS=$((ERRORS + 1))
+        fi
+
+        # torch 可用性（尤其 Thor sm_110 / Orin sm_87 的 kernel 是否匹配）
+        TORCH_INFO=$(sudo docker exec "$CONTAINER_NAME" /lerobot/.venv/bin/python -c "
+import torch
+ok = torch.cuda.is_available() and torch.zeros(8, device='cuda').sum().item() >= 0
+print(torch.__version__, '| arch:', ','.join(torch.cuda.get_arch_list()), '| kernel:', 'ok' if ok else 'FAIL')
+" 2>/dev/null)
+        if echo "$TORCH_INFO" | grep -q "kernel: ok"; then
+            echo "[OK] torch: $TORCH_INFO"
+        else
+            echo "[FAIL] torch: ${TORCH_INFO:-not importable / CUDA kernel cannot run}"
+            ERRORS=$((ERRORS + 1))
+        fi
+
+        # DDS：Thor 与机器人主控栈共用 CycloneDDS，网卡需存在
+        RMW=$(sudo docker exec "$CONTAINER_NAME" printenv RMW_IMPLEMENTATION 2>/dev/null || true)
+        CDDS=$(sudo docker exec "$CONTAINER_NAME" printenv CYCLONEDDS_URI 2>/dev/null || true)
+        if [ -n "$RMW" ]; then
+            echo "[INFO] RMW: $RMW${CDDS:+ | CYCLONEDDS_URI=$CDDS}"
         fi
 
         # 网络

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  Walker C1 真机（NVIDIA Thor）CycloneDDS 配置。
+
+  机器人主控栈（walker-ros.ros2-1 等容器）注入的环境为：
+    RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    CYCLONEDDS_URI=<CycloneDDS><Domain id="any"><General><AllowMulticast>spdp</AllowMulticast>
+                   </General><Interfaces><NetworkInterface name="mgbe2_0" .../></Interfaces></Domain></CycloneDDS>
+
+  IL 容器用同一 RMW、绑定同一网卡（mgbe2_0，本机 192.168.11.3），才能稳定收到
+  /mc/sdk/robot_state 与相机话题。两条实测约束（2026-11-05，Thor 真机）：
+
+  1. <Interfaces> 必须放在 <General> 里：Humble 自带 CycloneDDS 0.10+，放 <Domain> 下
+     只报 "unknown element" 并回退默认网卡。
+  2. 网卡只写 mgbe2_0，不要写 lo（lo 非 multicast 能力，会被选为主网卡导致发现失败）。
+  3. 机器人域 0 里 participant 数量很多，默认 MaxAutoParticipantIndex(9) 会报
+     "Failed to find a free participant index for domain 0"；改 ParticipantIndex=none
+     并放宽 MaxAutoParticipantIndex 即可。
+
+  网络相关环境变量变化（换机型/换网口）时改 <NetworkInterface name="...">。
+-->
+<CycloneDDS>
+    <Domain id="any">
+        <General>
+            <AllowMulticast>spdp</AllowMulticast>
+            <Interfaces>
+                <NetworkInterface name="mgbe2_0" priority="default" multicast="default" />
+            </Interfaces>
+        </General>
+        <Discovery>
+            <ParticipantIndex>none</ParticipantIndex>
+            <MaxAutoParticipantIndex>120</MaxAutoParticipantIndex>
+        </Discovery>
+    </Domain>
+</CycloneDDS>

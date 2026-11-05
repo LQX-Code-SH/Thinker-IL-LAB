@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Preview the Walker C1 head camera (`sensor_msgs/Image`) from ROS2.
+"""Preview the Walker C1 head camera from ROS2.
 
-C1 has a single head RGB camera (`/sensor/camera/head/color/raw`), published by
-ubt_sim (simulation) or the robot SDK (real). This script subscribes, optionally
-resizes, and shows/saves frames.
+C1 只有一路头部单目 RGB，但仿真与真机的消息类型不同：
+  - 仿真（ubt_sim 桥接）：`/sensor/camera/head/color/raw`（sensor_msgs/Image）
+  - 真机（Thor 版机器人系统）：`/sensor/camera/head_stereo_left/color/compressed`
+    （sensor_msgs/CompressedImage，JPEG）
+
+`--msg-type auto`（默认）按话题名推断：以 `/compressed` 结尾即为压缩图。
 
 Usage:
   python3 preview_camera.py                          # 实时预览（需 DISPLAY）
   python3 preview_camera.py --once --save-frame /tmp/c1_head.jpg
+  python3 preview_camera.py --once --save-frame /tmp/c1_real.jpg \
+      --topic /sensor/camera/head_stereo_left/color/compressed
   python3 preview_camera.py --topic /sensor/camera/head/color/raw --width 640 --height 480
 """
 
@@ -57,9 +62,29 @@ def _decode(msg) -> np.ndarray | None:
     return img
 
 
+def _decode_compressed(msg) -> np.ndarray | None:
+    """sensor_msgs/CompressedImage -> BGR ndarray."""
+    import cv2
+
+    buf = np.frombuffer(bytes(msg.data), dtype=np.uint8)
+    if buf.size == 0:
+        print("[preview] empty compressed payload", file=sys.stderr)
+        return None
+    img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
+    if img is None:
+        print(f"[preview] JPEG/PNG decode failed (format={getattr(msg, 'format', '?')})", file=sys.stderr)
+    return img
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--topic", default="/sensor/camera/head/color/raw", help="Image topic")
+    parser.add_argument(
+        "--msg-type",
+        default="auto",
+        choices=["auto", "image", "compressed"],
+        help="消息类型：auto=按话题名推断（/compressed 结尾即 CompressedImage）",
+    )
     parser.add_argument("--width", type=int, default=0, help="Resize width (0 = keep)")
     parser.add_argument("--height", type=int, default=0, help="Resize height (0 = keep)")
     parser.add_argument("--once", action="store_true", help="Grab one frame and exit")
@@ -73,7 +98,13 @@ def main() -> int:
     import rclpy
     from rclpy.node import Node
     from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-    from sensor_msgs.msg import Image
+    from sensor_msgs.msg import CompressedImage, Image
+
+    msg_type = args.msg_type
+    if msg_type == "auto":
+        msg_type = "compressed" if args.topic.rstrip("/").endswith("/compressed") else "image"
+    sub_type = CompressedImage if msg_type == "compressed" else Image
+    decode = _decode_compressed if msg_type == "compressed" else _decode
 
     qos = QoSProfile(
         reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -87,13 +118,13 @@ def main() -> int:
     state = {"img": None, "count": 0, "t0": time.time()}
 
     def cb(msg):
-        img = _decode(msg)
+        img = decode(msg)
         if img is not None:
             state["img"] = img
             state["count"] += 1
 
-    node.create_subscription(Image, args.topic, cb, qos)
-    print(f"[preview] waiting for {args.topic} (timeout {args.timeout}s)...")
+    node.create_subscription(sub_type, args.topic, cb, qos)
+    print(f"[preview] waiting for {args.topic} ({msg_type}, timeout {args.timeout}s)...")
 
     headless = not os.environ.get("DISPLAY")
     if headless and not args.save_frame:

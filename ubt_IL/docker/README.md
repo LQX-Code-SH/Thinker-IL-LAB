@@ -7,7 +7,9 @@
 | 文件 | 作用 |
 | --- | --- |
 | `Dockerfile` | x86_64 镜像构建（基镜像 `huggingface/lerobot-gpu:latest`，自带 `/lerobot/.venv`） |
-| `Dockerfile.arm64` | Jetson aarch64 镜像构建（基镜像 `dustynv/l4t-pytorch:r36.4.0-linuxarm64`，自建 Python 3.12 venv） |
+| `Dockerfile.arm64` | Jetson **Orin**（JetPack 6 / r36）镜像构建（基镜像 `dustynv/l4t-pytorch:r36.4.0-linuxarm64`，自建 Python 3.12 venv） |
+| `Dockerfile.thor` | Jetson **Thor**（JetPack 7 / r38 / sm_110）镜像构建（基镜像为机器人自带的 `ros2_ws:humble-dyn`，torch 从 `astron-integration` 镜像移植） |
+| `cyclonedds_thor.xml` | Thor 真机用 CycloneDDS 配置（与机器人主控栈同 RMW、同网卡 `mgbe2_0`） |
 | `run.sh` | CLI 编排器：`build / start / stop / restart / bash / rm / check` |
 | `entrypoint.sh` | 容器启动时幂等执行：editable 安装 lerobot 与插件、编译 Walker ROS2 msg、修复 opencv/numpy、校验 sm_87 torch |
 | `env.sh` | 按 `uname -m` 选默认镜像 / Dockerfile / GPU 参数 |
@@ -24,7 +26,10 @@
 | Host arch | Dockerfile | 默认镜像 | 默认 GPU 参数 |
 | --- | --- | --- | --- |
 | `x86_64` / `amd64` | `Dockerfile` | `lerobot-tienkung:humble` | `--gpus all` |
-| `aarch64` / `arm64` | `Dockerfile.arm64` | `lerobot-tienkung:humble-arm64` | `--runtime nvidia` |
+| `aarch64` / `arm64`（Orin，L4T r36） | `Dockerfile.arm64` | `lerobot-tienkung:humble-arm64` | `--runtime nvidia` |
+| `aarch64` / `arm64`（**Thor**，L4T r38） | `Dockerfile.thor` | `lerobot-tienkung:humble-thor` | `--runtime nvidia` |
+
+Thor 判定用 `/etc/nv_tegra_release` 含 `R38` 或 `nvidia-smi` 报 `Thor`，无需手工切换。
 
 ## 构建与运行命令
 
@@ -94,4 +99,18 @@ BASE_IMAGE=docker.io/dustynv/l4t-pytorch:r36.4.0 bash run.sh build
 
 6. **Jetson torch wheel 随镜像分发**。通用 `download.pytorch.org` cu128 wheel 未编译 SM_87，会报 `no kernel image is available`。本目录两个 wheel 在本机源码编译（CUDA 12.6, cuDNN 9.4, cp312，耗时约 3.5 h），版本满足 LeRobot 约束（torch `>=2.7,<2.12`；torchvision `>=0.22,<0.27`），COPY 进 `/opt/jetson-wheels` 避免每台 Jetson 重编。两文件约占本目录 99% 体积。
 
-7. **LeRobot `[dataset]` extra 已预装**。lerobot 源码是 bind-mount，entrypoint 只做 editable 安装不含此 extra，但 `rollout` 模块 import 时硬性 require `datasets`/`av` 等，故两份 Dockerfile 在构建期预装 `datasets pandas pyarrow av` 四个独立 PyPI 包。
+7. **Thor（JetPack 7 / L4T r38）专线**。`env.sh` 检测到 `R38` 或 GPU 报 `Thor` 时选
+   `Dockerfile.thor` + 镜像 `lerobot-tienkung:humble-thor`：
+   - 基镜像 `glcr.rd.ubtrobot.com/t800/common/ros2_ws:humble-dyn-v0.0.192`（Ubuntu 22.04 + Humble，
+     与机器人主控栈同版本），不用 r36 的 `dustynv/l4t-pytorch`。
+   - torch/torchvision 从 `glcr.rd.ubtrobot.com/runtime/astron/astron-integration:c3_vision-v0.2.8`
+     多阶段 COPY（2.9.0+cu130，arch 含 `sm_110`）。
+   - 容器内用户固定 uid/gid 1000（与宿主 `walker` 一致），否则 entrypoint 无法在 bind mount
+     里写 colcon `install/` 与 `*.egg-info`。
+   - `run.sh start` 额外带 `-e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all`：
+     Jetson 上只写 `--runtime nvidia` 会只注入设备节点、不挂 `libcuda.so`，表现为
+     `torch.cuda.is_available()==False`。
+   - 默认 RMW 改为 `rmw_cyclonedds_cpp`，`docker/cyclonedds_thor.xml` 以只读方式挂进容器
+     （改配置重启容器即生效，不必重建镜像）。
+
+8. **LeRobot `[dataset]` extra 已预装**。lerobot 源码是 bind-mount，entrypoint 只做 editable 安装不含此 extra，但 `rollout` 模块 import 时硬性 require `datasets`/`av` 等，故两份 Dockerfile 在构建期预装 `datasets pandas pyarrow av` 四个独立 PyPI 包。

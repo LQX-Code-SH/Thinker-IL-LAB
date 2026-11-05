@@ -203,26 +203,42 @@ class CameraRelay:
 
     def _camera_callback(self, cam_name: str, msg) -> None:
         try:
-            height = msg.height
-            width = msg.width
-            step = msg.step
-            encoding = self._resolve_encoding(msg)
-            img_data = bytes(msg.data)
-
-            byte_count = height * step
-            if encoding == "bgr8":
-                img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width, 3))
-            elif encoding == "rgb8":
-                img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width, 3))
-                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-            elif encoding == "yuv422":
-                img = self._yuv422_to_bgr(img_data[:byte_count], width, height)
-            elif encoding == "mono8":
-                img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width))
-                img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+            compressed_format = getattr(msg, "format", None)
+            if compressed_format is not None:
+                # sensor_msgs/CompressedImage（C1 真机 head 相机只提供 JPEG 压缩话题）
+                img = cv2.imdecode(
+                    np.frombuffer(bytes(msg.data), dtype=np.uint8),
+                    cv2.IMREAD_COLOR,
+                )
+                if img is None:
+                    logger.warning(
+                        "Camera relay: JPEG decode failed for %s (format=%s, %d bytes)",
+                        cam_name, compressed_format, len(msg.data),
+                    )
+                    return
+                height, width = img.shape[0], img.shape[1]
+                encoding = f"compressed:{compressed_format}"
             else:
-                logger.debug("Camera relay: unsupported encoding %s for %s", encoding, cam_name)
-                return
+                height = msg.height
+                width = msg.width
+                step = msg.step
+                encoding = self._resolve_encoding(msg)
+                img_data = bytes(msg.data)
+
+                byte_count = height * step
+                if encoding == "bgr8":
+                    img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width, 3))
+                elif encoding == "rgb8":
+                    img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width, 3))
+                    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+                elif encoding == "yuv422":
+                    img = self._yuv422_to_bgr(img_data[:byte_count], width, height)
+                elif encoding == "mono8":
+                    img = np.frombuffer(img_data, dtype=np.uint8)[:byte_count].reshape((height, width))
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+                else:
+                    logger.debug("Camera relay: unsupported encoding %s for %s", encoding, cam_name)
+                    return
 
             if cam_name not in self._logged_first:
                 self._logged_first.add(cam_name)

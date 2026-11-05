@@ -85,7 +85,9 @@ chunk（act_async）：追加 `n_points / fps / inference_time_sec / obs_time_se
 | pub | `/mc/sdk/robot_state` | `mc_state_msgs/RobotState`（`joint_states`，31 关节） |
 | pub | `/mc/{left,right}_hand/joint_states` | `sensor_msgs/JointState`（SDK 6 关节序） |
 | pub | `/sim/cmd_reset` | `std_msgs/Bool`（仅仿真） |
-| 相机 | `/sensor/camera/head/color/raw` | `sensor_msgs/Image`（rgb8，BEST_EFFORT） |
+| 相机（仿真） | `/sensor/camera/head/color/raw` | `sensor_msgs/Image`（rgb8，BEST_EFFORT） |
+| 相机（真机） | `/sensor/camera/head_stereo_left/color/compressed` | `sensor_msgs/CompressedImage`（JPEG，BEST_EFFORT） |
+| 相机覆盖 | `WALKER_C1_CAMERA_TOPIC` 环境变量 | 覆盖话题；消息类型按话题名推断（`/compressed` → CompressedImage） |
 
 消息包 `mc_task_msgs`/`mc_state_msgs` 与 walker_s2 的 `walker_sdk_ros2` 工作空间字段一致，
 默认复用 `/ubt_IL/walker_s2/walker_sdk_ros2/install`；可用 `WALKER_C1_ROS_WS` 指向独立工作空间。
@@ -114,7 +116,8 @@ chunk（act_async）：追加 `n_points / fps / inference_time_sec / obs_time_se
    bridge 内不再硬编码 V4 限位表。
 5. 第 4 个臂关节 SDK 文档叫 `elbow_roll`、URDF 叫 `elbow_pitch`；ubt_sim bridge 做别名容忍，
    真机部署前需现场核对符号。
-6. 相机只有头部单目（无腕部、无深度）；relay QoS 必须 BEST_EFFORT。
+6. 相机只有头部单目（无腕部、无深度）；relay QoS 必须 BEST_EFFORT。仿真发未压缩 `Image`，
+   真机只发 `CompressedImage`（JPEG）；relay 两种都能吃，解码后统一 resize 再 JPEG 编码进 ZMQ。
 7. 与 walker_s2 的插件运行在同一容器内，注册名不同（`walker_c1` vs `walker`），
    不要互相 import。
 

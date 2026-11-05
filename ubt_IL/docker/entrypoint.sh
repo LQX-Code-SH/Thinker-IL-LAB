@@ -140,19 +140,52 @@ PY
     fi
 }
 
-# 防御性安全网：确保 LeRobot venv 用的是源码编译的 Jetson sm_87 torch。
+# 防御性安全网：确保 LeRobot venv 用的是与本机 GPU 架构匹配的 Jetson torch。
 # uv pip install -e .（lerobot/plugins）不升级已满足约束的依赖，理论上不会覆盖；
-# 但若解析意外把通用 cu128 wheel（无 sm_87）装进来，此处用镜像层 wheel 强制装回。
+# 但若解析意外把通用 cu128 wheel（无 sm_87/sm_110）装进来，此处用镜像层 wheel 强制装回。
+#
+# 两种镜像形态：
+#   * Orin（Dockerfile.arm64）：/opt/jetson-wheels 里是本机源码编译的 sm_87 wheel；
+#   * Thor（Dockerfile.thor）：torch 已随镜像层移植（2.9.0+cu130，含 sm_110），
+#     无 /opt/jetson-wheels，此处只做架构打印校验，不重装（也没有可重装的轮子）。
+_torch_arch_ok() {
+    python - "$@" <<'PY' 2>/dev/null
+import sys
+import torch
+arch_list = [str(a) for a in torch.cuda.get_arch_list()]
+if not torch.cuda.is_available():
+    # 无 GPU 时不阻塞启动（例如 x86 无卡调试）；只要求 arch 列表非空
+    print("no-cuda", ",".join(arch_list))
+    sys.exit(0 if arch_list else 1)
+major, minor = torch.cuda.get_device_capability(0)
+cc = f"{major}.{minor}"
+# torch 的 arch_list 用 "sm_110" 形式（Thor CC 11.0），不是 "11.0"
+want = f"sm_{major}{minor}"
+print(f"cc={cc} want={want}", ",".join(arch_list))
+sys.exit(0 if want in arch_list else 1)
+PY
+}
+
 reinstall_jetson_torch() {
-    [ -d /opt/jetson-wheels ] || return 0
-    if python -c "import torch; alc=torch.cuda.get_arch_list(); assert any('8.7' in str(a) for a in alc)" 2>/dev/null; then
-        echo "[entrypoint] Jetson torch (sm_87) active: $(python -c 'import torch;print(torch.__version__)' 2>/dev/null)"
+    if [ -d /opt/jetson-wheels ]; then
+        if _torch_arch_ok; then
+            echo "[entrypoint] Jetson torch active: $(python -c 'import torch;print(torch.__version__)' 2>/dev/null) ($(_torch_arch_ok 2>/dev/null))"
+            return 0
+        fi
+        echo "[entrypoint] Reinstalling source-built Jetson torch/torchvision (sm_87)..."
+        uv pip install --no-deps --force-reinstall \
+            /opt/jetson-wheels/torch-*.whl /opt/jetson-wheels/torchvision-*.whl \
+            || echo "[entrypoint] WARNING: Jetson torch reinstall failed"
         return 0
     fi
-    echo "[entrypoint] Reinstalling source-built Jetson torch/torchvision (sm_87)..."
-    uv pip install --no-deps --force-reinstall \
-        /opt/jetson-wheels/torch-*.whl /opt/jetson-wheels/torchvision-*.whl \
-        || echo "[entrypoint] WARNING: Jetson torch reinstall failed"
+
+    # Thor / 通用镜像：仅校验，不重装
+    if _torch_arch_ok >/tmp/.torch_arch 2>&1; then
+        echo "[entrypoint] torch ready: $(python -c 'import torch;print(torch.__version__)' 2>/dev/null) ($(cat /tmp/.torch_arch))"
+    else
+        echo "[entrypoint] WARNING: torch 与当前 GPU 架构不匹配（$(cat /tmp/.torch_arch 2>/dev/null)）。"
+        echo "[entrypoint]          检查镜像是否移植了对应 sm 的 wheel（Thor 需 sm_110）。"
+    fi
 }
 
 # ROS_DOMAIN_ID: 默认 0 (真机)，可通过 DOMAIN_ID 环境变量覆盖
@@ -245,7 +278,13 @@ if [ -d "/ubt_IL" ]; then
     # Replace headless OpenCV with GUI version (MUST be after lerobot install)
     # lerobot's dependencies pull in opencv-python-headless + numpy>=2, so we fix it last.
     # Check via pip list (not import) because numpy mismatch may crash cv2 import.
-    if uv pip list 2>/dev/null | grep -q "opencv-python-headless"; then
+    #
+    # Orin 的 jammy/py3.10 环境需要把 numpy 钉回 <2；Thor 的 torch 2.9 支持 numpy 2，
+    # 而 LeRobot 0.5.2 明确要求 numpy>=2,<2.3，钉 <2 反而会让 lerobot 依赖不满足，
+    # 故 Thor 镜像设 LEROBOT_ALLOW_NUMPY2=1 跳过这一段（opencv-headless 在 numpy2 下可用）。
+    if [ "${LEROBOT_ALLOW_NUMPY2:-0}" = "1" ]; then
+        echo "[entrypoint] numpy>=2 环境（Thor）：保留 opencv-python-headless 与 numpy 2.x"
+    elif uv pip list 2>/dev/null | grep -q "opencv-python-headless"; then
         echo "[entrypoint] Replacing opencv-python-headless with opencv-python (GUI support)..."
         uv pip uninstall opencv-python-headless opencv-python -y 2>/dev/null || true
         uv pip install "opencv-python<4.10" "numpy<2" || echo "[entrypoint] WARNING: opencv upgrade failed"

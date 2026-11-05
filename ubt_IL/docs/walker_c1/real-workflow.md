@@ -28,22 +28,44 @@ LeRobot (3.12) ──ZMQ 5661/5662──► ros2_walker_c1_bridge.py (3.10) ─�
 1. **切 SDK 控制**：C1 需由厂商工具把控制权交给 SDK（`rosa` / `t800_mc_server` 一类命令，
    以现场手册为准）。未切 SDK 时 `/mc/sdk/robot_command` 不生效。
 2. **ROS 域**：真机默认 `ROS_DOMAIN_ID=0`；与仿真隔离时把两边都改成 146。
-3. **DDS**：`ubt_IL/docker/fastdds_no_shm.xml` 白名单加入本机网卡 IP：
+3. **DDS**：**Thor 机型（C1 本体）必须与主控栈同 RMW**——机器人栈是
+   `rmw_cyclonedds_cpp` + `CYCLONEDDS_URI`（绑定 `mgbe2_0`，本机 192.168.11.3）。
+   IL 容器由 `docker/run.sh` 自动注入同款环境，并挂载 `docker/cyclonedds_thor.xml`：
+
+   ```bash
+   RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+   CYCLONEDDS_URI=file:///opt/cyclonedds_thor.xml   # 内含 mgbe2_0 + ParticipantIndex=none
+   ```
+
+   两条实测坑（改配置时注意）：
+   - `<Interfaces>` 必须写在 `<General>` 里（Humble 的 CycloneDDS 0.10+），放 `<Domain>` 下只报
+     `unknown element` 并回退默认网卡；网卡只写 `mgbe2_0`，不要写 `lo`（非 multicast）。
+   - 域 0 内 participant 很多，默认上限会报
+     `Failed to find a free participant index for domain 0`；配置里已设
+     `ParticipantIndex=none`、`MaxAutoParticipantIndex=120`。
+
+   若走 FastDDS（仿真/远程机），改 `RMW_IMPLEMENTATION=rmw_fastrtps_cpp`，并把本机网卡 IP
+   （Thor 为 `192.168.11.3`）加进 `docker/fastdds_no_shm.xml` 白名单：
 
    ```xml
    <address>127.0.0.1</address>
-   <address>192.168.41.99</address>  <!-- 天工/默认远程真机 -->
-   <address>192.168.11.99</address>  <!-- Walker 直连网段 -->
+   <address>192.168.11.3</address>   <!-- Thor 本机 mgbe2_0 -->
+   <address>192.168.11.99</address>  <!-- Walker 直连网段对端 -->
    ```
 
-4. **状态自检**：
+4. **状态自检**（容器内，`run.sh bash` 之后）：
 
    ```bash
    source /opt/ros/humble/setup.bash
    source /ubt_IL/walker_s2/walker_sdk_ros2/install/setup.bash
-   ros2 topic hz /mc/sdk/robot_state        # 应约 48 Hz
-   ros2 topic hz /sensor/camera/head/color/raw
+   export ROS_DOMAIN_ID=0
+   ros2 topic hz /mc/sdk/robot_state                     # Thor 实测 ≈ 460-490 Hz
+   ros2 topic hz /sensor/camera/head_stereo_left/color/compressed   # ≈ 21 Hz
+   ros2 topic info -v /mc/sdk/robot_command              # 应有订阅者（SDK 控制已切）
    ```
+
+   说明：真机 `RobotState` 只有 19 个关节（双臂 14 + 头 2 + 腰 3，无腿），bridge 按名取
+   14 个臂关节，不受影响；头/腰/腿不在策略内、也不下发。
 
 5. **安全**：机器人置于安全位；首次 `DURATION=10` 短时验证；手边留急停。
 
@@ -56,7 +78,16 @@ bash teleoperation/control/walker_c1/save_data.sh --batch 20
 ```
 
 产物与仿真一致：`ubt_sim/dataset/walker_c1/<epoch>/trajectory.hdf5`（15 Hz、31 body + 6+6 手、1 路 RGB）。
-采集端需要真机相机话题 `/sensor/camera/head/color/raw`。
+采集端需要真机相机话题——**C1 真机没有 `/sensor/camera/head/color/raw`**，只有：
+
+| 话题 | 类型 | 说明 |
+|---|---|---|
+| `/sensor/camera/head_stereo_left/color/compressed` | `sensor_msgs/CompressedImage` | **策略输入默认用它**（≈21 Hz） |
+| `/sensor/camera/head_stereo_left/color/raw` | `sensor_msgs/Image` | 未压缩同源画面 |
+| `head_stereo_right` / `head_fisheye_left,right` / `mono_chin` / `wrist_left,right` | 同族 | 其它视角 |
+
+采集/部署时用 `WALKER_C1_CAMERA_TOPIC`（部署脚本用 `CAMERA_TOPIC`）指到上面的话题即可，
+消息类型按话题名自动推断（`/compressed` 结尾 = CompressedImage）。
 
 ## 3. 容器
 
@@ -65,11 +96,18 @@ cd ubt_IL/docker
 bash run.sh build && bash run.sh start && bash run.sh check && bash run.sh bash
 ```
 
+Thor 机型（L4T r38 / sm_110）由 `env.sh` 自动切到 `Dockerfile.thor`
+（镜像 `lerobot-tienkung:humble-thor`，基镜像为机器人自带 `ros2_ws:humble-dyn`，
+torch 从 `astron-integration` 镜像移植 2.9.0+cu130/sm_110）。**不要**用 Orin 的
+`Dockerfile.arm64`（r36 基镜像 + sm_87 wheel，在 Thor 上跑不起来）。
+
 `run.sh check` 应包含：
 
 - `[OK] walker_c1 plugin: installed`
 - `[OK] walker_c1 bridge: available`
 - `[OK] walker ROS2 msgs: installed`（`mc_state_msgs` / `mc_task_msgs`，与 walker_s2 共用工作空间）
+- `[OK] torch: 2.9.0+cu130 | arch: ...,sm_110,... | kernel: ok`
+- `[INFO] RMW: rmw_cyclonedds_cpp | CYCLONEDDS_URI=file:///opt/cyclonedds_thor.xml`
 
 ## 4. 数据转换
 
@@ -100,8 +138,9 @@ python /ubt_IL/scripts/eval/eval_policy.py \
 ## 6. 部署
 
 ```bash
-# ① 相机自检
-python3 /ubt_IL/scripts/deploy/walker_c1/preview_camera.py --once --save-frame /tmp/c1.jpg
+# ① 相机自检（真机用压缩话题；--msg-type 默认 auto，按话题名推断）
+python3 /ubt_IL/scripts/deploy/walker_c1/preview_camera.py --once --save-frame /tmp/c1.jpg \
+  --topic /sensor/camera/head_stereo_left/color/compressed
 
 # ② 摆到预备位（先 dry-run 看目标位姿）
 bash /ubt_IL/scripts/deploy/walker_c1/robot_ready.sh --dry-run
@@ -110,6 +149,7 @@ bash /ubt_IL/scripts/deploy/walker_c1/robot_ready.sh
 # ③ 单集 rollout
 POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained_model \
 DURATION=10 FPS=15 RESET_MODE=task \
+CAMERA_TOPIC=/sensor/camera/head_stereo_left/color/compressed \
   bash /ubt_IL/scripts/deploy/walker_c1/rollout.sh
 
 # ④ 常驻推理服务（可选，见 inference-server.md）
@@ -135,3 +175,7 @@ bash /ubt_IL/scripts/deploy/walker_c1/inference_server.sh
 | 相机花屏/无图 | `sensor_msgs/Image` encoding 应为 `rgb8`；QoS BEST_EFFORT |
 | 退出后手臂不回位 | `disable_torque_on_disconnect` 被设 false；或 bridge 已被外部 kill |
 | 推理服务连不上 | 端口 5690/5691；`inference_client.sh status` 看状态机 |
+| 话题列表空 / 收不到 `/mc/*` | RMW 不一致：真机必须 `rmw_cyclonedds_cpp` + `cyclonedds_thor.xml`（见 1.3） |
+| `Failed to find a free participant index` | CycloneDDS 默认 participant 上限太低，用 `ParticipantIndex=none` + `MaxAutoParticipantIndex=120` |
+| 相机话题不存在 | 真机无 `/sensor/camera/head/color/raw`，用 `CAMERA_TOPIC=.../head_stereo_left/color/compressed` |
+| `torch.cuda.is_available()` 为 False | 容器缺 `NVIDIA_VISIBLE_DEVICES=all`/`NVIDIA_DRIVER_CAPABILITIES=all`（`run.sh start` 已带；手工 `docker run` 需补） |
