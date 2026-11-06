@@ -6,6 +6,19 @@ ACT 策略，支持两种维度，1 路头部 RGB 240×320；头 / 腰 / 腿不�
 |---|---|---|---|
 | `train_config_walker_c1_sim_act_26d_1RGB.json` | 26 | 左臂 7 + 右臂 7 + 左手 6 + 右手 6 | 双臂任务 |
 | `train_config_walker_c1_sim_act_13d_1RGB.json` | 13 | 右臂 7 + 右手 6 | 单臂任务（左臂/左手部署时保持 home） |
+| `train_config_walker_c1_real_act_13d_1RGB.json` | 13 | 右臂 7 + 右手 6 | 真机数据集 `walker_c1_real_13d_1RGB`（34 集 / 11406 帧） |
+
+## 真机数据训练（13 维）
+
+```bash
+# 容器内
+CONFIG=/ubt_IL/scripts/train/walker_c1/configs/train_config_walker_c1_real_act_13d_1RGB.json \
+  bash /ubt_IL/scripts/train/walker_c1/train.sh
+```
+
+- 数据集：`/ubt_IL/dataset/walker_c1_real_13d_1RGB`（LeRobot v3.0，30fps，头部相机 512×640）
+- 模型输入图像统一 resize 到 `240×320`，`use_amp=true`
+- 输出：`/ubt_IL/model/walker_c1_real_13d_act_1RGB`，steps=30000，save_freq=10000
 
 ## 首次训练
 
