@@ -119,11 +119,14 @@ bash /ubt_IL/scripts/deploy/walker_c1/robot_ready.sh
 POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained_model \
   bash /ubt_IL/scripts/deploy/walker_c1/rollout.sh
 
-# 真机（Thor 本体）：相机走压缩话题，DDS 走 CycloneDDS（run.sh 已注入）
+# 真机（Thor 本体）：先切 half_sdk（开发者模式 + 半身 SDK），否则手臂不执行指令
+bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh half_sdk
+
+# 相机走真机话题，DDS 走 CycloneDDS（run.sh 已注入）
 python3 /ubt_IL/scripts/deploy/walker_c1/preview_camera.py --once --save-frame /tmp/c1_real.jpg \
   --msg-type image6m --topic /sensor/camera/head_stereo_left/color/raw
 
-POLICY_PATH=/path/to/pretrained_model DURATION=10 RESET_MODE=task \
+WALKER_C1_REAL=1 POLICY_PATH=/path/to/pretrained_model DURATION=10 RESET_MODE=task \
 CAMERA_TOPIC=/sensor/camera/head_stereo_left/color/raw \
 CAMERA_MSG_TYPE=shm_msgs/Image6m \
   bash /ubt_IL/scripts/deploy/walker_c1/rollout.sh

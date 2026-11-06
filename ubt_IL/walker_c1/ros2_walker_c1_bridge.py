@@ -259,6 +259,12 @@ class WalkerRealRobotBridge:
         self._chunk_control_hz = float(cc_cfg.get("control_hz", 300.0))
         self._v_max = float(cc_cfg.get("v_max", 2.0))
         self._publish_dt = 1.0 / float(cc_cfg.get("publish_hz", 300.0))
+        # 单动作（sync 引擎）平滑：把单个 action 展开为 current→target 的短轨迹，
+        # 复用 300Hz 线程 + _pd_apply 限速，避免阶跃下发造成顿挫。
+        # 默认 0.15 s（FPS=15 时约 2 个动作周期，跟随及时且平滑）；0 = 关闭。
+        self._single_action_smooth_s = float(
+            os.environ.get("WALKER_C1_SINGLE_ACTION_SMOOTH_S", "0.15")
+        )
         self._chunk_interp = ChunkInterpolator(
             control_hz=self._chunk_control_hz, method=self._interp_method
         )
@@ -545,6 +551,10 @@ class WalkerRealRobotBridge:
         if not goal:
             return
 
+        # 优先走短轨迹平滑（sync 引擎）；关闭平滑或 state 未就绪时退回单条直发。
+        if self._start_single_action_traj(goal):
+            return
+
         # 单动作夺取控制权：清掉 300Hz chunk 轨迹 hold，避免与 chunk 发布线程双源冲突。
         # act_async rollout 期间不发单动作（只发 chunk），本分支仅关机 return-to-initial/home
         # 走单动作时触发；sync 引擎 / chunk 退化路径 chunk_mode 本就 False，此处置零为无操作。
@@ -573,6 +583,52 @@ class WalkerRealRobotBridge:
 
         if msg.joint_cmd:
             self._body_cmd_pub.publish(msg)
+
+    def _start_single_action_traj(self, goal: dict) -> bool:
+        """把单个 action 展开成 current→target 的平滑短轨迹（sync 引擎用）。
+
+        复用 300Hz `_body_publish_loop` + `_pd_apply`（限速/限位），避免 sync
+        约 2 Hz 的阶跃下发造成顿挫。轨迹时长取
+        ``max(smooth_s, 1.6*max|Δ|/v_max)``：smoothstep 峰值斜率为平均的 1.5 倍，
+        乘 1.6 留余量，保证轨迹本身不被 v_max 截断、到点即停（之后运控自行保持）。
+        返回 False 表示未接管（关闭平滑 / state 未就绪），调用方回退直发。
+        """
+        duration_cfg = self._single_action_smooth_s
+        if duration_cfg <= 0:
+            return False
+        with self._pd_lock:
+            if self._q_cmd is None or not self._body_state_ready.is_set():
+                return False
+            prev = np.array(self._q_cmd, dtype=float)
+            target = np.array(
+                [goal.get(name, prev[i]) for i, name in enumerate(self._body_joint_names)],
+                dtype=float,
+            )
+            target = self._clamp_body_array(target)
+            delta = target - prev
+            max_delta = float(np.max(np.abs(delta))) if delta.size else 0.0
+            if max_delta < 1e-6:
+                # 已到位：停发本段轨迹（运控自行保持），无需重复下发
+                self._chunk_mode = False
+                self._body_traj = None
+                self._body_traj_index = 0
+                return True
+            duration = max(duration_cfg, 1.6 * max_delta / max(self._v_max, 1e-3))
+            n = max(2, int(round(duration / self._publish_dt)))
+            t = np.linspace(0.0, 1.0, n + 1)[1:]
+            s = t * t * (3.0 - 2.0 * t)
+            traj = prev[None, :] + delta[None, :] * s[:, None]
+            self._body_traj = traj
+            self._body_traj_index = 0
+            self._traj_point_dt = duration / n
+            self._chunk_mode = True
+            self._hand_traj = {"left": None, "right": None}
+            self._last_hand_cp = -1
+        logger.debug(
+            "single action smoothed: max_delta=%.3f duration=%.2fs points=%d",
+            max_delta, duration, n,
+        )
+        return True
 
     # ================================================================
     # chunk 消费者：整块 chunk -> 延迟补偿 -> 融合 -> 插值加密 -> 滤波 -> 300Hz 轨迹
@@ -627,24 +683,25 @@ class WalkerRealRobotBridge:
             return None
         idx = self._body_traj_index
         if idx >= len(traj):
-            return traj[-1:]              # 已执行完：返回末帧（保持位姿）
+            # 已执行完：返回末帧仅作融合参考（桥接此时已停发，位置由运控保持）
+            return traj[-1:]
         remaining = traj[idx:]
         pps = max(1, int(round(self._chunk_control_hz * self._traj_point_dt)))
         return remaining[::pps]
 
     def _handle_hold(self) -> None:
-        """立即 hold 当前位姿(stop 用)：轨迹截断为单点 _q_cmd + 标记耗尽。
+        """立即停止下发(stop 用)：清空轨迹并退出 chunk 模式。
 
-        300Hz 线程见 idx>=len -> hold 末帧(=当前 _q_cmd)、不推进；_chunk_mode 仍 True、
-        _body_traj 非空 -> 稳定 hold，不触发单动作双源。hand 状态清空避免冻结后
-        cp 回跳误发 hand[0]。下一块 chunk 因 traj_exhausted=True 走首帧平滑重启
-        (插 _body_pos 实际位 + hermite)，与 start/stop 突变修复一致。
+        C1 与 S2 不同：half_sdk 下运控自身会保持关节位置，桥接无需持续 hold。
+        因此这里直接把 _chunk_mode 置 False、轨迹清空，300Hz 线程不再发布任何
+        RobotCommand（避免重复末帧导致的伺服抖动）。hand 状态同步清空。
+        下一块 chunk 因 _chunk_mode=False 走首帧平滑重启（插 _body_pos 实际位 +
+        hermite），与 start/stop 突变修复一致。
         """
         with self._pd_lock:
-            if self._q_cmd is None:
-                return
-            self._body_traj = np.array([self._q_cmd], dtype=float)  # [1, n_body]
-            self._body_traj_index = 1                               # 标记耗尽 -> hold + 下块首帧
+            self._chunk_mode = False
+            self._body_traj = None
+            self._body_traj_index = 0
             self._hand_traj = {"left": None, "right": None}         # 避免冻结后 hand cp 回跳
             self._last_hand_cp = -1
 
@@ -671,13 +728,14 @@ class WalkerRealRobotBridge:
         consume_ts = time.time()
         obs_ts = float(msg.get("obs_time_sec", 0.0))
 
-        # 首帧判断：无前驱轨迹，或前驱轨迹【已执行完】（stop 暂停后 hold 末帧）。
+        # 首帧判断：无前驱轨迹、前驱轨迹【已执行完】、或 stop 已清空轨迹。
         # 首块推理 warmup 耗时大，skip 会跳过整块 chunk 大部分点 -> 执行起点远离实际位置，
-        # 改为不 skip、插当前点。exhausted 判定是关键：stop(pause) 不通知桥接，_chunk_mode
-        # 仍 True、_body_traj 仍指向已耗尽旧轨迹；若不判 exhausted，resume 后首块误走「后续帧」
-        # 延迟补偿 skip 路径，从 hold 位突跳到 chunk[l] -> 与首帧同款突变。exhausted 即视作
-        # 首帧，插当前实际位、hermite 平滑重启。常态重规划时新块到达前旧轨迹总有剩余
-        # （chunk ~6.7s@100pts/15fps ≫ 1/inference_hz），exhausted 仅在 pause/停滞命中，不影响 blend。
+        # 改为不 skip、插当前点。以下两种情形都按首帧处理：
+        #   1) hold（stop）：_handle_hold 置 _chunk_mode=False、_body_traj=None；
+        #   2) 上一块轨迹已发完：桥接末帧只发一次后停发（运控自行保持）。
+        # 若误走「后续帧」延迟补偿 skip 路径，会从静止位突跳到 chunk[l]；is_first 时
+        # 插当前实际位、hermite 平滑重启。常态重规划时新块到达前旧轨迹总有剩余
+        # （chunk ~6.7s@100pts/15fps ≫ 1/inference_hz），首帧路径主要命中 stop/停滞。
         # 先在 _pd_lock 外快照实际位置 _body_pos（_body_state_lock 保护），避免锁嵌套。
         with self._body_state_lock:
             actual_pos = list(self._body_pos)
@@ -782,7 +840,9 @@ class WalkerRealRobotBridge:
             with self._pd_lock:
                 if self._chunk_mode and self._q_cmd is not None:
                     q_cmd_snapshot, _ = self._pd_tick_chunk()
-                    hand_targets = self._advance_hand_chunk()
+                    if q_cmd_snapshot is not None:
+                        # 轨迹执行完（tick 返回 None）后连 hand 也不再发
+                        hand_targets = self._advance_hand_chunk()
             # publish body（不持锁，避免 RELIABLE QoS 阻塞持锁）
             if q_cmd_snapshot is not None:
                 self._publish_body_from_cmd(q_cmd_snapshot)
@@ -801,18 +861,18 @@ class WalkerRealRobotBridge:
     def _pd_tick_chunk(self) -> tuple[list | None, tuple | None]:
         """chunk 轨迹指针推进 -> 限速限位。调用方已持 _pd_lock。
 
-        q_des 取自 300Hz 密轨迹当前指针，逐 tick 推进（末帧 hold）。
+        q_des 取自 300Hz 密轨迹当前指针，逐 tick 推进。**末帧只发一次**：
+        之后返回 None，桥接不再发布 RobotCommand，位置由运控自行保持
+        （C1 half_sdk 特性；避免 300Hz 重复末帧造成伺服抖动）。
         """
         traj = self._body_traj
         if traj is None or len(traj) == 0:
             return None, None
         idx = self._body_traj_index
         if idx >= len(traj):
-            idx = len(traj) - 1              # 已执行完：保持末帧
+            return None, None                # 轨迹执行完：停发，交由运控保持
         q_des = np.array(traj[idx], dtype=float)
-        # 推进指针（末帧不越界）
-        if self._body_traj_index < len(traj) - 1:
-            self._body_traj_index += 1
+        self._body_traj_index = idx + 1
         return self._pd_apply(q_des)
 
     def _pd_apply(self, q_des: np.ndarray) -> tuple[list, tuple]:

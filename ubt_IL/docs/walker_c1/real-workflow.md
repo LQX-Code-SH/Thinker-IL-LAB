@@ -15,7 +15,7 @@ LeRobot (3.12) ──ZMQ 5661/5662──► ros2_walker_c1_bridge.py (3.10) ─�
 
 | 阶段 | 位置 | 命令 |
 |---|---|---|
-| 切 SDK 控制 | 机器人主控 | 厂商 ROSA 工具（见现场手册） |
+| 切 SDK 控制 | 操作机 / 容器 | `bash scripts/deploy/walker_c1/sdk_mode.sh half_sdk` |
 | 真机采集 | 操作机 / ubt_sim 容器 | `teleoperation/control/walker_c1/save_data.sh` |
 | 容器 | 操作机 | `cd ubt_IL/docker && bash run.sh start && bash run.sh bash` |
 | 转换 | 容器 | `scripts/convert/walker_c1/convert.sh` |
@@ -25,8 +25,21 @@ LeRobot (3.12) ──ZMQ 5661/5662──► ros2_walker_c1_bridge.py (3.10) ─�
 
 ## 1. 真机前置
 
-1. **切 SDK 控制**：C1 需由厂商工具把控制权交给 SDK（`rosa` / `t800_mc_server` 一类命令，
-   以现场手册为准）。未切 SDK 时 `/mc/sdk/robot_command` 不生效。
+1. **切 SDK 控制（必须 half_sdk）**：C1 手臂只在 `workMode=develop` + `developModeState=HalfSdkActive`
+   下接收 ROS2 关节指令（`normal` 下指令被忽略，`full_sdk` 会交出全身平衡，不用于 VLA）。
+   用部署脚本一键完成（进入开发者模式 → 腿部 STAND → half_sdk），默认经 SSH 在机器人
+   开发者容器内执行（`ubt@192.168.11.3:2222`）：
+
+   ```bash
+   bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh status     # 查看
+   bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh check      # 只校验（0=可部署）
+   bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh half_sdk   # 切换
+   bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh normal     # 恢复 normal
+   ```
+
+   `rollout.sh` / `robot_ready.sh` / `robot_home.sh` / `inference_server.sh` 已内置门禁，
+   非 half_sdk 时拒绝运行（真机带 `WALKER_C1_REAL=1` 或 `SDK_GUARD=1`；仿真用默认
+   `SDK_GUARD=auto` 自动跳过）。
 2. **ROS 域**：真机默认 `ROS_DOMAIN_ID=0`；与仿真隔离时把两边都改成 146。
 3. **DDS**：**Thor 机型（C1 本体）必须与主控栈同 RMW**——机器人栈是
    `rmw_cyclonedds_cpp` + `CYCLONEDDS_URI`（绑定 `mgbe2_0`，本机 192.168.11.3）。
@@ -144,6 +157,10 @@ python /ubt_IL/scripts/eval/eval_policy.py \
 ## 6. 部署
 
 ```bash
+# ⓪ 切到 half_sdk（开发者模式 + 半身 SDK；幂等，已就绪时只打印状态）
+bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh half_sdk
+bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh check      # 0=可部署
+
 # ① 相机自检（真机用压缩话题；--msg-type 默认 auto，按话题名推断）
 python3 /ubt_IL/scripts/deploy/walker_c1/preview_camera.py --once --save-frame /tmp/c1.jpg \
   --msg-type image6m --topic /sensor/camera/head_stereo_left/color/raw
@@ -169,12 +186,15 @@ bash /ubt_IL/scripts/deploy/walker_c1/robot_home.sh
 #    实测到位 max |pos| ≈0.02 rad。只动臂+手，头/腰/腿不碰。
 #    注意：插件里的 home_position（rollout 断开自动回位）仍是 READY_POSE，未改成零位。
 
-# ③ 单集 rollout
+# ③ 单集 rollout（WALKER_C1_REAL=1 打开 half_sdk 门禁；不在 half_sdk 会直接拒绝）
+WALKER_C1_REAL=1 SDK_GUARD=1 \
 POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained_model \
 DURATION=10 FPS=15 RESET_MODE=task \
 CAMERA_TOPIC=/sensor/camera/head_stereo_left/color/raw \
 CAMERA_MSG_TYPE=shm_msgs/Image6m \
   bash /ubt_IL/scripts/deploy/walker_c1/rollout.sh
+
+> 推理后端：优先 `act_async`（默认）；串行 `sync` 仅调试用，必须保持单动作平滑（默认 0.15 s，置 0 会告警）。
 
 # ④ 常驻推理服务（可选，见 inference-server.md）
 bash /ubt_IL/scripts/deploy/walker_c1/inference_server.sh
@@ -192,7 +212,7 @@ bash /ubt_IL/scripts/deploy/walker_c1/inference_server.sh
 
 | 现象 | 处理 |
 |---|---|
-| 机械臂完全不动 | 未切 SDK 控制；`/mc/sdk/robot_command` 无人消费；`ROS_DOMAIN_ID` 不一致 |
+| 机械臂完全不动 | 先 `sdk_mode.sh check`：是否 `develop + HalfSdkActive + standing`；再看 `/mc/sdk/robot_command` 有无订阅者；`ROS_DOMAIN_ID` 是否一致 |
 | 只有右手动 | 数据里左手全 0（该任务特性）；策略会复现，属正常 |
 | 第 4 关节方向/命名不符 | SDK 文档叫 `elbow_roll`、URDF 为 `elbow_pitch`；bridge 已做别名容忍，真机若反向需现场核对 |
 | 动作突变 | 设置 `max_relative_target`；降低 `FPS`；检查手部限位 |

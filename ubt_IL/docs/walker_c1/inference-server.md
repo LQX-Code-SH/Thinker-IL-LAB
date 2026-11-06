@@ -21,7 +21,11 @@
 ## 2. 快速开始
 
 ```bash
-# 机器人侧（容器内，后台 + 预热）
+# 机器人侧（容器内）：先确认/切到 half_sdk（服务启动会校验，非 half_sdk 直接拒绝）
+bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh half_sdk
+
+# 后台 + 预热（真机加 WALKER_C1_REAL=1 打开门禁）
+WALKER_C1_REAL=1 \
 POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained_model \
   bash /ubt_IL/scripts/deploy/walker_c1/inference_server.sh
 
@@ -51,13 +55,16 @@ bash /ubt_IL/scripts/deploy/walker_c1/inference_client.sh launch --remote \
   --robot-type walker_c1 --robot-model walker_c1_26d
 ```
 
+> **推理后端建议（walker 系列）**：优先 `INFERENCE_TYPE=act_async`（默认）。`sync` 仅用于调试，
+> 且必须保留单动作平滑（`WALKER_C1_SINGLE_ACTION_SMOOTH_S`，默认 0.15 s，置 0 会告警）。
+
 ## 3. 客户端指令
 
 | 指令 | 说明 |
 |---|---|
 | `launch` | 拉起服务（本地或 `--remote`）并等待 READY |
 | `load` | 热切换 checkpoint / 机型（`--policy-path`、`--robot-type`、`--robot-model`） |
-| `start` / `stop` | 开始 / 停止下发动作（`stop` 会 hold 当前位） |
+| `start` / `stop` | 开始 / 停止下发动作（`stop` 立即停发，C1 由运控保持当前位） |
 | `home` | 平滑回 home（chunk 路径，2 s） |
 | `status` | 单次查询状态 |
 | `watch` | 订阅 PUB 状态流（state/loop_hz/chunk_id/robot_connected/uptime_s） |
@@ -84,11 +91,13 @@ LOADING ──► READY ⇄ RUNNING
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `POLICY_PATH` | —（必填） | `pretrained_model` 目录 |
+| `CAMERA_TOPIC` | `/sensor/camera/head_stereo_left/color/raw` | 相机话题（C1 真机头目左目；仿真用 `/sensor/camera/head/color/raw`） |
+| `CAMERA_MSG_TYPE` | `shm_msgs/Image6m` | 相机消息类型（真机 `shm_msgs/Image6m`；仿真 `sensor_msgs/Image`） |
 | `ROBOT_TYPE` | `walker_c1` | LeRobot 插件注册名 |
-| `ROBOT_MODEL` | `walker_c1_26d` | `ROBOT_MODELS` 键（= `--robot.joint_config`） |
+| `ROBOT_MODEL` | `walker_c1_13d` | `ROBOT_MODELS` 键（= `--robot.joint_config`） |
 | `ROBOT_CONFIG` | 空 | 指定硬件配置 JSON 时优先于 `ROBOT_MODEL` |
 | `INFERENCE_TYPE` | `act_async` | `act_async` / `sync` |
-| `INFERENCE_HZ` | `0.6` | 重规划频率 |
+| `INFERENCE_HZ` | `1` | 重规划频率（实测约 1 Hz） |
 | `EXECUTION_HORIZON` | `0` | chunk 截断步数（0=不截断） |
 | `FPS` | `15` | 控制环 FPS |
 | `TASK` | `walker c1 pick place` | 任务描述 |
@@ -96,6 +105,7 @@ LOADING ──► READY ⇄ RUNNING
 | `SERVER_STATUS_PORT` | `5691` | PUB 状态端口 |
 | `ALLOW_DIM_ONLY_POLICY` | `1` | 预检只校验维度 |
 | `BLEND_HORIZON` / `BODY_PUBLISH_HZ` / `BODY_V_MAX` | 桥接默认 | chunk 融合参数（透传 bridge） |
+| `WALKER_C1_SINGLE_ACTION_SMOOTH_S` | `0.15` | **sync 单动作平滑窗口（秒）**：把每个 action 展开为 current→target 短轨迹再按 300 Hz 限速执行；`0`=关闭。FPS=15 建议 0.15，FPS=30 建议 0.1–0.15 |
 
 **客户端**
 
@@ -104,6 +114,11 @@ LOADING ──► READY ⇄ RUNNING
 | `DEPLOY_CONTAINER` | `lerobot-tienkung` |
 | `SERVER_CMD_PORT` / `SERVER_STATUS_PORT` | `5690` / `5691` |
 | `--host` | `127.0.0.1` |
+| `--camera-topic` / `--camera-msg-type` | `/sensor/camera/head_stereo_left/color/raw` / `shm_msgs/Image6m` |
+
+> `launch` 会把 `--camera-topic`/`--camera-msg-type` 转成 `CAMERA_TOPIC`/`CAMERA_MSG_TYPE`
+> 传给服务端脚本（远程 launch 时以 `env VAR=... bash ...` 前缀注入）。相机只在服务启动时读取，
+> 运行中 `load` 不会改变相机源。
 
 ## 6. 参数化说明
 
@@ -119,5 +134,5 @@ LOADING ──► READY ⇄ RUNNING
 | `status` 连不上 | `--host` 与端口；服务端是否在别的容器 |
 | `load` 后仍用旧模型 | `status.watch` 看 `model` 字段；确认 `--robot-model` 与策略维度一致 |
 | 报 action dim mismatch | 策略不是 26 维；检查训练数据集 |
-| `stop` 后仍动 | 桥接 300 Hz hold 有 ~1 个 tick 延迟；确认 `hold_trajectory` 已下发 |
+| `stop` 后仍动 | 在飞 chunk 最多 ~1 个 tick 后停发；若持续动，确认桥接已重启到新版本（`hold_trajectory` 生效） |
 | PID 文件残留 | `/tmp/walker_c1_inference_server.pid`；单例守卫会自动修正 |

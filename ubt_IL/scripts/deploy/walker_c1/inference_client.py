@@ -64,6 +64,11 @@ DEFAULT_SSH_PORT = os.environ.get("DEPLOY_SSH_PORT", "22")
 SCRIPT_PATH = "/ubt_IL/scripts/deploy/walker_c1/inference_server.sh"
 LAUNCH_POLL_TIMEOUT_S = 180  # 预热（policy 加载+连机器人）最长等待
 
+# C1 真机头目相机（shm_msgs/Image6m）；仿真推理可覆盖为
+# /sensor/camera/head/color/raw + sensor_msgs/Image
+DEFAULT_CAMERA_TOPIC = "/sensor/camera/head_stereo_left/color/raw"
+DEFAULT_CAMERA_MSG_TYPE = "shm_msgs/Image6m"
+
 
 # ── ZMQ 通信 ──────────────────────────────────────────────────────────────────
 
@@ -150,6 +155,11 @@ def _params_to_env(args: argparse.Namespace) -> dict[str, str]:
         env["SERVER_CMD_PORT"] = str(args.cmd_port)
     if getattr(args, "status_port", None):
         env["SERVER_STATUS_PORT"] = str(args.status_port)
+    # 相机只在 launch 时生效（插件在进程启动时读取环境变量；load 无法改环境）
+    if getattr(args, "camera_topic", None):
+        env["CAMERA_TOPIC"] = str(args.camera_topic)
+    if getattr(args, "camera_msg_type", None):
+        env["CAMERA_MSG_TYPE"] = str(args.camera_msg_type)
     return env
 
 
@@ -300,6 +310,11 @@ def build_parser() -> argparse.ArgumentParser:
                    help=f"SSH 端口（默认 {DEFAULT_SSH_PORT}）")
     p.add_argument("--container", default=DEFAULT_CONTAINER,
                    help=f"docker 容器名（默认 {DEFAULT_CONTAINER}）")
+    p.add_argument("--camera-topic", dest="camera_topic", default=DEFAULT_CAMERA_TOPIC,
+                   help=f"相机话题（默认 {DEFAULT_CAMERA_TOPIC}；仿真用 "
+                        f"/sensor/camera/head/color/raw）")
+    p.add_argument("--camera-msg-type", dest="camera_msg_type", default=DEFAULT_CAMERA_MSG_TYPE,
+                   help=f"相机消息类型（默认 {DEFAULT_CAMERA_MSG_TYPE}；仿真用 sensor_msgs/Image）")
     p.set_defaults(func=cmd_launch)
 
     # load

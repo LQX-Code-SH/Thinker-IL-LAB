@@ -1,37 +1,62 @@
 #!/bin/bash
 # Walker C1 rollout（LeRobot → ZMQ → ros2_walker_c1_bridge → ROS2 → 真机/ubt_sim）
 #
-# 默认单集、15 fps、base strategy、维度预检 26 维。
+# 默认按【真机】配置：WALKER_C1_REAL=1、walker_c1_13d、task 复位、act_async 1 Hz、
+# half_sdk 门禁、真机头目相机。仿真请加 WALKER_C1_REAL=0（回到 26d / sim-scene / sync / 2 Hz）。
 #
 # 常用环境变量：
 #   POLICY_PATH        必填，pretrained_model 目录
-#   ROBOT_MODEL        默认 walker_c1_26d（ROBOT_MODELS 注册表键）
-#   ROBOT_CONFIG       默认 configs/walker_c1_26d.json
+#   WALKER_C1_REAL     默认 1（真机）；0=仿真/离线
+#   ROBOT_MODEL        默认 真机 walker_c1_13d / 仿真 walker_c1_26d
+#   ROBOT_CONFIG       默认 configs/<ROBOT_MODEL>.json
 #   ROBOT_TYPE         默认 walker_c1
 #   EPISODES           默认 1；>1 时默认每集重启进程并复位（PER_EPISODE_RESTART=1）
 #   DURATION           每集最长秒数（默认 30）
 #   FPS                控制环 FPS（默认 15）
 #   TASK               任务描述
-#   RESET_MODE         每集前复位方式：sim-scene | task | both | none（默认 sim-scene）
+#   RESET_MODE         复位方式：sim-scene | task | both | none（真机默认 task，仿真 sim-scene）
 #   ALLOW_DIM_ONLY_POLICY  1=只校验维度不校验关节名（默认 1）
-#   INFERENCE_TYPE     sync | act_async（默认 sync）
-#   INFERENCE_HZ       act_async 重规划频率
+#   INFERENCE_TYPE     sync | act_async（默认真机 act_async / 仿真 sync）
+#   INFERENCE_HZ       act_async 重规划频率（默认真机 1 / 仿真 2）
 #   EXECUTION_HORIZON  act_async chunk 截断步数
 #   PREVIEW_CAMERA     1=同时开相机预览窗口
-#   CAMERA_TOPIC       相机话题覆盖（真机：/sensor/camera/head_stereo_left/color/compressed）
+#   CAMERA_TOPIC       相机话题覆盖（真机默认：/sensor/camera/head_stereo_left/color/raw）
 #   PREVIEW_TOPIC      预览窗口用话题（默认跟随 CAMERA_TOPIC）
+#   SDK_GUARD          1=强制校验（真机默认）| auto=检测到真机才校验 | 0=跳过
+#   SDK_AUTO_SWITCH    1=不在 half_sdk 时自动切换（默认只提示并退出）
 #
-# 示例：
-#   POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained_model \
+# 示例（最简，全部走默认）：
+#   POLICY_PATH=/ubt_IL/model/walker_c1_real_13d_act_1RGB/checkpoints/last/pretrained_model \
 #     bash rollout.sh
-#   EPISODES=5 DURATION=20 RESET_MODE=both bash rollout.sh
+#   WALKER_C1_REAL=0 EPISODES=5 DURATION=20 RESET_MODE=both bash rollout.sh   # 仿真
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 POLICY_PATH="${POLICY_PATH:-}"
-ROBOT_MODEL="${ROBOT_MODEL:-walker_c1_26d}"
-ROBOT_CONFIG="${ROBOT_CONFIG:-$SCRIPT_DIR/configs/walker_c1_26d.json}"
+
+# ── 默认值：真机优先 ─────────────────────────────────────────────────────────
+# WALKER_C1_REAL=1（默认）= 真机：13d 模型、task 复位、act_async/1Hz、half_sdk 门禁。
+# 仿真请在命令前加 WALKER_C1_REAL=0（自动回到 26d / sim-scene / sync / 2Hz）。
+WALKER_C1_REAL="${WALKER_C1_REAL:-1}"
+SDK_GUARD="${SDK_GUARD:-$([[ "$WALKER_C1_REAL" == "1" ]] && echo 1 || echo auto)}"
+
+if [[ -z "${ROBOT_MODEL:-}" ]]; then
+    if [[ "$WALKER_C1_REAL" == "1" ]]; then
+        ROBOT_MODEL="walker_c1_13d"
+    else
+        ROBOT_MODEL="walker_c1_26d"
+    fi
+fi
+# ROBOT_CONFIG 默认按 ROBOT_MODEL 自动选（configs/<robot_model>.json）：
+# 13d 模型配 26d 配置会在维度预检直接报 "expects 26, policy has 13"。
+if [[ -z "${ROBOT_CONFIG:-}" ]]; then
+    if [[ -f "$SCRIPT_DIR/configs/${ROBOT_MODEL}.json" ]]; then
+        ROBOT_CONFIG="$SCRIPT_DIR/configs/${ROBOT_MODEL}.json"
+    else
+        ROBOT_CONFIG="$SCRIPT_DIR/configs/walker_c1_26d.json"
+    fi
+fi
 ROBOT_TYPE="${ROBOT_TYPE:-walker_c1}"
 STRATEGY="${STRATEGY:-base}"
 EPISODES="${EPISODES:-1}"
@@ -39,18 +64,28 @@ PER_EPISODE_RESTART="${PER_EPISODE_RESTART:-1}"
 DURATION="${DURATION:-30}"
 FPS="${FPS:-15}"
 TASK="${TASK:-walker c1 pick place}"
-RESET_MODE="${RESET_MODE:-sim-scene}"
+if [[ -z "${RESET_MODE:-}" ]]; then
+    if [[ "$WALKER_C1_REAL" == "1" ]]; then RESET_MODE="task"; else RESET_MODE="sim-scene"; fi
+fi
 ALLOW_DIM_ONLY_POLICY="${ALLOW_DIM_ONLY_POLICY:-1}"
-INFERENCE_TYPE="${INFERENCE_TYPE:-sync}"
-INFERENCE_HZ="${INFERENCE_HZ:-2}"
+if [[ -z "${INFERENCE_TYPE:-}" ]]; then
+    if [[ "$WALKER_C1_REAL" == "1" ]]; then INFERENCE_TYPE="act_async"; else INFERENCE_TYPE="sync"; fi
+fi
+if [[ -z "${INFERENCE_HZ:-}" ]]; then
+    if [[ "$WALKER_C1_REAL" == "1" ]]; then INFERENCE_HZ="1"; else INFERENCE_HZ="2"; fi
+fi
 EXECUTION_HORIZON="${EXECUTION_HORIZON:-0}"
 PREVIEW_CAMERA="${PREVIEW_CAMERA:-0}"
 # 相机源：仿真 = /sensor/camera/head/color/raw（sensor_msgs/Image）；
-# 真机 = /sensor/camera/head_stereo_left/color/compressed（CompressedImage，JPEG）。
-# 消息类型由插件按话题名自动推断，这里只透传话题覆盖。
+# 真机 = /sensor/camera/head_stereo_left/color/raw（shm_msgs/Image6m，1920x1536）。
+# 消息类型由插件按话题名自动推断，真机 Image6m 不是 sensor_msgs/Image，必须显式给类型。
 CAMERA_TOPIC="${CAMERA_TOPIC:-}"
-# 真机图像是 shm_msgs/Image6m（不是 sensor_msgs/Image），必须显式给类型
 CAMERA_MSG_TYPE="${CAMERA_MSG_TYPE:-}"
+# 真机（WALKER_C1_REAL=1）未显式指定时，默认走头目左目话题，避免误订阅仿真话题
+if [[ -z "$CAMERA_TOPIC" && "${WALKER_C1_REAL:-0}" == "1" ]]; then
+    CAMERA_TOPIC="/sensor/camera/head_stereo_left/color/raw"
+    CAMERA_MSG_TYPE="${CAMERA_MSG_TYPE:-shm_msgs/Image6m}"
+fi
 PREVIEW_TOPIC="${PREVIEW_TOPIC:-${CAMERA_TOPIC:-/sensor/camera/head/color/raw}}"
 if [[ -n "$CAMERA_TOPIC" ]]; then
     export WALKER_C1_CAMERA_TOPIC="$CAMERA_TOPIC"
@@ -58,6 +93,11 @@ fi
 if [[ -n "$CAMERA_MSG_TYPE" ]]; then
     export WALKER_C1_CAMERA_MSG_TYPE="$CAMERA_MSG_TYPE"
 fi
+# 串行推理依赖单动作平滑：置 0 会退化为阶跃下发（顿挫），启动时显式告警
+if [[ "$INFERENCE_TYPE" == "sync" && "${WALKER_C1_SINGLE_ACTION_SMOOTH_S:-0.15}" == "0" ]]; then
+    echo "[rollout] 警告：串行推理必须开启平滑（WALKER_C1_SINGLE_ACTION_SMOOTH_S=0 会顿挫）；推荐改用 INFERENCE_TYPE=act_async" >&2
+fi
+echo "[rollout] CAMERA_TOPIC=${CAMERA_TOPIC:-<插件默认 /sensor/camera/head/color/raw>} (${CAMERA_MSG_TYPE:-auto})"
 LEROBOT_DIR="${LEROBOT_DIR:-/ubt_IL/lerobot}"
 if [[ ! -d "$LEROBOT_DIR" ]]; then
     LEROBOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)/lerobot"
@@ -66,7 +106,7 @@ ROLLOUT_BIN="${ROLLOUT_BIN:-/lerobot/.venv/bin/lerobot-rollout}"
 ROS_WS="${WALKER_C1_ROS_WS:-/ubt_IL/walker_s2/walker_sdk_ros2}"
 
 usage() {
-    sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
 }
 for arg in "$@"; do
@@ -128,6 +168,11 @@ else
     echo "[rollout] 提示：$POLICY_PATH/config.json 不存在，跳过维度预检" >&2
 fi
 
+# ── 真机门禁：必须处于 half_sdk（开发者模式 + 上半身 SDK 权限）───────────────
+# shellcheck source=./sdk_guard.sh
+source "$SCRIPT_DIR/sdk_guard.sh"
+walker_c1_require_half_sdk "rollout" || exit 1
+
 # ── 相机预览（可选）───────────────────────────────────────────────────────────
 PREVIEW_PID=""
 if [[ "$PREVIEW_CAMERA" == "1" ]]; then
@@ -184,7 +229,9 @@ run_rollout() {
         "${EXTRA_ARGS[@]}"
 }
 
-echo "[rollout] ROBOT_TYPE=$ROBOT_TYPE ROBOT_MODEL=$ROBOT_MODEL"
+echo "[rollout] REAL=$WALKER_C1_REAL ROBOT_TYPE=$ROBOT_TYPE ROBOT_MODEL=$ROBOT_MODEL"
+echo "[rollout] RESET_MODE=$RESET_MODE DURATION=$DURATION FPS=$FPS INFERENCE_TYPE=$INFERENCE_TYPE INFERENCE_HZ=$INFERENCE_HZ"
+echo "[rollout] SDK_GUARD=$SDK_GUARD ROBOT_CONFIG=$ROBOT_CONFIG"
 echo "[rollout] POLICY_PATH=$POLICY_PATH"
 echo "[rollout] EPISODES=$EPISODES DURATION=${DURATION}s FPS=$FPS RESET_MODE=$RESET_MODE"
 

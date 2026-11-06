@@ -15,6 +15,22 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROS_WS="${WALKER_C1_ROS_WS:-/ubt_IL/walker_s2/walker_sdk_ros2}"
+# 默认按真机处理（half_sdk 门禁生效）；仿真请显式 WALKER_C1_REAL=0
+WALKER_C1_REAL="${WALKER_C1_REAL:-1}"
+export WALKER_C1_REAL
+
+# 真机门禁：手臂指令只有 half_sdk 下才执行；--dry-run 不动机器人，跳过
+DRY_RUN=0
+for arg in "$@"; do
+    if [[ "$arg" == "--dry-run" ]]; then
+        DRY_RUN=1
+    fi
+done
+if [[ "$DRY_RUN" -eq 0 ]]; then
+    # shellcheck source=./sdk_guard.sh
+    source "$SCRIPT_DIR/sdk_guard.sh"
+    walker_c1_require_half_sdk "robot_home" || exit 1
+fi
 
 source /opt/ros/humble/setup.bash 2>/dev/null || true
 if [[ -f "$ROS_WS/install/setup.bash" ]]; then

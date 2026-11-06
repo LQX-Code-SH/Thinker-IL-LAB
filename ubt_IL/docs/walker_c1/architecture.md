@@ -71,7 +71,8 @@ bridge 只按名取 14 个臂关节（`body_groups` 的 head/waist 为空列表�
 
 chunk（act_async）：追加 `n_points / fps / inference_time_sec / obs_time_sec / chunk_id`，
 每组的值为 `[C, n]`。
-`{"hold": 1}` 立即截断轨迹并保持当前位。
+`{"hold": 1}` 立即清空轨迹并**停止下发** RobotCommand（C1 在 half_sdk 下由运控自行保持
+关节位置，桥接不再以 300 Hz 重复末帧，避免伺服抖动）。
 
 状态（bridge → 插件）：`{"left_arm": [7], "right_arm": [7], "head": [], "waist": [],
 "left_hand": [6], "right_hand": [6], "ts": ...}`。
@@ -101,7 +102,7 @@ chunk（act_async）：追加 `n_points / fps / inference_time_sec / obs_time_se
 | `walker_c1.py` | `WalkerC1Robot`：connect / 状态线程 / get_observation / send_action / chunk / home / disconnect |
 | `hand_utils.py` | 手部 6 通道限位裁剪（限位经 `to_bridge_config` 单点传给 bridge） |
 | `camera/*` | ZMQ 图像订阅（base64 JPEG → ndarray，按 W/H resize） |
-| `ros2_walker_c1_bridge.py` | ZMQ↔ROS2、按名散射、chunk 融合/加密/300 Hz、hold、单例守卫 |
+| `ros2_walker_c1_bridge.py` | ZMQ↔ROS2、按名散射、chunk 融合/加密/执行期 300 Hz、stop 停发、单例守卫 |
 | `walker_c1_camera_relay.py` | `sensor_msgs/Image` → resize → JPEG → ZMQ 5663 |
 | `chunk_processor.py` | 纯 numpy 融合/插值/滤波（与 walker_s2 相同，原样复用） |
 

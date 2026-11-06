@@ -18,7 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 POLICY_PATH="${POLICY_PATH:-}"
 # ROBOT_MODEL 统一入口：选定关节 DOF + 末端执行器 + 相机配置（见 walker_c1 constants.py ROBOT_MODELS）。
 # ROBOT_TYPE 默认 walker_c1；C1 与 walker_s2 使用独立插件包，互不影响。
-ROBOT_MODEL="${ROBOT_MODEL:-walker_c1_26d}"
+ROBOT_MODEL="${ROBOT_MODEL:-walker_c1_13d}"
 ROBOT_TYPE="${ROBOT_TYPE:-walker_c1}"
 ROBOT_CONFIG="${ROBOT_CONFIG:-}"
 ALLOW_DIM_ONLY_POLICY="${ALLOW_DIM_ONLY_POLICY:-1}"
@@ -29,7 +29,7 @@ PREVIEW_CAMERA="${PREVIEW_CAMERA:-0}"  # 服务器默认不开预览（留作 ro
 
 # 推理引擎类型：act_async（异步产 chunk 整块推桥接）| sync（单动作，无 pause/resume，start/stop 不适用）
 INFERENCE_TYPE="${INFERENCE_TYPE:-act_async}"
-INFERENCE_HZ="${INFERENCE_HZ:-0.6}"
+INFERENCE_HZ="${INFERENCE_HZ:-1}"
 EXECUTION_HORIZON="${EXECUTION_HORIZON:-0}"
 
 # 桥接 chunk_consumer 参数（透传给桥接子进程：本脚本 export -> python 进程继承 -> 桥接读 os.environ）
@@ -45,9 +45,26 @@ export INFERENCE_HZ  # 引擎经 CLI 取；此处 export 保持与 rollout.sh �
 SERVER_CMD_PORT="${SERVER_CMD_PORT:-5690}"
 SERVER_STATUS_PORT="${SERVER_STATUS_PORT:-5691}"
 
+# 相机：C1 真机默认头部左目（shm_msgs/Image6m @ 1920x1536）。
+# 插件读 WALKER_C1_CAMERA_TOPIC / WALKER_C1_CAMERA_MSG_TYPE，这里统一 export，
+# 保证 inference_server 与 rollout.sh 用的是同一路相机；
+# 仿真推理可覆盖：CAMERA_TOPIC=/sensor/camera/head/color/raw CAMERA_MSG_TYPE=sensor_msgs/Image
+CAMERA_TOPIC="${CAMERA_TOPIC:-/sensor/camera/head_stereo_left/color/raw}"
+CAMERA_MSG_TYPE="${CAMERA_MSG_TYPE:-shm_msgs/Image6m}"
+export WALKER_C1_CAMERA_TOPIC="$CAMERA_TOPIC"
+export WALKER_C1_CAMERA_MSG_TYPE="$CAMERA_MSG_TYPE"
+
 # 运行时文件
 PID_FILE="${PID_FILE:-/tmp/walker_c1_inference_server.pid}"
 LOG_FILE="${LOG_FILE:-/tmp/walker_c1_inference_server.log}"
+# /tmp 下同名文件可能属主为 root（此前用 root/root docker exec 跑过）：
+# 当前用户不可写时自动回退到带 uid 的文件，避免 shell 重定向直接失败。
+if ! ( : >> "$LOG_FILE" ) 2>/dev/null; then
+    LOG_FILE="/tmp/walker_c1_inference_server_$(id -u).log"
+fi
+if ! ( : >> "$PID_FILE" ) 2>/dev/null; then
+    PID_FILE="/tmp/walker_c1_inference_server_$(id -u).pid"
+fi
 
 # 判断 PID 是否真的是在跑的 inference_server 进程。
 # 仅 kill -0 不够：僵尸进程(defunct)仍占 PID 表 -> kill -0 成功 -> 误判；
@@ -77,6 +94,12 @@ fi
 
 echo "[INFO] ROBOT_MODEL=$ROBOT_MODEL  INFERENCE_TYPE=$INFERENCE_TYPE  FPS=$FPS"
 echo "[INFO] POLICY_PATH=$POLICY_PATH"
+echo "[INFO] CAMERA_TOPIC=$CAMERA_TOPIC ($CAMERA_MSG_TYPE)"
+
+# 真机门禁：服务启动时校验 half_sdk（首次 start 会动机械臂）。仿真/离线可设 SDK_GUARD=0。
+# shellcheck source=./sdk_guard.sh
+source "$SCRIPT_DIR/sdk_guard.sh"
+walker_c1_require_half_sdk "inference_server" || exit 1
 
 # ── 单例检查 ──────────────────────────────────────────────────────────────────
 

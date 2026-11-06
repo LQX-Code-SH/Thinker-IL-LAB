@@ -284,8 +284,16 @@ class WalkerC1Robot(Robot):
         try:
             with open(_BRIDGE_CONFIG_PATH, "w") as f:
                 f.write(config_json)
-        except OSError:
-            logger.warning("Failed to write bridge config to %s", _BRIDGE_CONFIG_PATH)
+        except OSError as exc:
+            # /tmp 下同名文件可能属主为 root（此前用 root/root docker exec 跑过），
+            # 非 root 用户无法覆盖 -> 回退到带 uid 的文件，避免仅诊断用途导致启动失败。
+            fallback = f"/tmp/walker_c1_bridge_config_{os.getuid()}.json"
+            try:
+                with open(fallback, "w") as f:
+                    f.write(config_json)
+                logger.warning("无法写入 %s（%s）；已改写到 %s", _BRIDGE_CONFIG_PATH, exc, fallback)
+            except OSError:
+                logger.warning("Failed to write bridge config to %s", _BRIDGE_CONFIG_PATH)
 
         # Give bridge time to bind ZMQ ports
         time.sleep(1.0)
@@ -311,12 +319,23 @@ class WalkerC1Robot(Robot):
         ]
 
         logger.info("Starting Walker C1 Camera Relay: %s", script)
-        self._camera_relay_log = open("/tmp/walker_c1_camera_relay.log", "ab", buffering=0)
+        self._camera_relay_log = self._open_relay_log()
         self._camera_relay_process = subprocess.Popen(
             cmd,
             stdout=self._camera_relay_log,
             stderr=subprocess.STDOUT,
         )
+
+    @staticmethod
+    def _open_relay_log():
+        """打开相机中继日志；同名文件被 root 占用/不可写时回退到带 uid 的文件。"""
+        primary = "/tmp/walker_c1_camera_relay.log"
+        try:
+            return open(primary, "ab", buffering=0)
+        except OSError as exc:
+            fallback = f"/tmp/walker_c1_camera_relay_{os.getuid()}.log"
+            logger.warning("无法写入 %s（%s）；改用 %s", primary, exc, fallback)
+            return open(fallback, "ab", buffering=0)
 
     def _status_recv_loop(self) -> None:
         while self._running:
@@ -529,10 +548,11 @@ class WalkerC1Robot(Robot):
         return None
 
     def hold_trajectory(self) -> None:
-        """通知桥接立即 hold 当前位姿(stop 用)：发 hold 控制消息，桥接截断轨迹。
+        """通知桥接立即停止下发(stop 用)：发 hold 控制消息，桥接清空轨迹并停发。
 
-        stop 经此让桥接把 _body_traj 截断为单点当前 _q_cmd + 标记耗尽，300Hz 线程 hold、
-        不再 drain 已入队 chunk(最坏 ~6.7s)。下块 chunk 走首帧平滑重启。
+        C1 在 half_sdk 下由运控自行保持关节位置，桥接不需要（也不应该）以 300Hz
+        重复末帧，否则会引起伺服抖动。stop 经此让桥接停发 RobotCommand、不再 drain
+        已入队 chunk（最坏 ~6.7s）；下块 chunk 走首帧平滑重启。
         """
         sock = self._cmd_socket
         if sock is None:
