@@ -78,6 +78,9 @@ ELBOW_FULL = {**ZERO_POSE, **LIFT_POSE, **ELBOW_POSE}
 HAND_MODE = 5
 BODY_CMD_TOPIC = "/mc/sdk/robot_command"
 BODY_STATE_TOPIC = "/mc/sdk/robot_state"
+# 兜底状态源：主控 50 Hz 全关节 JointState。机器人重启/未重新切 SDK 时
+# /mc/sdk/robot_state 会静默（publisher 存在但不发），此时用它算插值起点。
+JOINT_STATE_TOPIC = "/mc/joint_states"
 LEFT_HAND_CMD_TOPIC = "/mc/left_hand/command"
 RIGHT_HAND_CMD_TOPIC = "/mc/right_hand/command"
 
@@ -161,6 +164,13 @@ def main(argv: list[str] | None = None) -> int:
         default=5.0,
         help="每段最短时长（秒），默认 5.0：真机上有效时长 = max(比例时长, 本值)，防止摆位冲得太快",
     )
+    parser.add_argument(
+        "--side",
+        choices=["both", "left", "right"],
+        default="both",
+        help="只动某一侧手臂（默认 both）。未选中的一侧仍会出现在每条命令里，"
+        "但目标值锁在其当前实测位以保持不动（消息始终是 14 关节，避免 SDK 丢弃子集指令）",
+    )
     parser.add_argument("--hold-s", type=float, default=0.5, help="Hold the final pose (seconds)")
     parser.add_argument(
         "--head-pitch",
@@ -197,7 +207,11 @@ def main(argv: list[str] | None = None) -> int:
         return max(args.segment_s * ratio, args.min_segment_s)
 
     if args.dry_run:
-        print(f"[robot_ready] dry-run: pose = {args.pose}")
+        print(
+            f"[robot_ready] dry-run: pose = {args.pose}, side = {args.side}"
+            + ("" if args.side == "both" else
+               f"（只动{'右' if args.side == 'right' else '左'}臂，另一侧锁在当前位）")
+        )
         print("[robot_ready] dry-run: ARM_JOINTS =", ARM_JOINTS)
         print("[robot_ready] dry-run: 目标位 =", plan[-1][0])
         print(
@@ -252,6 +266,7 @@ def main(argv: list[str] | None = None) -> int:
             state["pos"].setdefault(name, float(pos))
 
     node.create_subscription(RobotState, BODY_STATE_TOPIC, on_state, qos_sub)
+    node.create_subscription(JointState, JOINT_STATE_TOPIC, on_joint_state, qos_sub)
     node.create_subscription(JointState, LEFT_HAND_CMD_TOPIC.replace("/command", "/joint_states"), on_joint_state, qos_sub)
     node.create_subscription(JointState, RIGHT_HAND_CMD_TOPIC.replace("/command", "/joint_states"), on_joint_state, qos_sub)
 
@@ -300,8 +315,15 @@ def main(argv: list[str] | None = None) -> int:
         duration = max(float(duration), float(args.min_segment_s))
         # 状态缺失的关节用「目标值」当起点：该关节不动，避免从错误的起点甩过去
         start = {n: float(state["pos"].get(n, target[n])) for n in target}
+        # --side：未选中的一侧锁在当前实测位（仍下发，保证 14 关节齐全）
+        tgt = dict(target)
+        if args.side != "both":
+            freeze_prefix = "L_" if args.side == "right" else "R_"
+            for n in tgt:
+                if n.startswith(freeze_prefix):
+                    tgt[n] = start[n]
         # 五次多项式峰值速度 = 平均速度 × 1.875，用于把实际角速度打在日志里便于判断快慢
-        travel = max(abs(target[n] - start[n]) for n in target)
+        travel = max(abs(tgt[n] - start[n]) for n in tgt)
         peak = 1.875 * travel / duration if duration > 0 else 0.0
         steps = max(int(duration * args.hz), 1)
         step_dt = duration / steps
@@ -313,12 +335,12 @@ def main(argv: list[str] | None = None) -> int:
         base_ns = node.get_clock().now().nanoseconds
         for i in range(1, steps + 1):
             tn = i / steps
-            values = _interp(start, target, _quintic(tn))
+            values = _interp(start, tgt, _quintic(tn))
             vels = None
             if args.velocity_ff:
                 # d/dt[10t^3-15t^4+6t^5] = 30 t^2 (1-t)^2 / T
                 rate = 30.0 * tn * tn * (1.0 - tn) * (1.0 - tn) / duration
-                vels = {n: (target[n] - start[n]) * rate for n in target}
+                vels = {n: (tgt[n] - start[n]) * rate for n in tgt}
             publish_body(values, vels, stamp_ns=base_ns + int(i * step_dt * 1e9))
             publish_hands()
             if cmd_log is not None:
@@ -337,13 +359,14 @@ def main(argv: list[str] | None = None) -> int:
                     break
                 rclpy.spin_once(node, timeout_sec=min(remain, 0.002))
         elapsed = time.monotonic() - t_begin
-        state["pos"].update(target)
+        state["pos"].update(tgt)
         print(f"[robot_ready] {label} 实际耗时 {elapsed:.2f}s")
         if elapsed > duration * 1.1:
             print(
                 f"[robot_ready] 警告：{label} 实际 {elapsed:.2f}s 明显超过设定 {duration:.2f}s"
                 "（发布/CLI 阻塞？）"
             )
+        return tgt
 
     final_target = plan[-1][0]
     cmd_log = None
@@ -353,7 +376,9 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         for target, ratio, label in plan:
-            run_segment(target, segment_duration(ratio), label)
+            eff = run_segment(target, segment_duration(ratio), label)
+            if eff is not None:
+                final_target = eff
 
         print(f"[robot_ready] 保持 {args.hold_s:.1f}s ...")
         end = time.time() + args.hold_s

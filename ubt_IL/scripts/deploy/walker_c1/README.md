@@ -27,6 +27,7 @@ walker_c1_camera_relay.py ──ZMQ 5663──┘   (仿真: sensor_msgs/Image @
 | `rollout.sh` | 单集/多集 rollout（每集复位 + 进程重启） |
 | `robot_ready.py` / `.sh` | 三段式摆位（抬肩 → 收肘 → 预备位）+ 手张开；每段默认 ≥5 s |
 | `robot_home.py` / `.sh` | 回 home（14 臂关节全 0），路径为上面三段的严格逆序（腕/肩俯仰回零 → 展开肘 → 放下肩） |
+| `replay.py` | 回放数据集 action（真机）：数据按 fps 走时间轴，**物理下发固定 100 Hz 并对相邻帧线性插值**（30 Hz 直发实测末端偏差 0.56 rad，插值后 0.067 rad）；未在 action 里的关节用实测值补齐，手部按配置顺序下发 |
 | `reset.sh` / `reset.py` | `--mode sim-scene`（`/sim/cmd_reset`）/ `task`（调用 robot_ready）；**必须走 `.sh`**（需系统 python3 的 rclpy） |
 | `inference_server.sh` | 常驻推理服务（ZMQ 5690/5691） |
 | `inference_client.py` / `.sh` | launch/load/start/stop/home/status/watch |
@@ -47,6 +48,13 @@ python3 /ubt_IL/scripts/deploy/walker_c1/preview_camera.py --once --save-frame /
 
 # ④ 摆到预备位
 bash /ubt_IL/scripts/deploy/walker_c1/robot_ready.sh
+
+# 回放数据集（13 维：右臂 7 + 右手 6）
+python3 /ubt_IL/scripts/deploy/walker_c1/replay.py --episode 0 --dry-run
+python3 /ubt_IL/scripts/deploy/walker_c1/replay.py --episode 0 --transition 5
+#    --hz 100     物理下发频率（默认 100，与 robot_ready 一致）
+#    --rate 30    数据时间轴帧率（默认取 info.json 的 fps）
+#    --side 仅在 robot_ready 里可用（both/left/right）
 
 # ⑤ rollout
 POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained_model \

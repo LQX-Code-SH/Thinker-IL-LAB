@@ -53,6 +53,10 @@ DEFAULT_HAND_MODE = 5
 DEFAULT_TOPICS = {
     "body_cmd": "/mc/sdk/robot_command",
     "body_state": "/mc/sdk/robot_state",
+    # 兜底状态源：主控 50 Hz 全关节 JointState。实测 /mc/sdk/robot_state 在机器人
+    # 重启/未重新切 SDK 模式时会静默（publisher 存在但 0 Hz），此时用这个算过渡起点，
+    # 避免「拿不到起点 → 直接跳首帧」的突跳。
+    "joint_state": "/mc/joint_states",
     "left_hand_cmd": "/mc/left_hand/command",
     "right_hand_cmd": "/mc/right_hand/command",
 }
@@ -110,7 +114,10 @@ def list_episodes(root: Path) -> None:
 
 def resolve_plan(cfg: dict, action_names: list[str]) -> dict:
     """把 action 每一维映射到 body / 手部关节，并带上下发限位。"""
-    body_names = {n for names in cfg.get("body", {}).get("groups", {}).values() for n in names}
+    body_groups = cfg.get("body", {}).get("groups", {})
+    body_names = {n for names in body_groups.values() for n in names}
+    # 配置 groups 的原始顺序（不能 sorted：手部驱动按下标解读 position，忽略 names）
+    body_order = [n for names in body_groups.values() for n in names]
     body_limits = cfg.get("body", {}).get("limits", {})
     ee = cfg.get("end_effectors", {})
     ee_groups = ee.get("groups", {})
@@ -144,7 +151,15 @@ def resolve_plan(cfg: dict, action_names: list[str]) -> dict:
 
     if unknown:
         raise ValueError(f"action 里有无法归类的关节（既不属 body 也不属手部）: {unknown}")
-    return {"body": body, "hands": hands, "hand_mode": hand_mode}
+    # 真机 SDK 要求 RobotCommand 带全 14 个臂关节：只发子集会被整条忽略，
+    # 关节会往默认位漂（实测 7 关节 @30Hz 下发后 roll 从 -0.564 退回 -0.282）。
+    # 因此记录「全部关节名」，下发时未出现在 action 里的关节用当前实测值填充（保持不动）。
+    body_all = list(body_order)
+    hands_all = {side: list(joints) for side, joints in ee_groups.items()}
+    return {"body": body, "hands": hands, "hand_mode": hand_mode,
+            "body_all": body_all,
+            "hands_all": {"left": hands_all.get("left_hand", []),
+                          "right": hands_all.get("right_hand", [])}}
 
 
 class ReplayNode:
@@ -166,6 +181,9 @@ class ReplayNode:
         qos_sub = msgs["qos_sub"]
         self._node.create_subscription(
             msgs["RobotState"], topics["body_state"], self._on_body_state, qos_sub)
+        if topics.get("joint_state"):
+            self._node.create_subscription(
+                msgs["JointState"], topics["joint_state"], self._on_joint_state, qos_sub)
         for topic in (topics["left_hand_cmd"], topics["right_hand_cmd"]):
             self._node.create_subscription(
                 msgs["JointState"], topic.replace("/command", "/joint_states"),
@@ -192,37 +210,41 @@ class ReplayNode:
 
     def publish(self, action: np.ndarray, plan: dict) -> None:
         stamp = self._node.get_clock().now().to_msg()
+        # action 维度 -> (关节名, 限位)
+        body_map = {name: (i, lim) for i, name, lim in plan["body"]}
+        hand_maps = {side: {name: (i, lim) for i, name, lim in plan["hands"][side]}
+                     for side in ("left", "right")}
+
+        def value_of(name: str, mapping: dict) -> float:
+            if name in mapping:
+                i, lim = mapping[name]
+                val = float(action[i])
+                if lim is not None:
+                    val = min(max(val, lim[0]), lim[1])
+                return val
+            # 不在 action 里的关节：用实测值保持（拿不到就 0.0）
+            return float(self._pos.get(name, 0.0))
 
         msg = self._RobotCommand()
         msg.header.stamp = stamp
-        for i, name, lim in plan["body"]:
-            val = float(action[i])
-            if lim is not None:
-                val = min(max(val, lim[0]), lim[1])
+        for name in plan["body_all"]:
             cmd = self._JointCmd()
             cmd.name = name
             cmd.control_mode = self._JointCmd.MODE_POSITION
-            cmd.position = val
+            cmd.position = value_of(name, body_map)
             msg.joint_cmd.append(cmd)
         if msg.joint_cmd:
             self.body_pub.publish(msg)
 
         for side, pub in (("left", self.left_pub), ("right", self.right_pub)):
-            fields = plan["hands"][side]
-            if not fields:
+            all_names = plan["hands_all"][side]
+            if not all_names:
                 continue
             hand = self._JointCommand()
             hand.header.stamp = stamp
-            names, values = [], []
-            for i, name, lim in fields:
-                val = float(action[i])
-                if lim is not None:
-                    val = min(max(val, lim[0]), lim[1])
-                names.append(name)
-                values.append(val)
-            hand.names = names
-            hand.position = values
-            hand.mode = [plan["hand_mode"]] * len(names)
+            hand.names = list(all_names)
+            hand.position = [value_of(n, hand_maps[side]) for n in all_names]
+            hand.mode = [plan["hand_mode"]] * len(all_names)
             pub.publish(hand)
 
     def destroy(self) -> None:
@@ -243,8 +265,8 @@ def commanded_names(plan: dict) -> list[str]:
 
 
 def run_transition(node, op, plan, target: np.ndarray, duration: float,
-                   rate: float, state_timeout: float) -> None:
-    """当前实测位姿 → 首帧，五次平滑插值按 rate 下发。
+                   hz: float, state_timeout: float) -> None:
+    """当前实测位姿 → 首帧，五次平滑插值按 hz 下发（绝对时间排程）。
 
     拿不到状态的关节直接以首帧为目标（该关节不动），避免从错误起点甩过去。
     """
@@ -262,17 +284,15 @@ def run_transition(node, op, plan, target: np.ndarray, duration: float,
 
     print(f"[replay] 过渡 {duration:.1f}s：当前 -> 首帧，最大关节差 "
           f"{float(np.abs(target - begin).max()):.3f}")
-    steps = max(1, int(round(duration * rate)))
-    period = 1.0 / rate
-    next_t = time.monotonic()
+    steps = max(1, int(round(duration * hz)))
+    t_begin = time.monotonic()
     for k in range(1, steps + 1):
         op(begin + (target - begin) * quintic(k / steps))
-        next_t += period
-        sleep_for = next_t - time.monotonic()
+        # 绝对时间排程：不能拿「收到下一条状态」当节拍，否则会被状态流带着跑飞
+        deadline = t_begin + k / hz
+        sleep_for = deadline - time.monotonic()
         if sleep_for > 0:
             time.sleep(sleep_for)
-        else:
-            next_t = time.monotonic()
 
 
 def parse_args() -> argparse.Namespace:
@@ -286,7 +306,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--episode", type=int, default=0, help="要回放的 episode_index（默认 0）")
     p.add_argument("--config", type=Path, default=None,
                    help="部署配置 JSON（默认按 action 维度选 configs/walker_c1_{13d,26d}.json）")
-    p.add_argument("--rate", type=float, default=None, help="发送频率 Hz（默认取 info.json 的 fps）")
+    p.add_argument("--rate", type=float, default=None,
+                   help="数据回放帧率 Hz（时间轴，默认取 info.json 的 fps=30）")
+    p.add_argument("--hz", type=float, default=100.0,
+                   help="物理下发频率 Hz（默认 100，与 robot_ready 一致）。真机实测 30 Hz 下发"
+                   "会让位置环断续、末端漂向默认位，故数据帧之间做线性插值重采样到该频率")
     p.add_argument("--start", type=int, default=0, help="起始帧（默认 0）")
     p.add_argument("--end", type=int, default=-1, help="结束帧，-1 表示到末尾")
     p.add_argument("--transition", type=float, default=3.0,
@@ -361,6 +385,7 @@ def main() -> int:
     ros_cfg = cfg.get("ros", {})
     topics["body_cmd"] = ros_cfg.get("body_cmd_topic", topics["body_cmd"])
     topics["body_state"] = ros_cfg.get("body_state_topic", topics["body_state"])
+    topics["joint_state"] = ros_cfg.get("joint_state_topic", topics["joint_state"])
 
     start = max(0, args.start)
     end = len(actions) if args.end < 0 else min(args.end, len(actions))
@@ -369,8 +394,9 @@ def main() -> int:
         return 1
     rate = args.rate if args.rate is not None else float(info.get("fps", 30))
 
+    hz = max(20.0, float(args.hz))
     print(f"[replay] dataset={dataset.name} episode={args.episode} frames=[{start},{end}) "
-          f"rate={rate}Hz dim={dim} config={cfg_path.name}")
+          f"data={rate}fps 下发={hz:.0f}Hz dim={dim} config={cfg_path.name}")
     print(f"[replay] body {len(plan['body'])} 维 / 左手 {len(plan['hands']['left'])} 维 / "
           f"右手 {len(plan['hands']['right'])} 维, hand_mode={plan['hand_mode']}")
     print(f"[replay] topic_body={topics['body_cmd']} dry_run={args.dry_run}")
@@ -393,29 +419,39 @@ def main() -> int:
     msgs["rclpy"].init()
     node = ReplayNode(msgs, topics)
     time.sleep(1.0)  # 等 publisher 上线
-    period = 1.0 / rate
     try:
         # ① 当前位姿 -> 首帧
         if args.transition > 0:
-            run_transition(node, op, plan, actions[start], args.transition, rate,
+            run_transition(node, op, plan, actions[start], args.transition, hz,
                            args.state_timeout)
         # ② 保持首帧，等手臂稳定
         if args.lead_in > 0:
             print(f"[replay] 首帧保持 {args.lead_in}s ...")
-            deadline = time.monotonic() + args.lead_in
-            while time.monotonic() < deadline:
+            n_lead = max(1, int(round(args.lead_in * hz)))
+            t_lead = time.monotonic()
+            for k in range(n_lead):
                 op(actions[start])
-                time.sleep(period)
-        # ③ 逐帧回放
-        next_t = time.monotonic()
-        for i in range(start, end):
-            op(actions[i])
-            next_t += period
-            sleep_for = next_t - time.monotonic()
+                sleep_for = (t_lead + (k + 1) / hz) - time.monotonic()
+                if sleep_for > 0:
+                    time.sleep(sleep_for)
+        # ③ 回放：数据时间轴按 rate(fps) 走，物理下发按 hz，帧间线性插值重采样。
+        #    30 fps 的相邻帧间隔 33 ms，硬阶梯下发会让位置环断续；插值后 ~10 ms 一个点。
+        n_frames = end - start
+        total_t = n_frames / rate
+        steps = max(1, int(round(total_t * hz)))
+        print(f"[replay] 回放 {n_frames} 帧/{total_t:.2f}s，按 {hz:.0f}Hz 插值下发 {steps} 个点 ...")
+        t_begin = time.monotonic()
+        for k in range(1, steps + 1):
+            s_idx = start + (k / hz) * rate
+            s_idx = min(max(s_idx, float(start)), float(end - 1))
+            i0 = int(np.floor(s_idx))
+            i1 = min(i0 + 1, end - 1)
+            frac = s_idx - i0
+            op(actions[i0] * (1.0 - frac) + actions[i1] * frac)
+            sleep_for = (t_begin + k / hz) - time.monotonic()
             if sleep_for > 0:
                 time.sleep(sleep_for)
-            else:
-                next_t = time.monotonic()
+        print(f"[replay] 回放实际耗时 {time.monotonic() - t_begin:.2f}s")
     except KeyboardInterrupt:
         print("\n[replay] 中断，停止发送。")
     finally:
