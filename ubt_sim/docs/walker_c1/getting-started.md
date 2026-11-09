@@ -1,11 +1,11 @@
-# Walker C1（Astron）仿真使用说明
+# Walker C1 EDU 共创者 仿真使用说明
 
 ## 概述
 
-Walker C1 为全机 53 DOF 人形（双臂 14 + 双手 11×2 + 头 2 + 腰 3 + 双腿 12），上体可控 41 关节。
+Walker C1 EDU 共创者 为全机 53 DOF 人形（双臂 14 + 双手 11×2 + 头 2 + 腰 3 + 双腿 12），上体可控 41 关节。
 本仓库实现其 Isaac Sim 仿真、ROS2-ZMQ 桥接、在线 IK 抓放与数据采集。
 
-![Walker C1 仿真界面预览](../assets/walker_c1.png)
+![Walker C1 EDU 共创者 仿真界面预览](../assets/walker_c1.png)
 
 
 
@@ -88,7 +88,7 @@ bash teleoperation/control/walker_c1/save_data.sh --batch 20
 ```
 
 
-![Walker C1 数据集预览](../assets/Walker_C1数据集预览.png)
+![Walker C1 EDU 共创者 数据集预览](../assets/Walker_C1数据集预览.png)
 
 ## 6. 常见问题
 

@@ -1,12 +1,8 @@
-# 天工行者 Dex V3 真机数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
+# 天工行者 Dex 真机数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
 
-> 机型：**TienKung Dex（天工行者 Dex V3）** — 右臂 7 + 右手（因时 Inspire 13 通道；
-> 策略侧动作口径见 `scripts/deploy/tienkung_dex/README.md`「手部量纲」）
-> 机器人：`--robot.type=tienkung_dex`，`ROS_DOMAIN_ID=0`
-> 桥接：`ubt_IL/tienkung_dex/ros2_deploy_bridge.py`（Bridge2）
-
-> ⚠️ **本轮只在仿真侧验证过**。下面标「**待确认**」的条目需要真机联调时逐条核实，
-> 不要当成已验证的结论。
+> 机型：**Walker TienKung Dex（天工行者 Dex）** 
+> ✅ **真机已验证（2026-11）**：完整闭环已跑通——BrainCo 强脑手 13D（右臂 7 + 右手 6，30 fps）真机数据。
+> 不同灵巧手真机操作步骤相同，仅手型 / `JOINT_CONFIG` / 转换配置不同。
 
 ## 目录
 
@@ -34,18 +30,17 @@ scripts/eval/eval_policy.py
 robot_ready.sh --real → rollout.sh        ──► 真机执行
 ```
 
-真机与仿真的差别只有三处：**目标姿态**（`--real` 下发 `READY_POSE`，仿真下发带重力前馈的
-`READY_POSE_TARGET`）、**相机端口**（真机 5558 经 Bridge2 转码，仿真 5758 直连）、
-**Domain ID**（0 vs 146）。其余脚本、维度、顺序完全一致。
+真机与仿真的训练和部署流程基本一致，使用相同的训练和部署脚本，仅数据集配置有些许差别。
 
 ## 1. 前置：真机数据采集
 
-真机采集走 `ubt_sim/teleoperation` 的同名控制脚本（与仿真同一套话题），产物同样是
-`<epoch>/trajectory.hdf5`，attrs 需带关节名 / fps / 手型 / task。**当前仓库没有真机 Dex 数据集**，
-首轮沿用仿真训出的策略做 sim2real 验证；要混训先补采 5 集以上。
+目前使用Thinker Studio 遥操数采平台进行数据采集，官方提供 [Thinker Studio](https://thinkercosmos.ubtrobot.com/#/studio) 遥操数采平台，可进行数据采集。具体参见官网使用文档，可直接导出lerobot v3.0 数据集。也可把采集到的真机 HDF5 放到 `/ubt_IL/dataset/hdf5/`（或任意 `SRC_ROOT` 指定目录）后进入转换。
 
-采集时不进模型的部分（左臂 / 腰 / 头 / 腿）请保持与仿真一致的预备位姿态，否则转换出来的
-20 维虽然能训，部署时视角与机身姿态会对不上。
+**已验证的真机数据集**：`tienkung_dex_real_pick_apple_brainco_13d`（32 集 / 16956 帧 / 30 fps，
+`observation.state` 与 `action` 均 13 维 = 右臂 7 + BrainCo 手 6，头相机 `observation.images.head`
+640×360 h264）。首轮 sim2real 验证曾沿用仿真训出的策略；真机采集足够后（≥ 30 集）即切换为
+真机数据直训。要混训仿真/真机数据时先补采再合并转换。
+
 
 ## 2. 启动容器（ubt_IL）
 
@@ -57,44 +52,39 @@ bash run.sh check
 bash run.sh bash
 ```
 
-- 容器内 `ROS_DOMAIN_ID` 默认 `0`（真机），可用 `DOMAIN_ID=146` 覆盖。
-- Dex 消息包在镜像构建期编译到 `/opt/tienkung_dex_msgs_ws`；`entrypoint.sh` 会自动 source，
-  没有时会尝试用 `/ubt_IL/tienkung_dex/ros2_dex_msgs/build.sh` 兜底编译。
-
-### 网络（**待确认**）
-
-- 真机算力主机是 **Jazzy**，本容器是 **Humble**；消息类型名/字段一致时 FastDDS 可互通。
-- `docker/fastdds_no_shm.xml` 的 `interfaceWhiteList` 需包含**工作站侧**与机器人直连网卡的
-  IP（41 网段已覆盖，`127.0.0.1` 保留勿动）。**该文件会被 COPY 进镜像，改完必须重建镜像**。
-- 网卡 MTU 建议设 9000。
-- **上线第一步**：两端各跑 `ros2 topic info -v /arm/cmd`，比对 type name + type hash。能发现
-  话题但收不到数据，就是跨 distro 类型不匹配——此时把 Bridge2 挪到算力主机（Jazzy）上跑，
-  LeRobot 侧用 `ZMQ_HOST=192.168.41.2`，ZMQ 与 distro 无关。
+> 若要把策略直接跑在机器人本体（Thor）上、不建容器，见 §6 的「机器人本体部署（Thor / Jazzy，无容器）」。
 
 ## 3. 数据转换（HDF5 → LeRobot）
 
+**已验证路径：BrainCo 强脑手 13D 真机数据**（配置 `configs/tienkung_dex_13d_1RGB_brainco_real.json`，
+13 维 = 右臂 7 + 强脑手 6 维闭合度 0~1，头相机 `observation.images.head` 640×360，单目 RGB）：
+
 ```bash
-# 真机数据默认只出 RGB（真机 HDF5 无深度是正常的）
-SRC_ROOT=/ubt_sim/dataset/tienkung_dex_real \
-REPO_ID=tienkung_dex_real_pick_apple \
-TASK_NAME=tienkung_dex_real_pick_apple \
+# 真机 BrainCo 13D 数据转换（真机 HDF5 无深度是正常的）
+CONFIG=/ubt_IL/scripts/convert/tienkung_dex/configs/tienkung_dex_13d_1RGB_brainco_real.json \
+SRC_ROOT=/ubt_IL/dataset/hdf5/tienkung_dex_real \
+REPO_ID=tienkung_dex_real_pick_apple_brainco_13d \
+TASK_NAME=pick_the_apple \
+FPS=30 \
 bash /ubt_IL/scripts/convert/tienkung_dex/convert.sh --overwrite
 ```
 
-配置仍用 `configs/tienkung_dex_20d_1RGB.json`（20 维 / 单目头 RGB）。
-真机 HDF5 的组名与仿真完全一致即可直接复用；不一致时先跑
-`python3 /ubt_IL/scripts/convert/tienkung_dex/inspect_hdf5.py <root>` 看结构。
+> `FPS=30` 与真机采集帧率一致（已验证数据集为 30 fps）。`TRIM_STATIONARY` 对真机数据
+> **可以按需开启**：真机录制频率与主循环匹配，不存在仿真那种散布在全段的重复帧，
+> 裁掉首尾保持预备位的长静止段是有益的。
 
-`TRIM_STATIONARY` 对真机数据**可以按需开启**：真机录制频率与主循环匹配，不存在仿真那种
-散布在全段的重复帧，裁掉首尾保持预备位的长静止段是有益的。
 
 ## 4. 模型训练
 
+**已验证路径：BrainCo 13D 真机训练**（配置 `train_config_tienkung_dex_real_pick_apple_brainco_13d.json`，
+对应数据集 `tienkung_dex_real_pick_apple_brainco_13d`，产物模型 `tienkung_dex_real_pick_apple_brainco_13d_act`）：
+
 ```bash
-CONFIG_PATH=/ubt_IL/scripts/train/tienkung_dex/configs/train_config_tienkung_dex_real_pick_apple.json \
-OUTPUT_DIR=/ubt_IL/model/tienkung_dex_real_pick_apple_act \
+CONFIG_PATH=/ubt_IL/scripts/train/tienkung_dex/configs/train_config_tienkung_dex_real_pick_apple_brainco_13d.json \
+OUTPUT_DIR=/ubt_IL/model/tienkung_dex_real_pick_apple_brainco_13d_act \
 bash /ubt_IL/scripts/train/tienkung_dex/train.sh
 ```
+
 
 > `train.sh` 默认 `CONFIG_PATH` 指向**仿真配置**，真机训练必须显式覆盖。
 > `train_config_tienkung_dex_real_pick_apple.json` 是仿真配置的副本，只改了
@@ -123,8 +113,7 @@ bash /ubt_IL/scripts/train/tienkung_dex/train.sh
 
 ### 前置条件
 
-1. **进入话题控制模式**：用遥控器切到半身/全身策略并上拨（**待确认**：具体按键与 `/arm/cmd`
-   在非该模式下是否被忽略）。
+1. **进入话题控制模式**：用遥控器切到半身策略（站立状态下H右拨）。
 2. **腿部由运控独占**：`robot_ready.py` 永远不向 `/leg/cmd` 下发；Bridge2 也只发 `/arm/cmd`
    与手指令。
 3. **手型一致**：`--variant inspire|brainco` 必须与实物一致（`HAND_VARIANT` / `JOINT_CONFIG`
@@ -147,53 +136,165 @@ bash /ubt_IL/scripts/deploy/tienkung_dex/robot_ready.sh --real
 真机下发的是 `READY_POSE`（**不是**仿真的 `READY_POSE_TARGET`——后者是"让指令=实际"的
 重力前馈补偿，真机用它会站成低 13 cm 的姿态）。
 
-**待确认**：`READY_POSE` 的数值来自仿真的重力前馈标定，第一次上真机请比对实际姿态与仿真
-画面，确认后再上策略。手臂自然下垂时手在 0.80 m，比桌面（0.987 m）低，所以必须四段走
+真机联调时已比对实际姿态与仿真画面确认 `READY_POSE` 正确。手臂自然下垂时手在 0.80 m，
+比桌面（0.987 m）低，所以必须四段走
 （`READY_CLEARANCE_POSE → READY_FOREARM_POSE → READY_UPPER_VERTICAL_POSE → final`，
 默认每段 5 s）。
 
 ### 部署：先短时、小限幅
 
+**已验证路径：BrainCo 13D 真机部署**（`JOINT_CONFIG=tienkung_dex_brainco_13`，
+策略 13 维 = 右臂 7 + 强脑手 6 维 0~1；`FPS` 与数据集 fps 一致，30）：
+
 ```bash
 # Bridge2 由 rollout.sh 自动拉起（--robot.bridge_enabled=true），不需要手动起；
 # 启动前会先杀掉同机残留的 dex 桥接进程。
 ROS_DOMAIN_ID=0 \
-POLICY_PATH=/ubt_IL/model/tienkung_dex_sim_pick_apple_act/checkpoints/last/pretrained_model \
-JOINT_CONFIG=tienkung_dex_20 \
+POLICY_PATH=/ubt_IL/model/tienkung_dex_real_pick_apple_brainco_13d_act/checkpoints/last/pretrained_model \
+JOINT_CONFIG=tienkung_dex_brainco_13 \
 CAMERA_PORT=5558 IMAGE_ENABLED=1 \
+FPS=30 \
 DURATION=10 MAX_RELATIVE_TARGET=0.01 \
 bash /ubt_IL/scripts/deploy/tienkung_dex/rollout.sh
 ```
 
-- `MAX_RELATIVE_TARGET=0.01`：单步相对目标限幅 1 cm，首轮必须加；确认方向、限位都正确后再放开。
-- `IMAGE_ENABLED=1`：让 Bridge2 把头相机编成 JPEG 发到 5558（`--robot.image_enabled=true`
-  会透传进 Bridge2 的配置）。
-- `DURATION=10`：先 10 秒，确认动作方向和幅度无误再放长。
-- **相机分辨率（待确认）**：`dex_camera` 的 `width`/`height` 实际是**裁剪窗口**——只按
-  `[offset_x, offset_x+width)` 切列，`height` 仅用于声明特征形状、不参与裁剪，**任何地方都
-  不做缩放**。仿真头相机正好 640×360，原样送入策略；真机 `/ob_camera_head` 若不是这个尺寸，
-  必须让相机侧输出（或 Bridge2 转码）出 640×360，或至少确认裁剪后就是这个尺寸。
-  ⚠️ 尺寸不对**不会报错**：ACT 的 2D 位置编码按实际特征图尺寸现算、Transformer 也不带固定
-  位置表，换尺寸只是换来一串不同数量的 token——不报错，但策略看到的画面分布已经变了。
+部署效果演示：
 
-> 只想单独验证话题通路时，可以手动起 Bridge2（不跑策略）：
-> `source /opt/tienkung_dex_msgs_ws/install/setup.bash && /usr/bin/python3 /ubt_IL/tienkung_dex/ros2_deploy_bridge.py`
-> 然后再 `ros2 topic hz /arm/cmd` / `ros2 topic info -v /arm/cmd` 核对。手动起的这份会在
-> 下次 `rollout.sh` 启动时被清掉。
->
-> 不带 `--config` 手动起时，手型走默认 `inspire`，且**跳过插件↔桥接的手部通道表逐字校验**
-> （那条断言只在插件自动拉起、带 `--config` 时才生效）。排查"手指令落错通道"这类问题时
-> 不要用这种起法——用 `rollout.sh`，或手动补上 `--config "$(cat /tmp/tienkung_dex_bridge_config.json)"`。
+<video controls muted loop width="100%" src="../assets/tienkung-dex真机部署效果.mp4"></video>
 
-> **不要把 `robot_ready.py` 和 Bridge2 同时跑**——两者都写 `/arm/cmd`。正确顺序是
-> `robot_ready.sh --real` 退干净之后再起 Bridge2（`rollout.sh` 也会自己拉起 Bridge2）。
+### 机器人本体部署（Thor / Jazzy，无容器）
 
-### 常驻服务
+上面的路径是「x86 工作站容器里跑策略、机器人侧只做执行」。如果希望策略直接跑在机器人本体的
+ARM 板（NVIDIA Thor，Ubuntu 24.04 + ROS 2 Jazzy + python 3.12）上，用
+[scripts/deploy/tienkung_dex/arm_64/](../../scripts/deploy/tienkung_dex/arm_64/) 这套 host 脚本，
+不需要 Docker。数据转换与训练仍建议在工作站/容器内完成，本体上只做部署。
+
+**为什么不用 Docker / conda**：仓库的 `Dockerfile.arm64` 面向 JetPack6 / Ubuntu 22.04 /
+Humble / Orin `sm_87`，与 Thor（JetPack7 / 24.04 / Jazzy / `sm_110`）不兼容；本体上也没有
+docker 组与免密 sudo。conda 拿不到 cp312 的 aarch64 CUDA torch。因此用
+`venv --system-site-packages` 直接继承宿主 `sm_110` torch。
+
+分层如下（A 为 venv，B/C 为系统 python，只通过 ZMQ 通信）：
+
+| 层 | 解释器 | 跑什么 | 端口 / 话题 |
+|---|---|---|---|
+| A | `$PROJECT_ROOT/.venv-dex`（3.12） | `lerobot-rollout` / `lerobot-train` | 5559 发动作 / 5560 收状态 |
+| B | `/usr/bin/python3` + Jazzy | `ros2_deploy_bridge.py` | 5558 JPEG、`/arm/cmd`、手指令 |
+| C | `/usr/bin/python3` + Jazzy | `robot_ready.py`（与层 B 互斥） | `/arm/cmd` |
+
+#### ① 前置检查
+
+仓库（含 `lerobot` 子模块）需同步到本体——`PROJECT_ROOT` 由脚本位置推导为仓库内的 `ubt_IL/`。
+LFS 大文件（`ubt_sim` 仿真资源）不需要。
+
+```bash
+python3 -V                                   # 3.12
+ls /opt/ros/jazzy/setup.bash
+/usr/bin/python3 -c "import rclpy, ros2_bridge_msgs, bodyctrl_msgs, inspire_hand_msgs, brainco_hand_msgs"
+/usr/bin/python3 -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_arch_list())"
+```
+
+厂商消息包默认装在系统里；若装在自定义工作空间，设 `TIENKUNG_DEX_MSGS_WS=<ws>`
+（默认 `/opt/tienkung_dex_msgs_ws`）。`ROS_SETUP` 可显式指定 ROS 发行版，默认依次找
+`/opt/ros/jazzy`、`/opt/ros/humble`。
+
+#### ② 建环境（一次性）
+
+```bash
+cd ubt_IL/scripts/deploy/tienkung_dex/arm_64
+bash setup_env.sh
+```
+
+`setup_env.sh` 幂等（重复跑会跳过建 venv、重装依赖），做的事：
+
+| 步骤 | 说明 |
+|---|---|
+| 建 venv | `python3 -m venv --system-site-packages $PROJECT_ROOT/.venv-dex`；**不装 torch**，继承宿主 `sm_110` |
+| numpy | 装 `numpy==2.2.6`（LeRobot 要求 `>=2.0,<2.3`；宿主 1.26 不受影响） |
+| 运行时依赖 | draccus / gymnasium / einops / safetensors / huggingface-hub / datasets / av / pyzmq 等；**不装 opencv**（用宿主带 GUI 的 cv2） |
+| numpy2-ABI 包 | pandas / pyarrow / matplotlib / scikit-learn 用 `--ignore-installed`，否则宿主 `~/.local` 里按 numpy1 编译的包会报 `numpy.dtype size changed` |
+| editable 安装 | `--no-deps -e lerobot` + `-e tienkung_dex`（`--no-deps` 防止 pip 把 torch 换成 PyPI 的 CPU 版） |
+| 自检 | torch CUDA / `sm_110`、numpy 版本、三种 `JOINT_CONFIG` 的维度与手型契约、`lerobot-rollout --help` |
+
+跑完应看到 `cuda=True`、`archs` 含 `sm_110`、`numpy 2.2.6`，以及：
+
+```text
+joint_config=tienkung_dex_brainco_13  dim=13 hand=brainco mode=rad13 ...
+joint_config=tienkung_dex_20          dim=20 hand=inspire  mode=rad13 ...
+joint_config=tienkung_dex_inspire_13  dim=13 hand=inspire  mode=pico6 ...
+dex_camera 已注册 | 13D 契约: ...
+[setup] lerobot-rollout OK
+[setup] 完成。
+```
+
+失败点集中在两处：`cuda=False` 说明 venv 没继承到宿主 torch；`numpy.dtype size changed`
+说明 ABI 包没装进 venv（重跑 `setup_env.sh`）。
+
+#### ③ 首轮联调（不接策略）
+
+```bash
+cd ubt_IL/scripts/deploy/tienkung_dex/arm_64
+
+bash bridge_smoke.sh                     # 只读体检：status ≥30 Hz、image ≥10 fps、estop=false
+bash camera_preview.sh --snapshot        # 抓一张策略视角（/tmp/dex_camera_preview.png）
+source ./env.sh && dex_source_ros        # 层 B 用系统 python + Jazzy
+/usr/bin/python3 hold_test.py --groups arm   # 零位移通路验收
+bash staged_test.sh --step all           # 头/手/臂微动再回位，确认方向与回位
+bash robot_ready_host.sh --dry-run       # 先看四段目标
+bash robot_ready_host.sh --real          # 实发预备位（人盯急停）
+```
+
+因时 r13 链路：`HAND_VARIANT=inspire HAND_ACTION_MODE=pico6 bash bridge_smoke.sh`
+（状态里的 `right_hand` 应为 6 维）。`camera_preview.sh` 会自己起一个只订阅的 Bridge2，
+`--size raw` 看原始 1280×720，`--port 5558` 连已有桥接。
+
+#### ④ 部署
+
+```bash
+POLICY_PATH=/abs/path/pretrained_model \
+JOINT_CONFIG=tienkung_dex_brainco_13 \
+CAMERA_PORT=5558 IMAGE_ENABLED=1 FPS=30 \
+DURATION=10 MAX_RELATIVE_TARGET=0.01 \
+bash rollout_host.sh
+```
+
+| 容器版 | 本体版 | 说明 |
+|---|---|---|
+| `robot_ready.sh --real` | `robot_ready_host.sh --real` | 系统 python3 + Jazzy |
+| `rollout.sh` | `rollout_host.sh` | venv 内跑，自动拉起 Bridge2 |
+| `preview_camera.py` | `camera_preview.sh` | 本体上由 Bridge2 直接转码 |
+| `inference_server.sh` | 暂无 | 常驻推理服务仍需容器版 |
+
+本体版默认值与注意点：
+
+- `JOINT_CONFIG` 默认 `tienkung_dex_brainco_13`，`FPS` 默认 `15` —— **必须与数据集帧率一致**；
+- `INFERENCE_TYPE` 只接受 `sync`：async/rtc 推整块 chunk，Dex 桥接只解析单步，消息会被静默丢弃；
+- `DISPLAY_CAM` 默认 `true`；SSH 无 X 时设 `DISPLAY_CAM=false`；
+- `CAMERA_WIDTH/HEIGHT` 默认 `640×360`，同时用于 Bridge2 缩放与 `dex_camera` 裁剪窗口。
+
+#### ⑤ 本体上的已知坑
+
+- **相机尺寸不匹配不报错**：720p 原样送入时 `dex_camera` 只按窗口切列，会拿到「左半幅」，
+  策略照样输出、画面分布全错；首次务必 `camera_preview.sh --snapshot` 确认是完整视野。
+- **`bash -lc` 不 source `.bashrc`**：Bridge2 靠父进程继承 ROS 环境，脚本里用 `dex_source_ros`
+  显式 source Jazzy；手工起桥接时同样要先 source。
+- **`/arm/cmd` 无人消费**：机器人必须处于话题控制模式（遥控器切半身策略并上拨），
+  否则「策略在跑但机器人不动」。
+- **`robot_ready` 与 Bridge2 互斥**：两者都写 `/arm/cmd`，顺序永远是先 ready 再 rollout。
+- **急停**：Bridge2 监听 `/power/board/key_status` 的 `is_estop`；已下发目标仍在驱动器里，
+  必要时要按物理急停。
+- **`wrist_roll_l` 40 Hz 摩擦极限环**：真机 home/预备位已由 `constants.DEPLOY_HOME_OFFSETS`
+  叠加 +0.03 rad；换机后若右腕同样嗡嗡，往该表加一条。
+
+完整文件清单与实测记录见
+[scripts/deploy/tienkung_dex/arm_64/README.md](../../scripts/deploy/tienkung_dex/arm_64/README.md)。
+
+### 常驻推理服务
 
 ```bash
 ROS_DOMAIN_ID=0 \
-POLICY_PATH=/ubt_IL/model/tienkung_dex_sim_pick_apple_act/checkpoints/last/pretrained_model \
-JOINT_CONFIG=tienkung_dex_20 CAMERA_PORT=5558 IMAGE_ENABLED=1 \
+POLICY_PATH=/ubt_IL/model/tienkung_dex_real_pick_apple_brainco_13d_act/checkpoints/last/pretrained_model \
+JOINT_CONFIG=tienkung_dex_brainco_13 CAMERA_PORT=5558 IMAGE_ENABLED=1 FPS=30 \
 bash /ubt_IL/scripts/deploy/tienkung_dex/inference_server.sh
 
 bash /ubt_IL/scripts/deploy/tienkung_dex/inference_client.sh status   # 等 READY

@@ -6,7 +6,7 @@
 | 机型 | 目录 | 包 | 编译产物 / 安装位置 |
 |------|------|----|---------------------|
 | Walker S2 | [walker_s2/](walker_s2/) | `rosa_msgs` `shm_msgs` `mc_task_msgs` `mc_state_msgs` `ecat_task_msgs` | `/opt/ubt_sim/walker_sdk_ros2_msgs/install` |
-| Walker C1 | [walker_c1/](walker_c1/) | `rosa_msgs` `shm_msgs` `mc_task_msgs` `mc_state_msgs` `ecat_task_msgs` | `/opt/ubt_sim/walker_c1_msgs/install` |
+| Walker C1 EDU 共创者 | [walker_c1/](walker_c1/) | `rosa_msgs` `shm_msgs` `mc_task_msgs` `mc_state_msgs` `ecat_task_msgs` | `/opt/ubt_sim/walker_c1_msgs/install` |
 | 天工行者 Pro | [tienkung_pro/](tienkung_pro/) | `bodyctrl_msgs` | deb 装入 `/opt/ros/humble`（ROS2 自动发现） |
 | 天工行者 Dex | [tienkung_dex/](tienkung_dex/) | `ros2_bridge_msgs` `inspire_hand_msgs` `brainco_hand_msgs` | `/opt/ubt_sim/tienkung_dex_msgs/install` |
 
@@ -19,11 +19,11 @@
 bash teleoperation/msgs/walker_s2/build.sh
 source /opt/ubt_sim/walker_sdk_ros2_msgs/install/setup.bash
 
-# Walker C1（独立源码与工作空间）
+# Walker C1 EDU 共创者（独立源码与工作空间）
 bash teleoperation/msgs/walker_c1/build.sh
 source /opt/ubt_sim/walker_c1_msgs/install/setup.bash
 
-# TienKung Dex（因时 + 强脑双手）
+# Walker TienKung Dex（因时 + 强脑双手）
 bash teleoperation/msgs/tienkung_dex/build.sh
 source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash
 
@@ -59,7 +59,7 @@ tienkung_dex/
 
 ## 注意
 
-- **Walker S2 与 Walker C1 含同名包**（`mc_task_msgs` 等），但源码目录与工作空间
+- **Walker S2 与 Walker C1 EDU 共创者 含同名包**（`mc_task_msgs` 等），但源码目录与工作空间
   完全独立：可以分别按机型演进而互不影响。同一 shell **不要同时 source** 两个
   workspace —— 后 source 的会覆盖前者的同名包。切换机型时建议：
   - `UBT_SIM_ROBOT=walker_c1 bash run.sh bash`（交互 shell 按机型只加载一份）

@@ -1,8 +1,8 @@
-# 天工行者 Dex V3 仿真数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
+# 天工行者 Dex 仿真数据「采集 → 转换 → 训练 → 评估 → 部署」工作流
 
-> 机型：**TienKung Dex（天工行者 Dex V3）** — 右臂 7 + 右手 13（因时 Inspire）
+> 机型：**Walker TienKung Dex（天工行者 Dex）** — 右臂 7 + 右手 13（因时 Inspire）
 > 仿真任务：`UBTSim-TienkungDex-Parlor-v0`（强脑手用 `UBTSim-TienkungDex-Brainco-Parlor-v0`）
-> 机器人：`--robot.type=tienkung_dex`，`ROS_DOMAIN_ID=146`
+> 机器人：`--robot.type=tienkung_dex`，`ROS_DOMAIN_ID` 与仿真一致（ubt_sim 默认 0）
 
 ## 目录
 
@@ -32,22 +32,21 @@ robot_ready.sh → rollout.sh              ──► 回注仿真，判采集成
 
 两个必须记住的约束：
 
-1. **动作空间只有 20 维**。左臂 / 腰 / 头 / 腿在数据里 range ≤ 0.007 rad，属于死维，进数据集会
+1. **动作空间仅保留有效维**。左臂 / 腰 / 头 / 腿在数据里 range ≤ 0.007 rad，属于死维，进数据集会
    让 QUANTILES 归一化炸裂（`NaN`/`Inf` 直接毁训练）。当前转换配置已经把它们排除。
-2. **部署前必须先把机器人摆到预备位**（`robot_ready.sh`）。预备位是**绝对**目标，不是回零，
-   也不是"相对当帧读数"。
+2. **部署前必须先把机器人摆到预备位**（`robot_ready.sh`），否则由于初始位置不一致可能与桌面发生碰撞。
 
 ## 1. 前置：仿真数据采集（ubt_sim）
 
+仿真环境（Isaac Sim + ROS2-ZMQ 桥接、ZMQ 端口、容器启停）的完整说明见
+[ubt_sim 天工行者 Dex 仿真 getting-started](../../../ubt_sim/docs/tienkung_dex/getting-started.md)。
+
 ```bash
-# ① 在 ubt_sim 容器内启动仿真（任务名含 TienkungDex 即自动识别机型；
-#    start_sim.sh 会顺手拉起 ROS2-ZMQ 桥接，那是 ubt_sim 自己的 5755-5758，与 IL 侧的
-#    5559/5560 无关。不要加 UBT_SIM_NO_BRIDGE=1——IL 的 /arm/cmd 就是靠它转给仿真进程的）
+# ① 在 ubt_sim 容器内启动仿真（指定任务名）
 cd ubt_sim
 UBT_SIM_TASK=UBTSim-TienkungDex-Parlor-v0 bash scripts/start_sim.sh
 
-# ② 数据采集（脚本自己 source ROS 环境，默认 ROS_DOMAIN_ID=146）
-bash teleoperation/control/tienkung_dex/save_data.sh                    # 手动 Enter 控制
+# ② 数据采集
 bash teleoperation/control/tienkung_dex/save_data.sh --batch 20         # 批量采集 20 集
 ```
 
@@ -89,10 +88,7 @@ bash /ubt_IL/scripts/convert/tienkung_dex/convert.sh --overwrite
 `REPO_ID=tienkung_dex_sim_pick_apple`、`FPS=15`、`HDF5_REL_PATH=trajectory.hdf5`、
 `ROBOT_TYPE=tienkung_dex`。
 
-采集侧只落盘真机通道驱动的 13 个手部关节（URDF 里 5 个 mimic `*_dip` 不再记录），配置里
-手部 13 列原样取用，与 ROS 侧 `SetAngle` / `GetAngleAct` 的 13 通道一一对应。右手列数不是
-13 的旧版数据（18 列，含 5 个恒 0 的 dip）会被 `convert.sh` 直接拦下——那种数据要另写一份
-用 `indices` 剔除 dip 列的配置。
+当前仿真采集侧因时手落盘真机通道驱动的 13 个手部关节，而强脑手是 6 维关节数据。
 
 产物在 `/ubt_IL/dataset/tienkung_dex_sim_pick_apple/`。
 
@@ -121,30 +117,11 @@ HF_HUB_OFFLINE=1 lerobot-dataset-viz \
   --root /ubt_IL/dataset/tienkung_dex_sim_pick_apple
 ```
 
-没有图形界面时，两种替代：
-
-```bash
-# ① 导出 .rrd，拷到本机用 rerun 打开（单集约 63 MB）
-HF_HUB_OFFLINE=1 lerobot-dataset-viz \
-  --repo-id tienkung_dex_sim_pick_apple --episode-index 0 \
-  --root /ubt_IL/dataset/tienkung_dex_sim_pick_apple \
-  --save 1 --output-dir /tmp/viz
-rerun /tmp/viz/tienkung_dex_sim_pick_apple_episode_0.rrd
-
-# ② 服务端推流，本机 rerun 连过去
-HF_HUB_OFFLINE=1 lerobot-dataset-viz \
-  --repo-id tienkung_dex_sim_pick_apple --episode-index 0 \
-  --root /ubt_IL/dataset/tienkung_dex_sim_pick_apple \
-  --mode distant --grpc-port 9876
-# 本机：rerun rerun+http://<容器IP>:9876/proxy
-```
-
-检查点：画面朝向是否正常、手部抓放与视频是否同步、20 维曲线里手部维度有没有全程平直（平直说明列切错了）。
-`.rrd` 单集 60 MB 上下，批量导出记得事后清 `/tmp/viz`。
+![天工行者 Dex 数据集预览](../assets/TienKung_DEX数据集预览.png)
 
 ### 3.3 静止帧裁剪（`TRIM_STATIONARY`，默认关闭）
 
-`convert.sh` 已接通全部 `--stationary-*` 参数。2026-10 的 20 集实测（`STATIONARY_DIAGNOSE=1`）：
+静止帧裁剪是为了避免数据集静止动作造成机器人推理陷入局部静止推理循环 `convert.sh` 已接通全部 `--stationary-*` 参数。2026-10 的 20 集实测（`STATIONARY_DIAGNOSE=1`）：
 
 | 指标 | 数值 |
 |---|---|
@@ -237,9 +214,9 @@ RESUME=true bash /ubt_IL/scripts/train/tienkung_dex/train.sh
 cd ubt_sim
 UBT_SIM_TASK=UBTSim-TienkungDex-Parlor-v0 bash scripts/start_sim.sh
 
-# ② 推理容器内：回预备位（四段到位 + 手型），先看相机画面确认视角正确
-export ROS_DOMAIN_ID=146
+# ② 推理容器内：回预备位（四段到位 + 手型），先看相机画面确认视角正确,检查ROS_DOMAIN_ID是否一致
 bash /ubt_IL/scripts/deploy/tienkung_dex/robot_ready.sh
+/usr/bin/python3 /ubt_IL/scripts/deploy/tienkung_dex/preview_camera.py
 
 # ③ 跑策略
 POLICY_PATH=/ubt_IL/model/tienkung_dex_sim_pick_apple_act/checkpoints/last/pretrained_model \
@@ -247,7 +224,7 @@ JOINT_CONFIG=tienkung_dex_20 FPS=15 DURATION=60 \
 bash /ubt_IL/scripts/deploy/tienkung_dex/rollout.sh
 
 # ④ 复位场景（机器人回 HOME，不是回预备位）
-ROS_DOMAIN_ID=146 /usr/bin/python3 /ubt_IL/scripts/deploy/tienkung_dex/reset.py
+/usr/bin/python3 /ubt_IL/scripts/deploy/tienkung_dex/reset.py
 
 # ⑤ 下一集前必须重跑预备位：复位后 head_pitch 回到 ~0.000，训练视角（低头 45°）就没了
 bash /ubt_IL/scripts/deploy/tienkung_dex/robot_ready.sh
@@ -271,6 +248,10 @@ bash /ubt_IL/scripts/deploy/tienkung_dex/inference_client.sh shutdown
 
 判成功：仿真 `/sim/task_completed` 的误差 < 0.15 m，5 集里至少 3 集成功。
 
+部署效果演示：
+
+<video controls muted loop width="100%" src="../assets/tienkung_dex仿真部署效果.mov"></video>
+
 ### 控制频率
 
 数据集是 15 Hz，仿真主循环约 11 Hz（RTF≈0.11）。`FPS` 先按 15 跑，同时观察 rollout 打印的
@@ -282,7 +263,7 @@ bash /ubt_IL/scripts/deploy/tienkung_dex/inference_client.sh shutdown
 | 现象 | 排查 |
 |------|------|
 | `robot_ready.sh` 报「Bridge2 正在运行」 | `robot_ready.py` 与 Bridge2 都写 `/arm/cmd`，二者不能同时跑；先停 rollout（`--force` 可跳过，慎用） |
-| 仿真里手臂不动 | `ROS_DOMAIN_ID` 是否为 146；`/robot_state` 是否在回传（`ros2 topic hz /robot_state`） |
+| 仿真里手臂不动 | `ROS_DOMAIN_ID` 是否与仿真一致（ubt_sim 默认 0）；`/robot_state` 是否在回传（`ros2 topic hz /robot_state`） |
 | 相机无画面 | 5758 是否有 JPEG 流；`dex_camera` 类型名是否写对（不是 `image_server`） |
 | 动作维度预检失败 | `JOINT_CONFIG` 与训练时不一致（20 ↔ 13） |
 | 手部动作整体错位 | `HAND_VARIANT` 与实物不符；Bridge2 启动日志里会打印「右手通道 -> 关节」表 |

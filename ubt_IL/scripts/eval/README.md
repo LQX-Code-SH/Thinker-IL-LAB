@@ -3,7 +3,7 @@
 `eval_policy.py` 是机型无关的通用评估脚本：从 LeRobot 数据集元数据读取
 `action.names`，对 checkpoint 逐帧/按块推理并计算 MSE。
 
-## Walker C1 示例
+## Walker C1 EDU 共创者 示例
 
 ```bash
 # 容器内

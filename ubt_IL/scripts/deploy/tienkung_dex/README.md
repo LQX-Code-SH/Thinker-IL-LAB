@@ -1,6 +1,6 @@
-# TienKung Dex（天工行者 Dex V3）部署
+# Walker TienKung Dex（天工行者 Dex）部署
 
-容器内执行。动作空间有三种配置：
+容器内执行（机器人本体 Thor 上不建容器直跑，见 [arm_64/README.md](arm_64/README.md)）。动作空间有三种配置：
 
 | `JOINT_CONFIG` | 维度 | 手 | 策略侧手量纲 |
 |---|---|---|---|
@@ -17,12 +17,13 @@
 | [rollout.sh](rollout.sh) | 单次 rollout（DURATION 秒） |
 | [inference_server.sh](inference_server.sh) / [inference_client.sh](inference_client.sh) | 常驻推理服务 + 客户端 |
 | [reset.py](reset.py) | 复位**仿真**场景（`/sim/cmd_reset`） |
+| [preview_camera.py](preview_camera.py) | 头相机预览（ZMQ JPEG：仿真 5758 / 真机 5558）；`--once --save-frame` 只存图，无 DISPLAY 自动降级 |
 | [replay.py](replay.py) | 真机回放 LeRobot 数据集动作（右臂 7 + 强脑右手 6，含当前位姿→首帧过渡）。**与 Bridge2 互斥** |
 
 ## 正确顺序
 
 ```bash
-# 1. 机器人到预备位（仿真 ROS_DOMAIN_ID=146 / 真机 0）
+# 1. 机器人到预备位（ROS_DOMAIN_ID 与仿真/真机一致）
 bash robot_ready.sh            # 仿真
 bash robot_ready.sh --real     # 真机
 
@@ -45,7 +46,7 @@ bash robot_ready.sh --hands right         # 只摆右手（both/left/right/none�
 
 | 变量 / 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `ROS_DOMAIN_ID` | `0` | 真机 0；仿真 146 |
+| `ROS_DOMAIN_ID` | `0` | 默认 0；跑仿真时与 ubt_sim 一致（ubt_sim 默认也是 0） |
 | `TIENKUNG_DEX_MSGS_WS` | `/opt/tienkung_dex_msgs_ws` | dex 消息包工作空间 |
 | `--real` | 关 | 真机目标位（不含仿真重力前馈补偿） |
 | `--rate` | `50` | 指令下发频率 Hz |
@@ -129,6 +130,22 @@ bash /ubt_IL/scripts/deploy/tienkung_dex/rollout.sh
 顺序的真正保险是：`TienKungDex20JointIndex` 的成员顺序 == 转换配置里的 `names` ==
 数据集顺序，Bridge2 全程**按关节名**寻址、不按位。
 
+## preview_camera.py（头相机预览）
+
+只订阅 ZMQ JPEG 流（不解码策略、不发指令），可以与 rollout 同时跑；解码/裁剪逻辑与
+`dex_camera` 一致，看到的就是策略看到的画面。
+
+```bash
+/lerobot/.venv/bin/python preview_camera.py                 # 仿真 5758，实时窗口（q/ESC 退出）
+/lerobot/.venv/bin/python preview_camera.py --port 5558     # 真机（Bridge2 带 --enable-image）
+/lerobot/.venv/bin/python preview_camera.py --once --save-frame /tmp/dex_head.jpg
+/lerobot/.venv/bin/python preview_camera.py --host 192.168.1.20   # ubt_sim 在另一台机器
+```
+
+窗口左上角叠加 fps / 分辨率 / 端到端延迟（延迟按发送端时钟算，跨机不显示）。
+`--width 640` 用于拼接帧只取策略那一段；没有 `DISPLAY` 时自动降级成抓一帧存
+`/tmp/tienkung_dex_head.jpg`。
+
 ## replay.py（真机动作回放）
 
 把 LeRobot 数据集（`tienkung_dex_13d_1RGB_brainco_real` 布局）里某条 episode 的
@@ -206,7 +223,7 @@ bash inference_client.sh shutdown
 
 ```bash
 source /opt/ros/humble/setup.bash
-ROS_DOMAIN_ID=146 /usr/bin/python3 reset.py           # 默认重复发 3 次
+ROS_DOMAIN_ID=0 /usr/bin/python3 reset.py             # 与仿真启动时一致；默认重复发 3 次
 ```
 
 真机没有这个复位话题，真机的"复位"就是 `robot_ready.sh --real`。

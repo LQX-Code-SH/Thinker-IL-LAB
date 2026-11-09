@@ -1,4 +1,4 @@
-# Walker C1 常驻推理服务
+# Walker C1 EDU 共创者 常驻推理服务
 
 把策略常驻在机器人侧（或 GPU 侧）容器内，操作机通过 ZMQ 远程控制：
 启动模型、热切换 checkpoint、开始/停止执行、回 home、订阅状态。
@@ -6,7 +6,7 @@
 ```
 操作机 inference_client.py ──ZMQ REQ 5690──► inference_server（lerobot venv）
                             ◄──ZMQ PUB 5691──   │
-                                                 ├─ lerobot-rollout（26 维）
+                                                 ├─ lerobot-rollout（26 / 13 维）
                                                  └─ ros2_walker_c1_bridge（ZMQ 5661/5662）
 ```
 
@@ -25,8 +25,9 @@
 bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh half_sdk
 
 # 后台 + 预热（真机加 WALKER_C1_REAL=1 打开门禁）
+# 真机已验证（2026-11）：13D 真机模型
 WALKER_C1_REAL=1 \
-POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained_model \
+POLICY_PATH=/ubt_IL/model/walker_c1_real_13d_act_1RGB/checkpoints/last/pretrained_model \
   bash /ubt_IL/scripts/deploy/walker_c1/inference_server.sh
 
 # 操作机侧
@@ -41,9 +42,9 @@ bash /ubt_IL/scripts/deploy/walker_c1/inference_client.sh shutdown
 
 ```bash
 bash /ubt_IL/scripts/deploy/walker_c1/inference_client.sh launch \
-  --policy-path /ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained_model \
-  --robot-type walker_c1 --robot-model walker_c1_26d \
-  --inference-hz 2 --fps 15
+  --policy-path /ubt_IL/model/walker_c1_real_13d_act_1RGB/checkpoints/last/pretrained_model \
+  --robot-type walker_c1 --robot-model walker_c1_13d \
+  --inference-hz 2 --fps 30
 ```
 
 远程拉起（SSH + docker exec 到跑容器的机器）：
@@ -57,6 +58,9 @@ bash /ubt_IL/scripts/deploy/walker_c1/inference_client.sh launch --remote \
 
 > **推理后端建议（walker 系列）**：优先 `INFERENCE_TYPE=act_async`（默认）。`sync` 仅用于调试，
 > 且必须保留单动作平滑（`WALKER_C1_SINGLE_ACTION_SMOOTH_S`，默认 0.15 s，置 0 会告警）。
+>
+> `--robot.type` 不硬编码：优先取 `load` 指令里的 `robot_type`，其次 `ROBOT_TYPE` 环境变量，
+> 缺省 `walker`（walker_s2 行为不变）；C1 客户端会透传 `walker_c1`。
 
 ## 3. 客户端指令
 
@@ -120,19 +124,13 @@ LOADING ──► READY ⇄ RUNNING
 > 传给服务端脚本（远程 launch 时以 `env VAR=... bash ...` 前缀注入）。相机只在服务启动时读取，
 > 运行中 `load` 不会改变相机源。
 
-## 6. 参数化说明
-
-`lerobot/src/lerobot/scripts/inference_server.py` 的 `--robot.type` 不再硬编码：
-优先取 `load` 指令里的 `robot_type`，其次 `ROBOT_TYPE` 环境变量，缺省 `walker`
-（walker_s2 行为不变）。C1 客户端会透传 `robot_type=walker_c1`。
-
-## 7. FAQ
+## 6. FAQ
 
 | 现象 | 处理 |
 |---|---|
 | `launch` 一直 LOADING | 看 `/tmp/walker_c1_inference_server.log`；多为模型路径/相机超时 |
 | `status` 连不上 | `--host` 与端口；服务端是否在别的容器 |
 | `load` 后仍用旧模型 | `status.watch` 看 `model` 字段；确认 `--robot-model` 与策略维度一致 |
-| 报 action dim mismatch | 策略不是 26 维；检查训练数据集 |
+| 报 action dim mismatch | 策略维度与 `ROBOT_MODEL` 不一致（26D / 13D）；检查训练数据集与启动参数 |
 | `stop` 后仍动 | 在飞 chunk 最多 ~1 个 tick 后停发；若持续动，确认桥接已重启到新版本（`hold_trajectory` 生效） |
 | PID 文件残留 | `/tmp/walker_c1_inference_server.pid`；单例守卫会自动修正 |

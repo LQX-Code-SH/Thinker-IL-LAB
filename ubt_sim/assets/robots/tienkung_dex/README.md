@@ -1,6 +1,6 @@
 # tienkung_dex 机器人资产
 
-天工行者 Dex（TienKung Dex，V3 模型）的仿真资产包，用于 Isaac Sim / Isaac Lab。
+天工行者 Dex（Walker TienKung Dex）的仿真资产包，用于 Isaac Sim / Isaac Lab。
 
 ## 来源
 

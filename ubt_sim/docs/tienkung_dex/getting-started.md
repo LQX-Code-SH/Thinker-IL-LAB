@@ -1,8 +1,8 @@
-# 天工行者 Dex （TienKung Dex）仿真使用说明
+# 天工行者 Dex（Walker TienKung Dex）仿真使用说明
 
 ## 概述
 
-天工行者 Dex（TienKung Dex，V3 模型）仿真基于 NVIDIA Isaac Sim 5.0（Isaac Lab 2.2.0）构建，通过 ROS2-ZMQ 桥接将仿真状态与图像以**与真机一致的 ROS2 话题**对外发布，实现 sim-to-real 一致的遥操作与数据采集。整套环境运行在 Docker 容器内，支持 Inspire RH5DG2（67 revolute）与 BrainCo Revo2（53 revolute）两种灵巧手。
+天工行者 Dex（Walker TienKung Dex）仿真基于 NVIDIA Isaac Sim 5.0（Isaac Lab 2.2.0）构建，通过 ROS2-ZMQ 桥接将仿真状态与图像以**与真机一致的 ROS2 话题**对外发布，实现 sim-to-real 一致的遥操作与数据采集。整套环境运行在 Docker 容器内，支持 Inspire RH5DG2（67 revolute）与 BrainCo Revo2（53 revolute）两种灵巧手。
 
 ![天工行者 Dex 仿真界面预览](../assets/TienKung_DEX.png)
 
@@ -77,7 +77,7 @@ UBT_SIM_TASK=UBTSim-TienkungDex-Parlor-v0 bash scripts/start_sim.sh
 | `UBT_SIM_LOAD_ONLY` | 未设置 | 仅渲染，不接 ROS（默认 `--device cpu`） |
 | `UBT_SIM_NO_BRIDGE` | 未设置 | 置 1 时不启动桥接 |
 | `UBT_SIM_TIENKUNG_DEX_CMD_PORT` / `_STATUS_PORT` / `_IMAGE_PORT` / `_JPEG_PORT` | 5755/5756/5757/5758 | ZMQ 端口（须与 `bridge_config.yaml` 一致） |
-| `ROS_DOMAIN_ID` | 146 | 仿真 146 / 真机 0；话题相同，只靠 domain 分流 |
+| `ROS_DOMAIN_ID` | 0 | 默认 0（与真机同域）；仿真与部署容器必须用同一个值，需要隔离时两边都设成 146 等 |
 
 > `run.sh bash` 进入的 shell 会把 `ROS_DOMAIN_ID` 预设为 `docker/env.sh` 的值（默认 0），从那里启动请显式 `export ROS_DOMAIN_ID=0`，避免与真机串台。
 
@@ -115,7 +115,7 @@ bash teleoperation/control/tienkung_dex/save_data.sh --batch 20
 
 预览界面（Rerun Web Viewer：相机画面、action/state 曲线与时间轴）：
 
-![TienKung Dex 数据集预览](../assets/TienKung_DEX数据集预览.png)
+![天工行者 Dex 数据集预览](../assets/TienKung_DEX数据集预览.png)
 
 完整参数与真机说明见 `teleoperation/tools/playback/README.md`。
 

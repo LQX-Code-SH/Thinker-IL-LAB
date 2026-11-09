@@ -1,4 +1,4 @@
-# TienKung Dex 控制与数据采集
+# 天工行者 Dex（Walker TienKung Dex）控制与数据采集
 
 本目录脚本跑在 **ROS2 侧**（系统 Python 3.10），不依赖 Isaac Sim；
 仿真进程由 `scripts/start_sim.sh` 启动，两者通过 ZMQ 5755-5758 端口通信。

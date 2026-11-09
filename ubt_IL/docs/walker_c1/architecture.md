@@ -1,4 +1,4 @@
-# Walker C1 插件技术架构
+# Walker C1 EDU 共创者 插件技术架构
 
 > 本文与 `walker_c1/CLAUDE.md` 内容同步（仓库忽略 `CLAUDE.md`，故以本文为入库版本）。
 
@@ -16,7 +16,7 @@ LeRobot 推理 (Python 3.12)                    Bridge2 (Python 3.10)
                                                   │
                                         mc_state_msgs / mc_task_msgs
                                                   │
-                                          Walker C1 真机 / ubt_sim
+                                          Walker C1 EDU 真机 / ubt_sim
 ```
 
 | 端口 | 用途 | 占用方 |

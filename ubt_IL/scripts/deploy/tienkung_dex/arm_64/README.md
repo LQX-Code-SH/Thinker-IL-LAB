@@ -1,6 +1,6 @@
-# TienKung Dex 真机部署（Thor / Jazzy，去 Docker）
+# 天工行者 Dex（Walker TienKung Dex）真机部署（Thor / Jazzy，去 Docker）
 
-本目录是 **天工 Dex V3 真机** 的自包含部署包，镜像 `scripts/deploy/tienkung_pro/arm_64` 的做法：
+本目录是 **天工行者 Dex 真机** 的自包含部署包，镜像 `scripts/deploy/tienkung_pro/arm_64` 的做法：
 不 sudo、不建软链、不改原脚本，用 `PROJECT_ROOT` + 环境变量覆盖原脚本里的容器路径
 （`/ubt_IL`、`/lerobot/.venv`、`/opt/ros/humble`）。
 
@@ -52,13 +52,14 @@ cd ubt_IL/scripts/deploy/tienkung_dex/arm_64
 bash setup_env.sh                     # ① 建环境（一次性）
 bash bridge_smoke.sh                  # ② 只读体检：status/image 计数
 bash camera_preview.sh --snapshot     # ③ 看一眼策略视角画面
-"$PROJECT_ROOT/.venv-dex/bin/python" hold_test.py --groups arm   # ④ 零位移通路验收
+source ./env.sh && dex_source_ros
+/usr/bin/python3 hold_test.py --groups arm   # ④ 零位移通路验收（层 B：系统 python + Jazzy）
 bash staged_test.sh --step all        # ⑤ 分步微动（头/手/臂），确认方向与回位
 bash robot_ready_host.sh --dry-run    # ⑥ 先看四段目标
 bash robot_ready_host.sh --real       # ⑦ 实发预备位（人盯急停）
 POLICY_PATH=/abs/pretrained_model \
   DURATION=10 MAX_RELATIVE_TARGET=0.01 \
-  bash rollout_host.sh                # ⑤ 首轮短时小限幅
+  bash rollout_host.sh                # ⑧ 首轮短时小限幅
 ```
 
 ## 4 关键参数
@@ -72,7 +73,7 @@ POLICY_PATH=/abs/pretrained_model \
 | `CAMERA_PORT` / `IMAGE_ENABLED` | `5558` / `1` | 真机走 Bridge2 转码 |
 | `CAMERA_WIDTH/HEIGHT` | `640×360` | 同时用于 Bridge2 缩放与 `dex_camera` 裁剪窗口 |
 | `MAX_RELATIVE_TARGET` | 空 | 首轮 `0.01`（rad/步） |
-| `DISPLAY_CAM` | `false` | 本机有 X 才设 `true` |
+| `DISPLAY_CAM` | `true` | 本机无 X（SSH）时设 `false` |
 
 ## 5 与 Orin 版（tienkung_pro/arm_64）的差异
 

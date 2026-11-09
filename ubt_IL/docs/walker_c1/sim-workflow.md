@@ -1,4 +1,8 @@
-# Walker C1 仿真工作流
+# Walker C1 EDU 共创者 仿真工作流
+
+> 机型：**Walker C1 EDU 共创者** — 双臂 7+7、双手各 6 个 SDK 压缩通道
+> 仿真任务：`UBTSim-WalkerC1-Parlor-v0`
+> 机器人：`--robot.type=walker_c1`，`ROS_DOMAIN_ID` 与仿真一致（ubt_sim 默认 0）
 
 ```
 ubt_sim 采集 HDF5 ──► convert.sh ──► LeRobot 数据集 ──► lerobot-train ──► checkpoint
@@ -35,16 +39,24 @@ bash teleoperation/control/walker_c1/save_data.sh --batch 20
 
 ## 2. 启动 ubt_IL 容器
 
-```bash
-cd ubt_IL/docker
-bash run.sh start && bash run.sh check
-bash run.sh bash
-```
-
-`/ubt_sim` 为只读挂载；容器里 `ls /ubt_sim` 报不存在说明容器是旧挂载建的：
-`bash run.sh rm && bash run.sh start`。
+见 [getting-started.md §4 构建环境](./getting-started.md#4-构建环境)。容器内 `/ubt_sim` 为只读挂载；
+`ls /ubt_sim` 报不存在说明容器是旧挂载建的，`bash run.sh rm && bash run.sh start` 重建。
 
 ## 3. 数据转换
+
+仿真数据由 `ubt_sim` 采集，落在 `ubt_sim/dataset/walker_c1/<epoch秒>/trajectory.hdf5`；
+`ubt_IL` 容器会把 `ubt_sim/` 只读挂载到 `/ubt_sim`，转换时可直接读取，无需拷贝。
+
+单集 HDF5 结构（与 tienkung_pro/dex 同族）：
+
+| 路径 | 形状 | 含义 |
+|---|---|---|
+| `joint_observations/joint_position` | (T, 31) | 身体关节：L 臂 0-6 / R 臂 7-13 / 头 14-15 / 腰 16-18 / 腿 19-30 |
+| `hand_observations/hand_left_position` | (T, 6) | 左手 SDK 6 通道 |
+| `hand_observations/hand_right_position` | (T, 6) | 右手 SDK 6 通道 |
+| `action_observations/*` | 同上 | 最近一次下发指令 |
+| `camera_observations/color_images/camera_head` | (T,) | PNG 字节流，640×480 |
+| `timestamp` | (T,) | 采集时刻 |
 
 ```bash
 # 先转一集验证
@@ -80,6 +92,8 @@ python -m lerobot.scripts.lerobot_dataset_viz \
   --repo-id walker_c1_sim_26d_1RGB --root /ubt_IL/dataset/walker_c1_sim_26d_1RGB
 ```
 
+![Walker C1 EDU 共创者 数据集预览](../assets/Walker_C1数据集预览.png)
+
 ## 4. 训练
 
 ```bash
@@ -106,7 +120,13 @@ python /ubt_IL/scripts/eval/eval_policy.py \
   --output /ubt_IL/scripts/eval/output/eval_walker_c1_sim_26d_act/results.json
 ```
 
-`--inference-freq 15` 模拟 15 Hz 部署节奏；`--plot` 输出逐关节 GT vs Pred 曲线。
+`--inference-freq 15` 模拟 15 Hz 部署节奏；`--plot` 输出逐关节 GT vs Pred 曲线，
+写到 `--output` 同目录的 `plots/` 下（每个 episode 一张）。
+
+13 维 ACT（30k 步）在 30 集仿真数据上的离线评估结果：
+
+![walker_c1 离线评估曲线](../assets/walker_c1模型离线评估曲线.png)
+
 也可先做单帧推理自检：
 
 ```bash
@@ -119,7 +139,7 @@ python /ubt_IL/scripts/deploy/walker_c1/infer_check.py \
 
 ```bash
 # ① 确认仿真已在跑（ubt_sim 容器），ROS 域一致
-export ROS_DOMAIN_ID=0        # ubt_sim 默认 0；隔离时用 146 且两边一致
+export ROS_DOMAIN_ID=0        # 仿真与部署必须同一个值（ubt_sim 默认 0；隔离时两边都设 146）
 
 # ② 相机
 python3 /ubt_IL/scripts/deploy/walker_c1/preview_camera.py --once --save-frame /tmp/c1.jpg
@@ -138,6 +158,11 @@ POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained
 ```
 
 端口：C1 插件 5661/5662/5663；ubt_sim C1 桥接 5655-5658；可同时运行。
+13D 模型加 `ROBOT_MODEL=walker_c1_13d`（仿真默认 `walker_c1_26d`）。
+
+部署效果演示：
+
+<video controls muted loop width="100%" src="../assets/walker_c1仿真.mov"></video>
 
 ## 7. FAQ
 
@@ -146,7 +171,7 @@ POLICY_PATH=/ubt_IL/model/walker_c1_sim_26d_act_1RGB/checkpoints/last/pretrained
 | 转换「Found 0 episodes」 | `SRC_ROOT` 下没有 `*/trajectory.hdf5`；确认 `HDF5_REL_PATH` |
 | `meta/info.json` 里图像是 640×480 | 配置被改过；应为 `image_size: [320,240]` |
 | 训练 loss 不降 | 数据太少（11 集）；先补采或减少 `dim_model` |
-| rollout 维度预检失败 | policy 不是 26 维；或 `ROBOT_CONFIG` 指向了别的机型配置 |
+| rollout 维度预检失败 | policy 维度与 `ROBOT_MODEL` 不一致（26D / 13D）；或 `ROBOT_CONFIG` 指向了别的机型配置 |
 | 头/腰/腿缓慢下沉 | 仿真侧未下发关节应保持 HOME_POSE；确认没有外部节点在发这些关节 |
 | 相机不开图 | `preview_camera.py` 的 `--topic`；`ROS_DOMAIN_ID`；QoS BEST_EFFORT |
 | 动作很慢/很卡 | 提高 `FPS`；`INFERENCE_TYPE=act_async INFERENCE_HZ=2` |

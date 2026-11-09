@@ -6,7 +6,7 @@ Thinker 机器人模仿学习工具链
 
 ## 项目简介
 
-本项目基于 [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) 与 [LeRobot](https://github.com/huggingface/lerobot) 框架开发，为天工行者无疆（Walker TienKung Pro）及 Walker S2 EDU 探索者 机器人提供完整的模仿学习工具链，涵盖以下核心能力：
+本项目基于 [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) 与 [LeRobot](https://github.com/huggingface/lerobot) 框架开发，为天工行者无疆（Walker TienKung Pro）、Walker S2 EDU 探索者、天工行者 Dex（Walker TienKung Dex）与 Walker C1 EDU 共创者（Walker C1 EDU）机器人提供完整的模仿学习工具链，涵盖以下核心能力：
 
 | 能力              | 说明                                          | 状态      |
 | ----------------- | --------------------------------------------- | --------- |
@@ -15,9 +15,9 @@ Thinker 机器人模仿学习工具链
 | 📦 数据采集与转换 | HDF5 / LeRobot 格式数据采集，格式转换与清洗   | ✅ 已完成 |
 | 🧠 模型训练       | 基于 LeRobot 的模仿学习策略训练               | ✅ 已完成 |
 | 🤖 真机部署       | 模型推理与真机控制部署                        | ✅ 已完成 |
-| 🤖 支持机型      | 天工行者无疆 / Walker S2 EDU 探索者(已支持)        | ✅ 已发布 |
-| 🤖 天工行者 DEX  | 天工行者 Dex（V3 + Inspire RH5DG2）：仿真场景 + 遥操作采集 | 🚧 开发中（仿真侧已接入） |
-| 🤖 其他机型       | Walker C1 Edu 共创者 / 天工行者无疆 DEX（Walker TienKung DEX）        | 🚧 待发布 |
+| 🤖 支持机型      | 天工行者无疆（Walker TienKung Pro） / Walker S2 EDU 探索者 | ✅ 已发布 |
+| 🤖 扩展机型      | 天工行者 Dex（Walker TienKung Dex，Inspire / BrainCo 手型） / Walker C1 EDU 共创者（Walker C1 EDU） | ✅ 已发布（仿真 + 真机，2026-11） |
+| 🎮 LabView       | 一站式可视化交互界面 | 🚧 敬请期待 |
 
 ## 效果展示
 
@@ -26,6 +26,10 @@ Thinker 机器人模仿学习工具链
 | 天工行者无疆 | Walker S2 EDU 探索者 |
 |-------------|-----------|
 | <img src="ubt_sim/docs/assets/tienkung-pro仿真界面预览.png" alt="天工行者无疆仿真界面预览" width="460"> | <img src="ubt_sim/docs/assets/walker-s2仿真界面预览.png" alt="Walker S2 EDU 探索者 仿真界面预览" width="460"> |
+
+| 天工行者 Dex | Walker C1 EDU 共创者 |
+|-------------|-----------|
+| <img src="ubt_sim/docs/assets/TienKung_DEX.png" alt="天工行者 Dex 仿真界面预览" width="460"> | <img src="ubt_sim/docs/assets/walker_c1.png" alt="Walker C1 EDU 共创者 仿真界面预览" width="460"> |
 
 ### 测试案例
 
@@ -36,6 +40,14 @@ Thinker 机器人模仿学习工具链
 | Walker S2 EDU 探索者 仿真 | Walker S2 EDU 探索者 真机 |
 |---|---|
 | <video src="ubt_IL/docs/assets/walker仿真部署效果.mp4" controls muted width="460"></video> | <video src="ubt_IL/docs/assets/walker真机部署效果.mp4" controls muted width="460"></video> |
+
+| 天工行者 Dex 仿真 | 天工行者 Dex 真机 |
+|---|---|
+| <video src="ubt_IL/docs/assets/tienkung_dex仿真部署效果.mov" controls muted width="460"></video> | <video src="ubt_IL/docs/assets/tienkung-dex真机部署效果.mp4" controls muted width="460"></video> |
+
+| Walker C1 EDU 共创者 仿真 | Walker C1 EDU 共创者 真机 |
+|---|---|
+| <video src="ubt_IL/docs/assets/walker_c1仿真.mov" controls muted width="460"></video> | <video src="ubt_IL/docs/assets/walker-c1真机部署效果.mp4" controls muted width="460"></video> |
 
 ## 整体架构
 
@@ -49,10 +61,12 @@ Thinker 机器人模仿学习工具链
             │               │④仿真部署                   │               │⑤真机部署
             │①数据采集       ▼ （ROS桥接）                │②真机采集       │（ROS桥接）
    ┌────────┴────────────────────────┐        ┌─────────┴───────────────▼───────────┐
-   │         ubt_sim 仿真平台         │        │ 真机（天工行者无疆/Walker S2 EDU 探索者）│
-   │        （Isaac Sim 容器）        │        │     ROS_DOMAIN_ID=0 直连网段          │
+   │        ubt_sim 仿真平台         │        │          真机（四款机型）           │
+   │       （Isaac Sim 容器）        │        │      ROS_DOMAIN_ID=0 直连网段       │
    └─────────────────────────────────┘        └─────────────────────────────────────┘
 ```
+
+真机侧覆盖：天工行者无疆（Walker TienKung Pro）、Walker S2 EDU 探索者、天工行者 Dex、Walker C1 EDU 共创者。
 
 
 ## 代码获取
@@ -79,7 +93,7 @@ git submodule update --init
 
 | 依赖 | 要求 | 说明 |
 |------|------|------|
-| 操作系统 | Linux（Ubuntu 22.04 推荐） | 两个子项目均以容器方式运行 |
+| 操作系统 | Linux（Ubuntu 22.04 / 24.04 推荐） | 仿真与训练默认容器运行；Dex 可在机器人本体（Thor）上免容器部署 |
 | GPU | NVIDIA GPU（3090+） | Isaac Sim 渲染与模型训练/推理 |
 | Docker | 已安装 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/) | 容器内使用 GPU |
 | Git LFS | 已安装 | USD 模型、贴图等大文件管理 |
@@ -98,12 +112,17 @@ git submodule update --init
 |------|------|
 | 仿真快速上手（天工行者无疆） | [ubt_sim/docs/tienkung_pro/getting-started.md](ubt_sim/docs/tienkung_pro/getting-started.md) |
 | 仿真快速上手（Walker S2 EDU 探索者） | [ubt_sim/docs/walker_s2/getting-started.md](ubt_sim/docs/walker_s2/getting-started.md) |
+| 仿真快速上手（天工行者 Dex） | [ubt_sim/docs/tienkung_dex/getting-started.md](ubt_sim/docs/tienkung_dex/getting-started.md) |
+| 仿真快速上手（Walker C1 EDU 共创者） | [ubt_sim/docs/walker_c1/getting-started.md](ubt_sim/docs/walker_c1/getting-started.md) |
 | 训练部署快速上手（天工行者无疆） | [ubt_IL/docs/tienkung_pro/getting-started.md](ubt_IL/docs/tienkung_pro/getting-started.md) |
 | 训练部署快速上手（Walker S2 EDU 探索者） | [ubt_IL/docs/walker_s2/getting-started.md](ubt_IL/docs/walker_s2/getting-started.md) |
-| 模仿学习仿真工作流（天工行者无疆 / Walker S2 EDU 探索者） | [sim-workflow.md](ubt_IL/docs/tienkung_pro/sim-workflow.md) / [sim-workflow.md](ubt_IL/docs/walker_s2/sim-workflow.md) |
-| 模仿学习真机工作流（天工行者无疆 / Walker S2 EDU 探索者） | [real-workflow.md](ubt_IL/docs/tienkung_pro/real-workflow.md) / [real-workflow.md](ubt_IL/docs/walker_s2/real-workflow.md) |
+| 训练部署快速上手（天工行者 Dex） | [ubt_IL/docs/tienkung_dex/getting-started.md](ubt_IL/docs/tienkung_dex/getting-started.md) |
+| 训练部署快速上手（Walker C1 EDU 共创者） | [ubt_IL/docs/walker_c1/getting-started.md](ubt_IL/docs/walker_c1/getting-started.md) |
+| 模仿学习仿真工作流 | [天工行者无疆](ubt_IL/docs/tienkung_pro/sim-workflow.md) / [Walker S2 EDU 探索者](ubt_IL/docs/walker_s2/sim-workflow.md) / [天工行者 Dex](ubt_IL/docs/tienkung_dex/sim-workflow.md) / [Walker C1 EDU 共创者](ubt_IL/docs/walker_c1/sim-workflow.md) |
+| 模仿学习真机工作流 | [天工行者无疆](ubt_IL/docs/tienkung_pro/real-workflow.md) / [Walker S2 EDU 探索者](ubt_IL/docs/walker_s2/real-workflow.md) / [天工行者 Dex](ubt_IL/docs/tienkung_dex/real-workflow.md) / [Walker C1 EDU 共创者](ubt_IL/docs/walker_c1/real-workflow.md) |
+| 常驻推理服务 | [Walker S2 EDU 探索者](ubt_IL/docs/walker_s2/inference-server.md) / [Walker C1 EDU 共创者](ubt_IL/docs/walker_c1/inference-server.md) |
 | 数据转换详细说明 | [ubt_IL/scripts/convert/README.md](ubt_IL/scripts/convert/README.md) |
-| ARM 板（Jetson Orin）真机部署 | [ubt_IL/scripts/deploy/tienkung_pro/arm_64/README.md](ubt_IL/scripts/deploy/tienkung_pro/arm_64/README.md) |
+| ARM 板真机部署 | [天工行者无疆（Jetson Orin）](ubt_IL/scripts/deploy/tienkung_pro/arm_64/README.md) / [天工行者 Dex（Thor）](ubt_IL/scripts/deploy/tienkung_dex/arm_64/README.md) |
 
 ## 致谢
 

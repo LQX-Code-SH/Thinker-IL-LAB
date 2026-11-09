@@ -1,6 +1,6 @@
-# Walker C1（Astron）机器人资产
+# Walker C1 EDU 共创者 机器人资产
 
-Walker C1 的整机模型包（URDF / meshes / USD / 关节参数），用于 Isaac Sim / Isaac Lab。
+Walker C1 EDU 共创者的整机模型包（URDF / meshes / USD / 关节参数），用于 Isaac Sim / Isaac Lab。
 
 ## 来源
 

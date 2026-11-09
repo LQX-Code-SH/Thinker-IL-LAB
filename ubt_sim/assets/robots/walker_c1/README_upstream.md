@@ -1,4 +1,4 @@
-# Walker C1 模型整合包
+# Walker C1 EDU 模型整合包
 
 提供无手、带手两份整机 URDF，左右手独立 URDF，对应整机 MuJoCo XML，以及原始传感器 USD。ROS 2 包名为 `walker_c1_description`。
 
