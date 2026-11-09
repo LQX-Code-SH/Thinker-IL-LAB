@@ -2787,6 +2787,7 @@ Code: <code>ubt_IL/scripts/{convert,train,deploy}/walker_s2/</code> and the <cod
 <blockquote>
 <p>The container has two Python environments: use <code>/usr/bin/python3</code> for ROS and <code>/lerobot/.venv/bin/python</code> (default) for LeRobot.</p>
 </blockquote>
+<p><a id="3-data-conversion"></a></p>
 <h2 id="3-data-conversion-hdf5---lerobot">3. Data conversion (HDF5 -&gt; LeRobot)<a class="headerlink" href="#3-data-conversion-hdf5---lerobot" title="Permanent link">&para;</a></h2>
 <h3 id="31-conversion-command">3.1 Conversion command<a class="headerlink" href="#31-conversion-command" title="Permanent link">&para;</a></h3>
 <p>Script: <code>ubt_IL/scripts/convert/walker_s2/convert.sh</code>; configs in <code>/ubt_IL/scripts/convert/walker_s2/configs/</code>; choose or adapt one for your training needs.</p>
@@ -2935,6 +2936,7 @@ Code: <code>ubt_IL/scripts/{convert,train,deploy}/walker_s2/</code> and the <cod
 <blockquote>
 <p>Check especially: video frame rate, state/action dimension and order, grip range, and empty episodes.</p>
 </blockquote>
+<p><a id="4-model-training"></a></p>
 <h2 id="4-policy-training">4. Policy training<a class="headerlink" href="#4-policy-training" title="Permanent link">&para;</a></h2>
 <p>Training script: <code>/ubt_IL/scripts/train/walker_s2/train.sh</code>
 Configs: <code>/ubt_IL/scripts/train/walker_s2/configs/</code>; choose or adapt one for your training needs.</p>
@@ -3035,6 +3037,7 @@ Configs: <code>/ubt_IL/scripts/train/walker_s2/configs/</code>; choose or adapt 
 <blockquote>
 <p><code>HF_HUB_OFFLINE=1</code> is enabled by default (offline training). Environment variables override config values only when <strong>explicitly set</strong>.</p>
 </blockquote>
+<p><a id="5-policy-evaluation"></a></p>
 <h2 id="5-policy-evaluation-offline-mse">5. Policy evaluation (offline MSE)<a class="headerlink" href="#5-policy-evaluation-offline-mse" title="Permanent link">&para;</a></h2>
 <p>Runs offline MSE evaluation (prediction vs ground truth) on a LeRobot dataset without connecting to the robot and generates per-episode comparison plots.
 Script (shared with TienKung): <code>ubt_IL/scripts/eval/eval_policy.py</code>.</p>
@@ -3091,6 +3094,7 @@ Preview:
 </tr>
 </tbody>
 </table>
+<p><a id="6-model-deployment-sim"></a></p>
 <h2 id="6-model-deployment-simulation-feedback">6. Model deployment (simulation feedback)<a class="headerlink" href="#6-model-deployment-simulation-feedback" title="Permanent link">&para;</a></h2>
 <p>Simulation deployment shares <code>rollout.sh</code> / the inference server with hardware. Differences:</p>
 <ul>
@@ -3098,6 +3102,7 @@ Preview:
 <li>Cameras come from simulation (four RGB streams or the configured cameras), no hardware camera needed;</li>
 <li>A safety precheck (action dimension match) runs before deployment and must pass before motion is allowed.</li>
 </ul>
+<p><a id="61-rollout"></a></p>
 <h3 id="61-rollout-deployment">6.1 Rollout deployment<a class="headerlink" href="#61-rollout-deployment" title="Permanent link">&para;</a></h3>
 <p>Script: <code>ubt_IL/scripts/deploy/walker_s2/rollout.sh</code>.</p>
 <p><strong>Deployment steps</strong> (run in the simulation and inference containers separately):</p>
@@ -3248,6 +3253,7 @@ Demo:</p>
 </tr>
 </tbody>
 </table>
+<p><a id="62-inference-server"></a></p>
 <h3 id="62-inference-server-warm-startexternal-calls">6.2 Inference server (warm start/external calls)<a class="headerlink" href="#62-inference-server-warm-startexternal-calls" title="Permanent link">&para;</a></h3>
 <p>Inference server script: <code>ubt_IL/scripts/deploy/walker_s2/inference_server.sh</code>
 Client script: <code>ubt_IL/scripts/deploy/walker_s2/inference_client.sh</code></p>
