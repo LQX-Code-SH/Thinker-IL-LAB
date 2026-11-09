@@ -1,2 +1,4 @@
 site/
 .claude/plans/docs-nav-refactor.md
+__pycache__/
+*.pyc
