@@ -68,6 +68,8 @@ bash run.sh bash       # enter the container; run conversion/training/evaluation
 
 > The container has two Python environments: use `/usr/bin/python3` for ROS and `/lerobot/.venv/bin/python` (default) for LeRobot.
 
+<a id="3-data-conversion"></a>
+
 ## 3. Data conversion (HDF5 -> LeRobot)
 
 ### 3.1 Conversion command
@@ -149,6 +151,8 @@ Preview:
 
 > Check especially: video frame rate, state/action dimension and order, grip range, and empty episodes.
 
+<a id="4-model-training"></a>
+
 ## 4. Policy training
 
 Training script: `/ubt_IL/scripts/train/walker_s2/train.sh`
@@ -204,6 +208,8 @@ HF_HUB_OFFLINE=1 /lerobot/.venv/bin/lerobot-train \
 
 > `HF_HUB_OFFLINE=1` is enabled by default (offline training). Environment variables override config values only when **explicitly set**.
 
+<a id="5-policy-evaluation"></a>
+
 ## 5. Policy evaluation (offline MSE)
 
 Runs offline MSE evaluation (prediction vs ground truth) on a LeRobot dataset without connecting to the robot and generates per-episode comparison plots.
@@ -236,6 +242,8 @@ Preview:
 | `--output` | Result JSON path |
 | `--device` | `cuda` or `cpu` (default `cuda`, falls back automatically) |
 
+<a id="6-model-deployment-sim"></a>
+
 ## 6. Model deployment (simulation feedback)
 
 Simulation deployment shares `rollout.sh` / the inference server with hardware. Differences:
@@ -243,6 +251,8 @@ Simulation deployment shares `rollout.sh` / the inference server with hardware. 
 - Robot commands are fed back into Isaac Sim through the **ROS2-ZMQ Bridge**, with `ZMQ_HOST=127.0.0.1` (local bridge);
 - Cameras come from simulation (four RGB streams or the configured cameras), no hardware camera needed;
 - A safety precheck (action dimension match) runs before deployment and must pass before motion is allowed.
+
+<a id="61-rollout"></a>
 
 ### 6.1 Rollout deployment
 
@@ -313,6 +323,8 @@ Set `RECORD_ACTIONS=1` during deployment to record rollout actions for analyzing
 | `walker_s2_10d` | 10D (right arm 7 + head 2 + right gripper 1) | PGC right gripper | `walker_s2_gripper_19d.json` (10D is a subset) |
 | `walker_s2_19d` | 19D (17 body + 2 grippers) | PGC 1-DOF gripper | `walker_s2_gripper_19d.json` |
 | `walker_s2_31d` | 31D (17 body + 14 hands) | V4 dexterous hand 7 DOF | `walker_s2_v4_hand_31d.json` |
+
+<a id="62-inference-server"></a>
 
 ### 6.2 Inference server (warm start/external calls)
 
