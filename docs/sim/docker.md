@@ -15,7 +15,7 @@ bash run.sh check      # 校验环境（GPU / ROS2 / 消息包 / numpy<2 等）
 bash run.sh bash       # 进入容器 shell（自动 source ROS2 环境）
 ```
 
-> ⚠️ **机型相关，构建镜像前必须修改**：编辑 `ubt_sim/docker/fastdds_no_shm.xml` 的 `interfaceWhiteList`，将 `<address>` 改为对应机型直连网段：天工行者 `192.168.41.99`、Walker S2 `192.168.11.99`。该文件构建时 COPY 进镜像，构建后再改无效，务必先改再 build。
+> ⚠️ **机型相关，构建镜像前必须修改**：编辑 `ubt_sim/docker/fastdds_no_shm.xml` 的 `interfaceWhiteList`，将 `<address>` 改为对应机型直连网段：天工行者 `192.168.41.99`、Walker S2 / Walker C1 `192.168.11.99`、天工行者 Dex（Thor 本体 `192.168.11.3`）。该文件构建时 COPY 进镜像，构建后再改无效，务必先改再 build。
 
 如需区分真机/仿真的 ROS2 域，用 `ROS_DOMAIN_ID` 启动容器（默认 0）：
 
@@ -48,4 +48,6 @@ bridge-stop   单独停止桥接
 
 - [平台概览](index.md) - 返回仿真平台介绍页
 - [天工行者](../tienkung/sim-setup.md) - 天工机器人仿真使用说明 
+- [天工行者 Dex](../tienkung-dex/sim-setup.md) - 单臂灵巧手仿真使用说明
 - [Walker S2 EDU 探索者](../walker-s2/sim-setup.md) - Walker S2 EDU 探索者 机器人仿真使用说明
+- [Walker C1 EDU 共创者](../walker-c1/sim-setup.md) - Walker C1 EDU 共创者 机器人仿真使用说明

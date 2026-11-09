@@ -1,6 +1,6 @@
 # Thinker-IL-LAB
 
-Thinker 机器人模仿学习工具链，为 **天工行者（无疆）** 与 **Walker S2 EDU 探索者** 等多款人形机器人提供从仿真数据采集到真机部署的完整模仿学习解决方案。
+Thinker 机器人模仿学习工具链，为 **天工行者（无疆）**、**天工行者 Dex**、**Walker S2 EDU 探索者** 与 **Walker C1 EDU 共创者** 等多款人形机器人提供从仿真数据采集到真机部署的完整模仿学习解决方案。
 
 基于 [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) 与 [HuggingFace LeRobot](https://github.com/huggingface/lerobot) 框架构建。
 
@@ -16,16 +16,42 @@ Thinker 机器人模仿学习工具链，为 **天工行者（无疆）** 与 **
 | :material-database: 数据采集与转换 | HDF5 / LeRobot 格式数据采集，格式转换与清洗 | :material-check-circle: 已完成 |
 | :material-brain: 模型训练 | 基于 LeRobot 的模仿学习策略训练（ACT / Pi0.5） | :material-check-circle: 已完成 |
 | :material-robot: 真机部署 | 模型推理与真机控制部署（含推理服务器常驻预热） | :material-check-circle: 已完成 |
-| :material-robot: 支持机型 | 天工行者（无疆）/ Walker S2 EDU 探索者 | :material-check-circle: 已发布 |
-| :material-robot-outline: 其他机型 | Walker C1 EDU 共创者 / 天工行者DEX | :material-progress-clock: 待发布 |
+| :material-robot: 支持机型 | 天工行者（无疆）/ 天工行者 Dex / Walker S2 EDU 探索者 / Walker C1 EDU 共创者 | :material-check-circle: 已发布 |
 
 ## 效果展示
 
 ### 仿真平台预览
 
-| 天工行者（无疆） | Walker S2 EDU 探索者 |
-|-------------|-----------|
-| ![天工行者（无疆）仿真界面预览](assets/tienkung-pro仿真界面预览.png) | ![Walker S2 EDU 探索者 仿真界面预览](assets/walker-s2仿真界面预览.png) |
+<div class="grid video-grid" markdown>
+<div markdown>
+
+**天工行者（无疆）**
+
+![天工行者（无疆）仿真界面预览](assets/tienkung-pro仿真界面预览.png){.img-uniform}
+
+</div>
+<div markdown>
+
+**天工行者 Dex**
+
+![天工行者 Dex 仿真界面预览](assets/tienkung-dex仿真界面预览.png){.img-uniform}
+
+</div>
+<div markdown>
+
+**Walker S2 EDU 探索者**
+
+![Walker S2 EDU 探索者 仿真界面预览](assets/walker-s2仿真界面预览.png){.img-uniform}
+
+</div>
+<div markdown>
+
+**Walker C1 EDU 共创者**
+
+![Walker C1 EDU 共创者 仿真界面预览](assets/walker-c1仿真界面预览.png){.img-uniform}
+
+</div>
+</div>
 
 ### 部署效果
 
@@ -58,6 +84,34 @@ Thinker 机器人模仿学习工具链，为 **天工行者（无疆）** 与 **
 <video src="assets/walker真机部署效果.mp4" controls muted width="100%"></video>
 
 </div>
+<div markdown>
+
+**天工行者 Dex 仿真**
+
+<video src="assets/tienkung-dex仿真部署效果.mp4" controls muted width="100%"></video>
+
+</div>
+<div markdown>
+
+**天工行者 Dex 真机**
+
+<video src="assets/tienkung-dex真机部署效果.mp4" controls muted width="100%"></video>
+
+</div>
+<div markdown>
+
+**Walker C1 EDU 共创者 仿真**
+
+<video src="assets/walker-c1仿真部署效果.mp4" controls muted width="100%"></video>
+
+</div>
+<div markdown>
+
+**Walker C1 EDU 共创者 真机**
+
+<video src="assets/walker-c1真机部署效果.mp4" controls muted width="100%"></video>
+
+</div>
 </div>
 
 ### 应用案例
@@ -80,7 +134,7 @@ Thinker 机器人模仿学习工具链，为 **天工行者（无疆）** 与 **
             │               │④仿真部署              │              │⑤真机部署
             │①数据采集       ▼ （ROS桥接）           │②真机采集      │（ROS桥接）
    ┌────────┴────────────────┐        ┌─────────────┴──────────────▼──────┐
-   │      ubt_sim 仿真平台    │        │真机（天工行者 / Walker S2 EDU 探索者）│
+   │      ubt_sim 仿真平台    │        │ 真机（天工行者 / Dex / Walker S2 / C1）│
    │     （Isaac Sim 容器）   │        │     ROS_DOMAIN_ID=0 直连网段        │
    └─────────────────────────┘        └───────────────────────────────────┘
 ```
@@ -90,10 +144,12 @@ Thinker 机器人模仿学习工具链，为 **天工行者（无疆）** 与 **
 ## 从这里开始
 
 - [快速开始](getting-started.md) - 克隆代码、环境要求、全流程一览（支持按平台 / 按机型两种入口）
-- [:material-robot-outline: 仿真平台](sim/index.md) - Isaac Sim 仿真、遥操作与数据采集（天工行者 / Walker S2 EDU 探索者）
+- [:material-robot-outline: 仿真平台](sim/index.md) - Isaac Sim 仿真、遥操作与数据采集（天工行者 / Dex / Walker S2 / C1）
 - [:material-brain: 模仿学习平台](il/index.md) - 数据转换、模型训练（ACT / Pi0.5）、离线评估
 - [:material-robot: 天工行者](tienkung/index.md) - 仿真 / 转换 / 训练 / 仿真与真机部署 / ARM 板端部署
+- [:material-robot: 天工行者 Dex](tienkung-dex/index.md) - 单臂灵巧手：仿真 / 转换 / 训练 / 真机部署 / 机器人本体部署
 - [:material-robot-outline: Walker S2 EDU 探索者](walker-s2/index.md) - 仿真 / 转换 / 训练 / 部署 / 推理服务器
+- [:material-robot-outline: Walker C1 EDU 共创者](walker-c1/index.md) - 双臂灵巧手：仿真 / 转换 / 训练 / 真机部署 / 推理服务器
 - [通用参考](common/data-conversion.md) - 数据转换详解、数据回放、HuggingFace 数据/模型管理
 
 ## 致谢

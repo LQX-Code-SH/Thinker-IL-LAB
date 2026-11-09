@@ -1,0 +1,265 @@
+# Walker C1 EDU 共创者 真机全流程：采集 -> 转换 -> 训练 -> 评估 -> 部署
+
+> 适用机器人：**Walker C1 EDU 共创者**
+> 数据来源：真机遥操作/脚本采集（Thinker Studio 或 `ubt_sim/teleoperation/control/walker_c1`）
+> 对应代码：`ubt_IL/scripts/{convert,train,eval,deploy}/walker_c1/`
+
+真机与仿真共用同一套 ROS2 接口（`mc_task_msgs` / `mc_state_msgs` / `sensor_msgs/Image`），靠 `ROS_DOMAIN_ID` 隔离。RL 部署链路只发 26 维（双臂 + 双手）或 13 维（右臂 + 右手），头/腰/腿保持机器人当前位。
+
+> ✅ **真机已验证（2026-11）**：完整闭环已跑通——**13D = 右臂 7 + 右手 6**（`ROBOT_MODEL=walker_c1_13d`，30 fps，头相机 `head_stereo_left/color/raw` 640×512）：真机数据集 `walker_c1_real_13d_1RGB`（34 集 / 11406 帧）→ 训练 `walker_c1_real_13d_act_1RGB` → 真机部署。
+
+```
+真机 ROS2 ──► ubt_sim/teleoperation/control/walker_c1（采集） ──► HDF5
+                                                                    │
+容器内：convert.sh → train.sh → eval_policy.py → robot_ready.sh + rollout.sh
+                                                                    │
+LeRobot (3.12) ──ZMQ 5661/5662──► ros2_walker_c1_bridge.py (3.10) ──► 真机
+```
+
+## 目录
+
+- [0. 全流程总览](#0-全流程总览)
+- [1. 真机前置](#1-真机前置)
+- [2. 真机采集](#2-真机采集)
+- [3. 启动容器](#3-启动容器)
+- [4. 数据转换（HDF5 -> LeRobot）](#4-数据转换hdf5---lerobot)
+  - [4.1 转换命令](#41-转换命令)
+  - [4.2 数据可视化](#42-数据可视化)
+- [5. 训练与评估](#5-训练与评估)
+- [6. 部署](#6-部署)
+- [7. 常见问题](#7-常见问题)
+
+<a id="0-全流程总览"></a>
+
+## 0. 全流程总览
+
+| 阶段 | 位置 | 命令 |
+|---|---|---|
+| 切 SDK 控制 | 操作机 / 容器 | `bash scripts/deploy/walker_c1/sdk_mode.sh half_sdk` |
+| 真机采集 | 操作机 / ubt_sim 容器 | `teleoperation/control/walker_c1/save_data.sh` |
+| 容器 | 操作机 | `cd ubt_IL/docker && bash run.sh start && bash run.sh bash` |
+| 转换 | 容器 | `scripts/convert/walker_c1/convert.sh` |
+| 训练 | 容器（GPU） | `scripts/train/walker_c1/train.sh` |
+| 评估 | 容器 | `scripts/eval/eval_policy.py` |
+| 部署 | 容器（机器人侧） | `robot_ready.sh` + `rollout.sh` |
+
+<a id="1-真机前置"></a>
+
+## 1. 真机前置
+
+1. **切 SDK 控制（必须 half_sdk）**：C1 手臂只在 `workMode=develop` + `developModeState=HalfSdkActive` 下接收 ROS2 关节指令（`normal` 下指令被忽略，`full_sdk` 会交出全身平衡，不用于 VLA）。用部署脚本一键完成（进入开发者模式 → 腿部 STAND → half_sdk），默认经 SSH 在机器人开发者容器内执行（`ubt@192.168.11.3:2222`）：
+
+   ```bash
+   bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh status     # 查看工作模式/运控权限/腿部/急停
+   bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh check      # 只校验（0=可部署）
+   bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh half_sdk   # 切换
+   bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh normal     # 恢复 normal
+   ```
+
+   `rollout.sh` / `robot_ready.sh` / `robot_home.sh` / `inference_server.sh` 已内置门禁，非 half_sdk 时拒绝运行（真机带 `WALKER_C1_REAL=1` 或 `SDK_GUARD=1`；仿真用默认 `SDK_GUARD=auto` 自动跳过）。
+
+2. **ROS 域**：真机默认 `ROS_DOMAIN_ID=0`；仿真与真机部署必须用同一个值，需要隔离时两边都设 `146`。
+
+3. **DDS**：**Thor 机型（C1 本体）必须与主控栈同 RMW**——机器人栈是 `rmw_cyclonedds_cpp` + `CYCLONEDDS_URI`（绑定 `mgbe2_0`，本机 `192.168.11.3`）。IL 容器由 `docker/run.sh` 自动注入同款环境并挂载 `docker/cyclonedds_thor.xml`（`CYCLONEDDS_URI=file:///opt/cyclonedds_thor.xml`），无需手工设置。改配置时注意两条实测坑：
+
+   - `<Interfaces>` 必须写在 `<General>` 里（Humble 的 CycloneDDS 0.10+），放 `<Domain>` 下只报 `unknown element` 并回退默认网卡；网卡只写 `mgbe2_0`，不要写 `lo`（非 multicast）。
+   - 域 0 内 participant 很多，默认上限会报 `Failed to find a free participant index for domain 0`；配置里已设 `ParticipantIndex=none`、`MaxAutoParticipantIndex=120`。
+
+   若走 FastDDS（仿真/远程机），改 `RMW_IMPLEMENTATION=rmw_fastrtps_cpp`，并把本机网卡 IP（Thor 为 `192.168.11.3`，Walker 直连对端 `192.168.11.99`）加进 `docker/fastdds_no_shm.xml` 白名单。
+
+4. **状态自检**（容器内，`run.sh bash` 之后）：
+
+   ```bash
+   source /opt/ros/humble/setup.bash
+   source /ubt_IL/walker_s2/walker_sdk_ros2/install/setup.bash
+   export ROS_DOMAIN_ID=0
+   ros2 topic hz /mc/sdk/robot_state                                 # Thor 实测 ≈ 460-490 Hz
+   ros2 topic hz /sensor/camera/head_stereo_left/color/raw           # shm_msgs/Image6m
+   ros2 topic info -v /mc/sdk/robot_command                          # 应有订阅者（SDK 控制已切）
+   ```
+
+   真机 `RobotState` 只有 19 个关节（双臂 14 + 头 2 + 腰 3，无腿），bridge 按名取 14 个臂关节，不受影响；头/腰/腿不在策略内、也不下发。
+
+5. **安全**：机器人置于安全位；首次 `DURATION=10` 短时验证；手边留急停。
+
+<a id="2-真机采集"></a>
+
+## 2. 真机采集
+
+```bash
+# ubt_sim 容器内（真机同域，不复用仿真进程）
+bash teleoperation/control/walker_c1/save_data.sh
+bash teleoperation/control/walker_c1/save_data.sh --batch 20
+```
+
+产物与仿真一致：`ubt_sim/dataset/walker_c1/<epoch>/trajectory.hdf5`（15 Hz、31 body + 6+6 手、1 路 RGB）。也可使用 [Thinker Studio](https://thinkercosmos.ubtrobot.com/#/studio) 遥操数采平台，直接导出 LeRobot v3 数据集。
+
+采集端需要真机相机话题——**C1 真机没有 `/sensor/camera/head/color/raw`**，只有：
+
+| 话题 | 类型 | 说明 |
+|---|---|---|
+| `/sensor/camera/head_stereo_left/color/raw` | `shm_msgs/Image6m` | **策略输入用它**：1920×1536、yuv422(UYVY)、step=3840、6 MB 定长 |
+| ~~`/sensor/camera/head_stereo_left/color/compressed`~~ | `sensor_msgs/CompressedImage` | 本机视觉栈重启后已不再发布 |
+| `head_stereo_right` / `head_fisheye_left,right` / `mono_chin` / `wrist_left,right` | 同族 | 其它视角 |
+
+> 宽高比：真机原生 1920×1536（5:4），采集侧 pkl 存 JPEG 时已缩一半（960×768，仍是 5:4）。部署与训练统一按 **640×512（5:4，1920×1536 的精确 1/3）** 处理，不做裁剪、不改变比例。
+
+采集/部署时用 `WALKER_C1_CAMERA_TOPIC` + `WALKER_C1_CAMERA_MSG_TYPE`（部署脚本用 `CAMERA_TOPIC` / `CAMERA_MSG_TYPE`）指定。注意：`/compressed` 结尾会推断成压缩图，其余默认 `sensor_msgs/Image`，**真机的 `shm_msgs/Image6m` 必须显式给类型**，否则订阅类型不匹配。
+
+<a id="3-启动容器"></a>
+
+## 3. 启动容器
+
+```bash
+cd ubt_IL/docker
+bash run.sh build && bash run.sh start && bash run.sh check && bash run.sh bash
+```
+
+Thor 机型（L4T r38 / sm_110）由 `env.sh` 自动切到 `Dockerfile.thor`（镜像 `lerobot-tienkung:humble-thor`，基镜像为机器人自带 `ros2_ws:humble-dyn`）。**不要**用 Orin 的 `Dockerfile.arm64`（r36 基镜像 + sm_87 wheel，在 Thor 上跑不起来）。
+
+`run.sh check` 应包含：
+
+- `[OK] walker_c1 plugin: installed`
+- `[OK] walker_c1 bridge: available`
+- `[OK] walker ROS2 msgs: installed`（`mc_state_msgs` / `mc_task_msgs`，与 walker_s2 共用工作空间）
+- `[OK] torch: 2.9.0+cu130 | arch: ...,sm_110,... | kernel: ok`
+- `[INFO] RMW: rmw_cyclonedds_cpp | CYCLONEDDS_URI=file:///opt/cyclonedds_thor.xml`
+
+<a id="4-数据转换hdf5---lerobot"></a>
+
+## 4. 数据转换（HDF5 -> LeRobot）
+
+<a id="41-转换命令"></a>
+
+### 4.1 转换命令
+
+**已验证路径：真机 13D**（配置 `configs/walker_c1_real_13d_1RGB.json`，13 维 = 右臂 7 + 右手 6，头相机 640×512，30 fps）：
+
+```bash
+CONFIG=/ubt_IL/scripts/convert/walker_c1/configs/walker_c1_real_13d_1RGB.json \
+SRC_ROOT=/ubt_IL/dataset/walker_c1 \
+REPO_ID=walker_c1_real_13d_1RGB \
+FPS=30 \
+bash /ubt_IL/scripts/convert/walker_c1/convert.sh --overwrite
+```
+
+- 若数据仍在 `ubt_sim/dataset/walker_c1`，可省略 `SRC_ROOT`（脚本自动回退）或显式指定。
+- 真机录制为 30 fps，转换 `FPS` 与数据集帧率保持一致；需其他帧率用 `RESAMPLE_FPS` 重采样。
+- 26D 真机用 `walker_c1_real_26d_1RGB.json`（双臂任务）。
+- 真机手部值域已核对：右手 `thumb_swing ≤0.68 / thumb_mcp ≤0.82 / 四指 ≤0.85`，均在部署限位（0.96 / 1.04 / 1.57）内。
+
+仿真数据转换见 [仿真全流程 · 数据转换](sim-workflow.md#3-数据转换hdf5---lerobot)。
+
+<a id="42-数据可视化"></a>
+
+### 4.2 数据可视化
+
+```bash
+HF_HUB_OFFLINE=1 lerobot-dataset-viz \
+  --repo-id walker_c1_real_13d_1RGB \
+  --episode-index 0 \
+  --root /ubt_IL/dataset/walker_c1_real_13d_1RGB
+```
+
+![Walker C1 EDU 共创者 数据集预览](../assets/walker-c1数据集预览.png)
+
+> 重点检查：图像分辨率（3×512×640）、state/action 维度与顺序（13D = 右臂 7 + 右手 6）、手部量程、是否存在空 episode。
+
+<a id="5-训练与评估"></a>
+
+## 5. 训练与评估
+
+**已验证路径：真机 13D 训练**（配置 `train_config_walker_c1_real_act_13d_1RGB.json`，数据集 `walker_c1_real_13d_1RGB`，产物 `walker_c1_real_13d_act_1RGB`）：
+
+```bash
+CONFIG=/ubt_IL/scripts/train/walker_c1/configs/train_config_walker_c1_real_act_13d_1RGB.json \
+OUTPUT_DIR=/ubt_IL/model/walker_c1_real_13d_act_1RGB \
+bash /ubt_IL/scripts/train/walker_c1/train.sh
+```
+
+> `train.sh` 默认指向仿真 26D 配置，真机训练必须显式 `CONFIG=`。真机光照与仿真差异大时，配置里的 `image_transforms` 已默认开启（颜色抖动 / 随机仿射）。
+
+离线评估（真机数据集）：
+
+```bash
+/lerobot/.venv/bin/python /ubt_IL/scripts/eval/eval_policy.py \
+  --policy-path /ubt_IL/model/walker_c1_real_13d_act_1RGB/checkpoints/last/pretrained_model \
+  --dataset-path /ubt_IL/dataset/walker_c1_real_13d_1RGB \
+  --episodes 5 --inference-freq 1 --plot \
+  --plot-dir /ubt_IL/scripts/eval/output/eval_walker_c1_real_13d_act \
+  --output /ubt_IL/scripts/eval/output/eval_walker_c1_real_13d_act/results.json \
+  --device cuda
+```
+
+真机数据量少时优先看逐维曲线是否符合直觉（手部抖动、手腕过冲），不要只看总 MSE。
+
+<a id="6-部署"></a>
+
+## 6. 部署
+
+真机部署效果（现场照片）：
+
+![Walker C1 真机部署](../assets/walker-c1真机部署.jpg)
+
+```bash
+# ⓪ 切到 half_sdk（开发者模式 + 半身 SDK；幂等，已就绪时只打印状态）
+bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh half_sdk
+bash /ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh check      # 0=可部署
+
+# ① 相机自检（真机 head_stereo_left/color/raw，shm_msgs/Image6m）
+python3 /ubt_IL/scripts/deploy/walker_c1/preview_camera.py --once --save-frame /tmp/c1.jpg \
+  --msg-type image6m --topic /sensor/camera/head_stereo_left/color/raw
+
+# ② 摆到预备位（先 dry-run 看目标位姿与每段时长）
+bash /ubt_IL/scripts/deploy/walker_c1/robot_ready.sh --dry-run
+bash /ubt_IL/scripts/deploy/walker_c1/robot_ready.sh
+
+# ③ 单集 rollout（WALKER_C1_REAL=1 打开 half_sdk 门禁；不在 half_sdk 会直接拒绝）
+#    已验证路径：真机 13D 模型（ROBOT_MODEL 默认真机即 walker_c1_13d）
+WALKER_C1_REAL=1 SDK_GUARD=1 \
+POLICY_PATH=/ubt_IL/model/walker_c1_real_13d_act_1RGB/checkpoints/last/pretrained_model \
+DURATION=10 FPS=30 RESET_MODE=task \
+CAMERA_TOPIC=/sensor/camera/head_stereo_left/color/raw \
+CAMERA_MSG_TYPE=shm_msgs/Image6m \
+  bash /ubt_IL/scripts/deploy/walker_c1/rollout.sh
+
+# ④ 收臂回 home（home = 14 个臂关节全 0，手臂竖直贴身，手张开）
+bash /ubt_IL/scripts/deploy/walker_c1/robot_home.sh --dry-run
+bash /ubt_IL/scripts/deploy/walker_c1/robot_home.sh
+
+# ⑤ 常驻推理服务（可选，见 inference-server.md）
+WALKER_C1_REAL=1 \
+POLICY_PATH=/ubt_IL/model/walker_c1_real_13d_act_1RGB/checkpoints/last/pretrained_model \
+  bash /ubt_IL/scripts/deploy/walker_c1/inference_server.sh
+```
+
+- **预备位**含低头 `head_pitch=0.65 rad`（37.2°）：实测 0.50 只能看到桌面下缘，0.65 才覆盖完整桌面；`--head-pitch` 可调，`--no-head` 不动头。三段（抬肩 → 收肘 → 预备位）每段默认 ≥ 5 s（共 15 s + hold 0.5 s），日志打印每段最大位移与峰值角速度（≈0.5 rad/s）。
+- **home** 是预备位三段的严格逆序（腕/肩俯仰回零 → 展开肘 → 放下肩），实测到位 max |pos| ≈ 0.02 rad；只动臂+手，头/腰/腿不碰。
+- **推理后端**：优先 `act_async`（默认）；串行 `sync` 仅调试用，必须保持单动作平滑（默认 0.15 s，置 0 会告警）。
+- `RESET_MODE`：真机没有 `/sim/cmd_reset`，用 `task`（只摆位）或 `none`。
+- `max_relative_target`：配置 JSON 里为 `null`；需要单步限幅时设为如 `0.05` rad/步。
+- `disable_torque_on_disconnect=true`：退出时平滑回 home（2 s chunk）。
+
+真机部署效果演示：
+
+<video src="../../assets/walker-c1真机部署效果.mp4" controls muted width="100%"></video>
+
+更完整的门禁、注册表与安全预检说明见 [真机部署](deploy.md)。
+
+<a id="7-常见问题"></a>
+
+## 7. 常见问题
+
+| 现象 | 处理 |
+|---|---|
+| 机械臂完全不动 | 先 `sdk_mode.sh check`：是否 `develop + HalfSdkActive + standing`；再看 `/mc/sdk/robot_command` 有无订阅者；`ROS_DOMAIN_ID` 是否一致 |
+| 只有右手动 | 数据里左手全 0（该任务特性）；策略会复现，属正常 |
+| 第 4 关节方向/命名不符 | SDK 文档叫 `elbow_roll`、URDF 为 `elbow_pitch`；bridge 已做别名容忍，真机若反向需现场核对 |
+| 动作突变 | 设置 `max_relative_target`；降低 `FPS`；检查手部限位 |
+| 相机花屏/无图 | 仿真 `sensor_msgs/Image` encoding 应为 `rgb8`；真机是 `shm_msgs/Image6m`（UYVY）；QoS 必须 BEST_EFFORT |
+| 退出后手臂不回位 | `disable_torque_on_disconnect` 被设 false；或 bridge 已被外部 kill |
+| 推理服务连不上 | 端口 5690/5691；`inference_client.sh status` 看状态机 |
+| 话题列表空 / 收不到 `/mc/*` | RMW 不一致：真机必须 `rmw_cyclonedds_cpp` + `cyclonedds_thor.xml`（见 §1 第 3 条） |
+| `Failed to find a free participant index` | CycloneDDS 默认 participant 上限太低，用 `ParticipantIndex=none` + `MaxAutoParticipantIndex=120` |
+| 相机话题不存在/收不到图 | 真机用 `CAMERA_TOPIC=.../head_stereo_left/color/raw` + `CAMERA_MSG_TYPE=shm_msgs/Image6m`；颜色发绿/发紫说明把 UYVY 当 YUYV 解了 |
+| `torch.cuda.is_available()` 为 False | 容器缺 `NVIDIA_VISIBLE_DEVICES=all` / `NVIDIA_DRIVER_CAPABILITIES=all`（`run.sh start` 已带） |

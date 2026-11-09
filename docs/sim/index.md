@@ -1,6 +1,6 @@
 # 仿真平台
 
-`ubt_sim` 是基于 [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim)（Isaac Lab 2.2.0）构建的机器人仿真平台，目前支持天工行者 与 Walker S2 EDU 探索者 两款机型仿真。平台通过 ROS2-ZMQ 桥接对外发布仿真状态与图像，话题与真机**完全一致**——遥操作与数据采集脚本无需修改即可在仿真、真机之间切换，实现 sim-to-real 无缝迁移。主要用途：
+`ubt_sim` 是基于 [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim)（Isaac Lab 2.2.0）构建的机器人仿真平台，目前支持天工行者、天工行者 Dex、Walker S2 EDU 探索者 与 Walker C1 EDU 共创者 四款机型仿真。平台通过 ROS2-ZMQ 桥接对外发布仿真状态与图像，话题与真机**完全一致**——遥操作与数据采集脚本无需修改即可在仿真、真机之间切换，实现 sim-to-real 无缝迁移。主要用途：
 
 - **仿真数据采集**：批量生成 HDF5 训练数据，不占用真机
 - **算法验证**：模仿学习等控制算法在真机部署前的低风险测试
@@ -19,9 +19,36 @@ Isaac Sim (Py3.11)  ──ZMQ──►  ROS2-ZMQ Bridge (Py3.10)  ──ROS2─�
 
 ## 界面预览
 
-| 天工行者 | Walker S2 EDU 探索者 |
-|----------|-----------|
-| ![天工行者（无疆）仿真界面预览](../assets/tienkung-pro仿真界面预览.png) | ![Walker S2 EDU 探索者 仿真界面预览](../assets/walker-s2仿真界面预览.png) |
+<div class="grid video-grid" markdown>
+<div markdown>
+
+**天工行者**
+
+![天工行者（无疆）仿真界面预览](../assets/tienkung-pro仿真界面预览.png){.img-uniform}
+
+</div>
+<div markdown>
+
+**天工行者 Dex**
+
+![天工行者 Dex 仿真界面预览](../assets/tienkung-dex仿真界面预览.png){.img-uniform}
+
+</div>
+<div markdown>
+
+**Walker S2 EDU 探索者**
+
+![Walker S2 EDU 探索者 仿真界面预览](../assets/walker-s2仿真界面预览.png){.img-uniform}
+
+</div>
+<div markdown>
+
+**Walker C1 EDU 共创者**
+
+![Walker C1 EDU 共创者 仿真界面预览](../assets/walker-c1仿真界面预览.png){.img-uniform}
+
+</div>
+</div>
 
 ## 文档导航
 
@@ -29,6 +56,8 @@ Isaac Sim (Py3.11)  ──ZMQ──►  ROS2-ZMQ Bridge (Py3.10)  ──ROS2─�
 |--------|------|
 | [容器构建与使用](docker.md) | 各机型一致的容器构建、启动与 `run.sh` 命令 |
 | [天工行者](../tienkung/sim-setup.md) | 客厅抓苹果场景、启动仿真、批量采集、相机测试、数据预览 |
+| [天工行者 Dex](../tienkung-dex/sim-setup.md) | 因时/强脑两种灵巧手、客厅抓苹果、批量采集、数据回放 |
 | [Walker S2 EDU 探索者](../walker-s2/sim-setup.md) | 零件分拣场景、批量采集、机器人控制器工具 |
+| [Walker C1 EDU 共创者](../walker-c1/sim-setup.md) | 客厅抓放场景、在线 IK 采集、复位与数据回放 |
 
 采集完成后进入 [模仿学习平台](../il/index.md)；数据预览与回放的完整参数见 [数据可视化与回放](../common/playback.md)。

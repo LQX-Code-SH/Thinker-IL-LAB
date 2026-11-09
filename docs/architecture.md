@@ -17,7 +17,7 @@
             │               │④仿真部署              │              │⑤真机部署
             │①数据采集       ▼ （ROS桥接）           │②真机采集      │（ROS桥接）
    ┌────────┴────────────────┐        ┌─────────────┴──────────────▼──────┐
-   │      ubt_sim 仿真平台    │        │    真机（天工行者 / Walker S2 EDU 探索者）     │
+   │      ubt_sim 仿真平台    │        │ 真机（天工行者 / Dex / Walker S2 / C1）│
    │     （Isaac Sim 容器）   │        │     ROS_DOMAIN_ID=0 直连网段        │
    └─────────────────────────┘        └───────────────────────────────────┘
 ```
@@ -36,7 +36,7 @@
 Isaac Sim (Py3.11)  ──ZMQ──►  ROS2-ZMQ Bridge (Py3.10)  ──ROS2──►  遥操作/采集脚本
 ```
 
-- **仿真** `/isaac-sim/python.sh`：加载 Gym 任务（天工行者 客厅 / Walker S2 EDU 探索者 仓库），图像直发 ZMQ 端口。
+- **仿真** `/isaac-sim/python.sh`：加载 Gym 任务（天工行者 客厅 / 天工行者 Dex 抓苹果 / Walker S2 EDU 探索者 仓库 / Walker C1 客厅抓放），图像直发 ZMQ 端口。
 - **桥接** `/usr/bin/python3`：ZMQ↔ROS2 双向转发，`start_sim.sh` 自动拉起。
 - **采集** `/usr/bin/python3`：发布指令、录制 15Hz HDF5。
 
@@ -44,18 +44,18 @@ Isaac Sim (Py3.11)  ──ZMQ──►  ROS2-ZMQ Bridge (Py3.10)  ──ROS2─�
 
 ## ubt_IL 模仿学习平台架构
 
-通信链路（以天工为例）：
+通信链路（以天工为例，各机型端口独立）：
 
 ```
 LeRobot (Python 3.12 venv)
-   │  ZMQ 5559/5560
+   │  ZMQ 5559/5560（Walker S2: 5561/5562；Walker C1: 5661/5662）
    ▼
 Bridge2 (系统 Python 3.10 + ROS2)
    │  ROS2 DDS
    ▼
 机器人 / 仿真器
    ▲
-   └── 相机推流走 ZMQ 5558（ImageServer）
+   └── 相机推流走 ZMQ 5558（ImageServer）/ 5563（Walker S2 relay）/ 5663（Walker C1 relay）
 ```
 
 容器内双 Python 环境：ROS 相关用 `/usr/bin/python3`，LeRobot 相关用 `/lerobot/.venv/bin/python`。
@@ -64,19 +64,25 @@ Bridge2 (系统 Python 3.10 + ROS2)
 
 | 端口 | 模块 | 用途 |
 |------|------|------|
-| 5555 | 天工仿真桥接 | 控制指令（bridge PUB） |
-| 5556 | 天工仿真桥接 | 机器人状态（bridge SUB） |
+| 5555 | 天工 / 天工 Dex 仿真桥接 | 控制指令（bridge PUB） |
+| 5556 | 天工 / 天工 Dex 仿真桥接 | 机器人状态（bridge SUB） |
 | 5557 | 天工仿真桥接 | 相机原图像（C++ 桥接处理） |
-| 5558 | 仿真 / ImageServer | JPEG 相机直连（仿真发布；真机由 `image_server.py` 提供） |
-| 5559 / 5560 | ubt_IL ↔ Bridge2 | 动作指令 / 机器人状态 |
-| 5655 | Walker S2 EDU 探索者 仿真桥接 | 控制指令（bridge PUB） |
-| 5656 | Walker S2 EDU 探索者 仿真桥接 | 机器人状态（bridge SUB） |
-| 5657 | Walker S2 EDU 探索者 仿真 | 四路相机 RGB（采集直连） |
-| 5658 | Walker S2 EDU 探索者 仿真 | JPEG 图像 |
-| 5561 / 5562 | Walker S2 EDU 探索者 真机 Bridge2 | 动作指令 / 机器人状态 |
-| 5563 | Walker S2 EDU 探索者 真机 CameraRelay（独立进程） | 图像通道（ROS2 DDS `shm_msgs` 相机话题 -> ZMQ） |
-| 5570 | Walker S2 EDU 探索者 推理服务器 | ZMQ REP 指令端口 |
-| 5571 | Walker S2 EDU 探索者 推理服务器 | ZMQ PUB 状态端口 |
+| 5558 | 仿真 / ImageServer | JPEG 相机直连（仿真发布；天工 Dex 真机由 Bridge2 `--enable-image` 转码） |
+| 5559 / 5560 | ubt_IL ↔ Bridge2（天工 / 天工 Dex） | 动作指令 / 机器人状态 |
+| 5655 | Walker S2 / Walker C1 仿真桥接 | 控制指令（bridge PUB） |
+| 5656 | Walker S2 / Walker C1 仿真桥接 | 机器人状态（bridge SUB） |
+| 5657 | Walker S2 / Walker C1 仿真 | 相机 RGB（采集直连） |
+| 5658 | Walker S2 / Walker C1 仿真 | JPEG 图像 |
+| 5561 / 5562 | Walker S2 真机 Bridge2 | 动作指令 / 机器人状态 |
+| 5563 | Walker S2 真机 CameraRelay（独立进程） | 图像通道（ROS2 DDS `shm_msgs` 相机话题 -> ZMQ） |
+| 5570 / 5571 | Walker S2 / 天工 Dex 推理服务器 | ZMQ REP 指令 / PUB 状态端口 |
+| 5661 / 5662 | Walker C1 真机 Bridge2 | 动作指令 / 机器人状态 |
+| 5663 | Walker C1 CameraRelay（独立进程） | 图像通道（ROS2 DDS 相机话题 -> ZMQ JPEG） |
+| 5690 / 5691 | Walker C1 推理服务器 | ZMQ REP 指令 / PUB 状态端口 |
+| 5755 / 5756 | 天工 Dex 仿真桥接 | 控制指令 / 机器人状态 |
+| 5757 / 5758 | 天工 Dex 仿真 | 相机原图（RGB + 深度）/ JPEG 直连 |
+
+> Walker S2 与 Walker C1 的仿真桥接同为 5655-5658，**同一时间只能运行一个机型**；两者 `ubt_IL` 侧插件端口不同（S2 5561-5563、C1 5661-5663），可分别与各自的仿真桥接同时运行。
 
 ## 项目结构
 
@@ -105,5 +111,7 @@ Thinker-IL-LAB/
     │   ├── deploy/             # 部署脚本（reset / rollout / replay / 推理服务器）
     │   └── eval/               # 离线评估
     ├── tienkung/               # 天工 lerobot 插件
+    ├── tienkung_dex/           # 天工行者 Dex 插件 + ROS2 消息 + Bridge2
+    ├── walker_c1/              # Walker C1 EDU 共创者 插件 + Bridge2
     └── walker/                 # Walker S2 EDU 探索者 插件 + ROS2 SDK/messages + Bridge2
 ```

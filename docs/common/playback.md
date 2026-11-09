@@ -1,6 +1,6 @@
 # 数据可视化与回放（Playback）
 
-读取 `ubt_sim/dataset/{walker_s2,tienkung_pro}/<时间戳>/trajectory.hdf5`，支持两种模式：
+读取 `ubt_sim/dataset/{walker_s2,tienkung_pro,walker_c1,tienkung_dex}/<时间戳>/trajectory.hdf5`，支持两种模式：
 
 | 模式 | 作用 | 依赖 |
 | --- | --- | --- |
@@ -11,8 +11,10 @@
 
 - `playback_walker_s2.py` - Walker S2 EDU 探索者（17 身体关节 + 7+7 V4 手 + 2 夹爪 + 4 相机）
 - `playback_tienkung_pro.py` - 天工行者（7+7 臂 + 6+6 手 + 1 相机含深度）
+- `playback_walker_c1.py` - Walker C1 EDU 共创者（31 身体关节 + 6+6 手 + 1 相机）
+- `playback_tienkung_dex.py` - 天工行者 Dex（右臂 7 + 右手 6/13 + 1 相机含深度）
 
-架构：共用核心 `playback/common.py`（HDF5 加载、节奏、CLI、Rerun 预览）+ 机器人适配层 `playback/robots/`（schema + ROS2 发布器 + 首帧对齐），两个薄入口脚本在 `tools/` 层。
+架构：共用核心 `playback/common.py`（HDF5 加载、节奏、CLI、Rerun 预览）+ 机器人适配层 `playback/robots/`（schema + ROS2 发布器 + 首帧对齐），各机型薄入口脚本在 `tools/` 层。
 
 ## 环境准备（容器内）
 
@@ -49,7 +51,7 @@ python3 teleoperation/tools/playback_walker_s2.py \
     --episode dataset/walker_s2/1786681892 --mode preview
 ```
 
-- 天工行者 同理，脚本换成 `playback_tienkung_pro.py`。
+- 其它机型同理，脚本换成 `playback_tienkung_pro.py` / `playback_walker_c1.py` / `playback_tienkung_dex.py`。
 - 启动 web viewer 后脚本会打印**完整 URL**（形如 `http://localhost:9090/?url=rerun%2Bhttp%3A%2F%2F127.0.0.1%3A9876%2Fproxy`），照它打开即可。⚠️ 末尾 `?url=` 参数是数据源地址，**不能省**。远程浏览器需同时转发 9090 与 9876 两个端口（`ssh -L 9090:localhost:9090 -L 9876:localhost:9876`）。
 - `--episode` 缺省 = `dataset/<robot>/` 下最新（时间戳目录名最大）episode；`--max-frames N` 只记录前 N 帧。
 - Rerun 面板：`cameras/color/<相机名>`（图像）、`cameras/depth/...`（天工深度）、`action/<组>/<通道名>`（指令曲线）、`observation|puppet/...`（观测曲线），均随 `frame_index` / `timestamp` 两条时间轴同步。
@@ -62,6 +64,8 @@ python3 teleoperation/tools/playback_walker_s2.py \
 
 - **Walker S2 EDU 探索者**：17 关节 `RobotCommand(MODE_POSITION)` @ `/mc/sdk/robot_command` + 双手 `JointCommand(mode=5)` + 双夹爪 `GripCmd`
 - **天工行者**：`CmdSetMotorPosition`（14 电机）@ `/arm/cmd_pos` + 双手 `JointState`
+- **Walker C1 EDU 共创者**：`RobotCommand(MODE_POSITION)` @ `/mc/sdk/robot_command` + 双手 `JointCommand(mode=5)`
+- **天工行者 Dex**：`ArmCtrl` @ `/arm/cmd`（+ `/head/cmd`、`/waist/cmd`）+ 右手 `angle_set` / `set_motor_multi`（按手型）
 
 仿真（bridge 转发）与真机话题完全一致，同一脚本通吃，仅 `ROS_DOMAIN_ID` 不同。
 

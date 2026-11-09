@@ -9,7 +9,7 @@ HDF5 采集数据 ─► 转换为 LeRobot v3 ─► 可视化检查 ─► 训�
 数据来源：[仿真平台](../sim/index.md) 仿真采集，或真机遥操作采集。主要用途：
 
 - **数据转换**：将仿真 / 真机采集的 HDF5 数据统一转为 LeRobot v3 标准格式
-- **策略训练**：提供 ACT（天工行者 / Walker S2 EDU 探索者）与 Pi0.5 VLA（Walker S2 EDU 探索者）训练配方
+- **策略训练**：提供 ACT（天工行者 / 天工行者 Dex / Walker S2 EDU 探索者 / Walker C1 EDU 共创者）与 Pi0.5 VLA（Walker S2 EDU 探索者）训练配方
 - **离线评估**：训练后先做 MSE 评估快速筛除欠拟合模型，降低真机部署风险
 
 ## 平台架构
@@ -104,8 +104,10 @@ HDF5 采集数据 ─► 转换为 LeRobot v3 ─► 可视化检查 ─► 训�
 |--------|------|
 | [容器构建与使用](docker.md) | 各机型一致的容器构建、架构自动选择与容器内 Python 环境 |
 | [天工行者](../tienkung/convert-train.md) | 13D/26D 转换配置、ACT 训练、离线评估 |
+| [天工行者 Dex](../tienkung-dex/convert-train.md) | 20D/13D 转换配置（因时/强脑）、ACT 训练、离线评估 |
 | [Walker S2 EDU 探索者](../walker-s2/convert-train.md) | 10D/33D 转换配置、ACT / Pi0.5 训练、离线评估 |
+| [Walker C1 EDU 共创者](../walker-c1/convert-train.md) | 26D/13D 转换配置、ACT 训练、离线评估 |
 
 通用参考：[数据转换详解](../common/data-conversion.md) · [HDF5 数据布局](../common/hdf5-layouts.md) · [HF 数据/模型管理](../common/hf-manage.md)
 
-评估通过后进入对应机型真机全流程部署：[天工行者](../tienkung/real-workflow.md) / [Walker S2 EDU 探索者](../walker-s2/real-workflow.md)。
+评估通过后进入对应机型真机全流程部署：[天工行者](../tienkung/real-workflow.md) / [天工行者 Dex](../tienkung-dex/real-workflow.md) / [Walker S2 EDU 探索者](../walker-s2/real-workflow.md) / [Walker C1 EDU 共创者](../walker-c1/real-workflow.md)。

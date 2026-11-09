@@ -7,6 +7,9 @@ repo_name: LQX-Code-SH/Thinker-IL-LAB
 
 docs_dir: docs
 
+hooks:
+  - hooks/fix_i18n_assets.py
+
 extra_css:
   - stylesheets/extra.css
 
@@ -48,18 +51,28 @@ nav:
       - 平台概览: sim/index.md
       - 容器构建与使用: sim/docker.md
       - 天工行者: tienkung/sim-setup.md
+      - 天工行者 Dex: tienkung-dex/sim-setup.md
       - Walker S2 EDU 探索者: walker-s2/sim-setup.md
+      - Walker C1 EDU 共创者: walker-c1/sim-setup.md
   - 模仿学习平台:
       - 平台概览: il/index.md
       - 容器构建与使用: il/docker.md
       - 天工行者: tienkung/convert-train.md
+      - 天工行者 Dex: tienkung-dex/convert-train.md
       - Walker S2 EDU 探索者: walker-s2/convert-train.md
+      - Walker C1 EDU 共创者: walker-c1/convert-train.md
   - 天工行者:
       - 机型概览: tienkung/index.md
       - 仿真全流程: tienkung/sim-workflow.md
       - 真机全流程: tienkung/real-workflow.md
       - 参考文档:
           - ARM 板端部署: tienkung/arm-deploy.md
+  - 天工行者 Dex:
+      - 机型概览: tienkung-dex/index.md
+      - 仿真全流程: tienkung-dex/sim-workflow.md
+      - 真机全流程: tienkung-dex/real-workflow.md
+      - 参考文档:
+          - 机器人本体部署: tienkung-dex/arm-deploy.md
   - Walker S2 EDU 探索者:
       - 机型概览: walker-s2/index.md
       - 仿真全流程: walker-s2/sim-workflow.md
@@ -70,6 +83,14 @@ nav:
           - 推理服务器: walker-s2/inference-server.md
           - 腕部相机: walker-s2/wrist-camera.md
           - SDK 二次开发文档: walker-s2/cc-api.md
+  - Walker C1 EDU 共创者:
+      - 机型概览: walker-c1/index.md
+      - 仿真全流程: walker-c1/sim-workflow.md
+      - 真机全流程: walker-c1/real-workflow.md
+      - 参考文档:
+          - 真机部署: walker-c1/deploy.md
+          - 推理服务器: walker-c1/inference-server.md
+          - 技术架构: walker-c1/architecture.md
   - 通用参考:
     - 容器环境: common/docker.md
     - 数据转换详解: common/data-conversion.md
@@ -109,3 +130,47 @@ plugins:
       lang:
         - zh
         - en
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: zh
+          default: true
+          name: 简体中文
+          build: true
+        - locale: en
+          name: English
+          link: /en/
+          build: true
+          nav_translations:
+            首页: Home
+            快速开始: Getting Started
+            仿真平台: Simulation Platform
+            平台概览: Overview
+            容器构建与使用: Container Setup
+            天工行者: Walker TienKung Pro
+            天工行者 Dex: Walker TienKung Dex
+            Walker S2 EDU 探索者: Walker S2 EDU
+            Walker C1 EDU 共创者: Walker C1 EDU
+            模仿学习平台: Imitation Learning Platform
+            机型概览: Robot Overview
+            仿真全流程: Simulation Workflow
+            真机全流程: Real-Robot Workflow
+            参考文档: Reference
+            ARM 板端部署: ARM Board Deployment
+            机器人本体部署: On-Robot Deployment
+            应用案例: Application Case
+            真机部署: Real-Robot Deployment
+            推理服务器: Inference Server
+            腕部相机: Wrist Camera
+            SDK 二次开发文档: SDK Development Guide
+            技术架构: Architecture
+            通用参考: Reference
+            容器环境: Container Environment
+            数据转换详解: Data Conversion
+            HDF5 数据布局: HDF5 Layouts
+            数据可视化与回放: Playback
+            HF 数据/模型管理: HF Data & Models
+            架构总览: Architecture Overview

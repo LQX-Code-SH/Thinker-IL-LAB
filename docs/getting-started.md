@@ -47,7 +47,7 @@ git submodule update --init
 
 &nbsp;
 
->   我们提供两种方式帮您快速了解该项目，您可以选择先了解我们的平台功能（`ubt_sim` 仿真采集 / `ubt_IL` 模仿学习），也可以直接进入对应机型的端到端全流程（天工行者 / Walker S2 EDU 探索者）在快速复现过程中了解我们的项目。
+>   我们提供两种方式帮您快速了解该项目，您可以选择先了解我们的平台功能（`ubt_sim` 仿真采集 / `ubt_IL` 模仿学习），也可以直接进入对应机型的端到端全流程（天工行者 / 天工行者 Dex / Walker S2 EDU 探索者 / Walker C1 EDU 共创者）在快速复现过程中了解我们的项目。
 
 ## 按平台选择
 
@@ -65,7 +65,9 @@ git submodule update --init
 | 机型 | 机型概览 | 端到端全流程 |
 |------|---------|--------------|
 | 天工行者 | [天工行者 概览](tienkung/index.md) | [天工仿真全流程](tienkung/sim-workflow.md) / [天工真机全流程](tienkung/real-workflow.md) |
+| 天工行者 Dex | [天工行者 Dex 概览](tienkung-dex/index.md) | [Dex 仿真全流程](tienkung-dex/sim-workflow.md) / [Dex 真机全流程](tienkung-dex/real-workflow.md) |
 | Walker S2 EDU 探索者 | [Walker S2 EDU 探索者 概览](walker-s2/index.md) | [Walker S2 EDU 探索者 仿真全流程](walker-s2/sim-workflow.md) / [Walker S2 EDU 探索者 真机全流程](walker-s2/real-workflow.md) |
+| Walker C1 EDU 共创者 | [Walker C1 EDU 共创者 概览](walker-c1/index.md) | [Walker C1 仿真全流程](walker-c1/sim-workflow.md) / [Walker C1 真机全流程](walker-c1/real-workflow.md) |
 
 ## 可选：下载测试数据与模型
 

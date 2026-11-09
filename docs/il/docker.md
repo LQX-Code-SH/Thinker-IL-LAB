@@ -20,7 +20,8 @@ bash run.sh bash       # 进入容器 shell
 | 宿主机架构 | Dockerfile | 说明 |
 |------------|-----------|------|
 | `x86_64` / `amd64` | `Dockerfile` | x86 工作站训练/仿真部署 |
-| `aarch64` / `arm64` | `Dockerfile.arm64` | Jetson 真机 Vision 板部署（arm 镜像须在 Jetson 上构建） |
+| `aarch64` / `arm64`（Orin） | `Dockerfile.arm64` | Jetson 真机 Vision 板部署（arm 镜像须在 Jetson 上构建） |
+| `aarch64` / `arm64`（Thor） | `Dockerfile.thor` | Walker C1 本体（L4T r38 / sm_110）；`run.sh` 自动识别切换 |
 
 
 ## 常用 run.sh 命令
@@ -40,8 +41,8 @@ rm       停止并删除容器
 - 容器内双 Python 环境：ROS 相关使用 `/usr/bin/python3`，LeRobot 相关脚本使用 `/lerobot/.venv/bin/python`（默认）。
 - x86 镜像基于 `huggingface/lerobot-gpu:latest`，自带 `/lerobot/.venv`；ROS 相关使用 `/usr/bin/python3`，LeRobot 相关脚本使用 `/lerobot/.venv/bin/python`（默认）。
 - 容器以 `--network=host --shm-size=16g` 运行，并转发 X11 用于 GUI。
-- 通信链路：LeRobot（Python 3.12）-ZMQ `5559`/`5560`-> Bridge2（系统 Python 3.10）-ROS2 DDS-> 机器人/仿真器；相机推流走 ZMQ `5558`。
-- walker真机部署时容器在**机器人 Vision 板（Jetson）**上构建，构建脚本自动识别主板类型构建 arm 容器。
+- 通信链路：LeRobot（Python 3.12）-ZMQ-> Bridge2（系统 Python 3.10）-ROS2 DDS-> 机器人/仿真器。各机型端口独立：天工/天工 Dex `5559`/`5560` + 相机 `5558`、Walker S2 `5561`/`5562`/`5563`、Walker C1 `5661`/`5662`/`5663`。
+- walker真机部署时容器在**机器人 Vision 板（Jetson / Thor）**上构建，构建脚本自动识别主板类型构建 arm 容器（Thor 自动切 `Dockerfile.thor`）。
 
 > 镜像与 `entrypoint.sh` 的完整说明（Dockerfile 细节、环境变量覆盖、FastDDS 共享内存、Jetson torch wheel 等）见 [容器环境（ubt_IL/docker）](../common/docker.md)。
 
@@ -49,5 +50,7 @@ rm       停止并删除容器
 
 - [平台概览](index.md) - 返回平台介绍页
 - [天工行者](../tienkung/convert-train.md) - 天工机器人训练流程 
+- [天工行者 Dex](../tienkung-dex/convert-train.md) - 单臂灵巧手训练流程
 - [Walker S2 EDU 探索者](../walker-s2/convert-train.md) - Walker S2 EDU 探索者 机器人训练流程
+- [Walker C1 EDU 共创者](../walker-c1/convert-train.md) - Walker C1 EDU 共创者 机器人训练流程
 
