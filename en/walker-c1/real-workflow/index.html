@@ -1,0 +1,2978 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Thinker 机器人模仿学习工具链 - 基于 Isaac Sim 与 LeRobot 的完整模仿学习解决方案">
+      
+      
+        <meta name="author" content="Thinker Robotics">
+      
+      
+        <link rel="canonical" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/real-workflow/">
+      
+      
+        <link rel="prev" href="../sim-workflow/">
+      
+      
+        <link rel="next" href="../deploy/">
+      
+      
+        
+          <link rel="alternate" href="../../../walker-c1/real-workflow/" hreflang="zh">
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+      
+      
+      <link rel="icon" href="../../../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Real-Robot Workflow - Thinker-IL-LAB</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#walker-c1-edu-real-robot-workflow-collect---convert---train---evaluate---deploy" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../" title="Thinker-IL-LAB" class="md-header__button md-logo" aria-label="Thinker-IL-LAB" data-md-component="logo">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Thinker-IL-LAB
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Real-Robot Workflow
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="切换至暗色模式"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="切换至暗色模式" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="切换至亮色模式"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="切换至亮色模式" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../walker-c1/real-workflow/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/LQX-Code-SH/Thinker-IL-LAB" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    LQX-Code-SH/Thinker-IL-LAB
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../sim/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Simulation Platform
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../il/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Imitation Learning Platform
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tienkung/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Walker TienKung Pro
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tienkung-dex/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Walker TienKung Dex
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../walker-s2/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Walker S2 EDU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Walker C1 EDU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../common/docker/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture Overview
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="Thinker-IL-LAB" class="md-nav__button md-logo" aria-label="Thinker-IL-LAB" data-md-component="logo">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+    Thinker-IL-LAB
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/LQX-Code-SH/Thinker-IL-LAB" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    LQX-Code-SH/Thinker-IL-LAB
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../sim/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation Platform
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simulation Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sim/docker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tienkung/sim-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker TienKung Pro
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tienkung-dex/sim-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker TienKung Dex
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../walker-s2/sim-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker S2 EDU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sim-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker C1 EDU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../il/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Imitation Learning Platform
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Imitation Learning Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../il/docker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tienkung/convert-train/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker TienKung Pro
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tienkung-dex/convert-train/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker TienKung Dex
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../walker-s2/convert-train/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker S2 EDU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../convert-train/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker C1 EDU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tienkung/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker TienKung Pro
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Walker TienKung Pro
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tienkung/sim-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tienkung/real-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Robot Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tienkung/arm-deploy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ARM Board Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tienkung-dex/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker TienKung Dex
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Walker TienKung Dex
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tienkung-dex/sim-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tienkung-dex/real-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Robot Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tienkung-dex/arm-deploy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    On-Robot Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../walker-s2/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker S2 EDU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Walker S2 EDU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../walker-s2/sim-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../walker-s2/real-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Robot Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../walker-s2/application-case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Application Case
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_5" id="__nav_7_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../walker-s2/deploy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Robot Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../walker-s2/inference-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inference Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../walker-s2/wrist-camera/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wrist Camera
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../walker-s2/cc-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Development Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Walker C1 EDU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Walker C1 EDU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sim-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Robot Workflow
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Robot Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+  
+
+<nav class="md-nav md-nav--secondary" aria-label="本页内容">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      本页内容
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0-workflow-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0. Workflow overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-real-robot-prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Real-robot prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-real-robot-collection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Real-robot collection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-start-the-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Start the container
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-data-conversion-hdf5---lerobot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Data conversion (HDF5 -&gt; LeRobot)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Data conversion (HDF5 -&gt; LeRobot)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-conversion-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Conversion command
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-data-visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Data visualization
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-training-and-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Training and evaluation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Deployment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-faq" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. FAQ
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deploy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Robot Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inference-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inference Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../common/docker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Environment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../common/data-conversion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Conversion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../common/hdf5-layouts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HDF5 Layouts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../common/playback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../common/hf-manage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HF Data & Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../../" class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Walker C1 EDU
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="walker-c1-edu-real-robot-workflow-collect---convert---train---evaluate---deploy">Walker C1 EDU Real-Robot Workflow: Collect -&gt; Convert -&gt; Train -&gt; Evaluate -&gt; Deploy<a class="headerlink" href="#walker-c1-edu-real-robot-workflow-collect---convert---train---evaluate---deploy" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Robot: <strong>Walker C1 EDU</strong>
+Data source: real-robot teleoperation/scripted collection (Thinker Studio or <code>ubt_sim/teleoperation/control/walker_c1</code>)
+Code: <code>ubt_IL/scripts/{convert,train,eval,deploy}/walker_c1/</code></p>
+</blockquote>
+<p>Simulation and the real robot share the same ROS 2 interfaces (<code>mc_task_msgs</code> / <code>mc_state_msgs</code> / <code>sensor_msgs/Image</code>) and are isolated by <code>ROS_DOMAIN_ID</code>. The policy deployment path sends only 26 dimensions (both arms + both hands) or 13 dimensions (right arm + right hand); the head/waist/legs hold their current positions.</p>
+<blockquote>
+<p>✅ <strong>Verified on hardware (Nov 2026)</strong>: the full loop works with <strong>13D = right arm 7 + right hand 6</strong> (<code>ROBOT_MODEL=walker_c1_13d</code>, 30 fps, head camera <code>head_stereo_left/color/raw</code> 640×512): dataset <code>walker_c1_real_13d_1RGB</code> (34 episodes / 11,406 frames) -&gt; model <code>walker_c1_real_13d_act_1RGB</code> -&gt; real-robot deployment.</p>
+</blockquote>
+<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Real robot ROS 2 ──► ubt_sim/teleoperation/control/walker_c1 (collection) ──► HDF5
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                                                                             │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>Container: convert.sh → train.sh → eval_policy.py → robot_ready.sh + rollout.sh
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                                                                             │
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>LeRobot (3.12) ──ZMQ 5661/5662──► ros2_walker_c1_bridge.py (3.10) ──► real robot
+</code></pre></div>
+<h2 id="contents">Contents<a class="headerlink" href="#contents" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="#0-workflow-overview">0. Workflow overview</a></li>
+<li><a href="#1-real-robot-prerequisites">1. Real-robot prerequisites</a></li>
+<li><a href="#2-real-robot-collection">2. Real-robot collection</a></li>
+<li><a href="#3-start-the-container">3. Start the container</a></li>
+<li><a href="#4-data-conversion">4. Data conversion (HDF5 -&gt; LeRobot)</a></li>
+<li><a href="#41-conversion-command">4.1 Conversion command</a></li>
+<li><a href="#42-data-visualization">4.2 Data visualization</a></li>
+<li><a href="#5-training-and-evaluation">5. Training and evaluation</a></li>
+<li><a href="#6-deployment">6. Deployment</a></li>
+<li><a href="#7-faq">7. FAQ</a></li>
+</ul>
+<p><a id="0-workflow-overview"></a></p>
+<h2 id="0-workflow-overview">0. Workflow overview<a class="headerlink" href="#0-workflow-overview" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Location</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Switch SDK control</td>
+<td>Operator machine / container</td>
+<td><code>bash scripts/deploy/walker_c1/sdk_mode.sh half_sdk</code></td>
+</tr>
+<tr>
+<td>Real-robot collection</td>
+<td>Operator machine / ubt_sim container</td>
+<td><code>teleoperation/control/walker_c1/save_data.sh</code></td>
+</tr>
+<tr>
+<td>Container</td>
+<td>Operator machine</td>
+<td><code>cd ubt_IL/docker &amp;&amp; bash run.sh start &amp;&amp; bash run.sh bash</code></td>
+</tr>
+<tr>
+<td>Conversion</td>
+<td>Container</td>
+<td><code>scripts/convert/walker_c1/convert.sh</code></td>
+</tr>
+<tr>
+<td>Training</td>
+<td>Container (GPU)</td>
+<td><code>scripts/train/walker_c1/train.sh</code></td>
+</tr>
+<tr>
+<td>Evaluation</td>
+<td>Container</td>
+<td><code>scripts/eval/eval_policy.py</code></td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td>Container (robot side)</td>
+<td><code>robot_ready.sh</code> + <code>rollout.sh</code></td>
+</tr>
+</tbody>
+</table>
+<p><a id="1-real-robot-prerequisites"></a></p>
+<h2 id="1-real-robot-prerequisites">1. Real-robot prerequisites<a class="headerlink" href="#1-real-robot-prerequisites" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Switch to SDK control (half_sdk required)</strong>: C1 arms accept ROS 2 joint commands only in <code>workMode=develop</code> + <code>developModeState=HalfSdkActive</code> (<code>normal</code> ignores commands; <code>full_sdk</code> hands over whole-body balance and is not used for VLA). The deployment script performs the full sequence (enter developer mode → legs STAND → half_sdk) over SSH in the robot's developer container (<code>ubt@192.168.11.3:2222</code>):</li>
+</ol>
+<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh<span class="w"> </span>status<span class="w">     </span><span class="c1"># work mode / motion permission / legs / e-stop</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh<span class="w"> </span>check<span class="w">      </span><span class="c1"># validate only (0 = deployable)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh<span class="w"> </span>half_sdk<span class="w">   </span><span class="c1"># switch</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh<span class="w"> </span>normal<span class="w">     </span><span class="c1"># restore normal</span>
+</code></pre></div>
+<p><code>rollout.sh</code> / <code>robot_ready.sh</code> / <code>robot_home.sh</code> / <code>inference_server.sh</code> include the guard and refuse to run outside half_sdk (on hardware set <code>WALKER_C1_REAL=1</code> or <code>SDK_GUARD=1</code>; simulation uses the default <code>SDK_GUARD=auto</code> and skips the check).</p>
+<ol>
+<li>
+<p><strong>ROS domain</strong>: the real robot defaults to <code>ROS_DOMAIN_ID=0</code>; simulation and real deployment must use the same value. Set both to <code>146</code> when isolation is needed.</p>
+</li>
+<li>
+<p><strong>DDS</strong>: <strong>Thor (C1 onboard compute) must use the same RMW as the main control stack</strong> — the robot stack uses <code>rmw_cyclonedds_cpp</code> + <code>CYCLONEDDS_URI</code> (bound to <code>mgbe2_0</code>, local <code>192.168.11.3</code>). <code>docker/run.sh</code> injects the same environment and mounts <code>docker/cyclonedds_thor.xml</code> (<code>CYCLONEDDS_URI=file:///opt/cyclonedds_thor.xml</code>), so no manual setup is needed. Two field-tested caveats when editing the config:</p>
+</li>
+<li>
+<p><code>&lt;Interfaces&gt;</code> must be inside <code>&lt;General&gt;</code> (Humble's CycloneDDS 0.10+). Under <code>&lt;Domain&gt;</code> it reports <code>unknown element</code> and falls back to the default NIC. List only <code>mgbe2_0</code>, not <code>lo</code> (not multicast).</p>
+</li>
+<li>Domain 0 has many participants; the default limit raises <code>Failed to find a free participant index for domain 0</code>. The config sets <code>ParticipantIndex=none</code> and <code>MaxAutoParticipantIndex=120</code>.</li>
+</ol>
+<p>For FastDDS (simulation/remote machines), set <code>RMW_IMPLEMENTATION=rmw_fastrtps_cpp</code> and add the local NIC IP (Thor <code>192.168.11.3</code>, Walker peer <code>192.168.11.99</code>) to the <code>docker/fastdds_no_shm.xml</code> whitelist.</p>
+<ol>
+<li><strong>State self-check</strong> (inside the container, after <code>run.sh bash</code>):</li>
+</ol>
+<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">source</span><span class="w"> </span>/opt/ros/humble/setup.bash
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">source</span><span class="w"> </span>/ubt_IL/walker_s2/walker_sdk_ros2/install/setup.bash
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ROS_DOMAIN_ID</span><span class="o">=</span><span class="m">0</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>ros2<span class="w"> </span>topic<span class="w"> </span>hz<span class="w"> </span>/mc/sdk/robot_state<span class="w">                                 </span><span class="c1"># measured ≈ 460-490 Hz on Thor</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>ros2<span class="w"> </span>topic<span class="w"> </span>hz<span class="w"> </span>/sensor/camera/head_stereo_left/color/raw<span class="w">           </span><span class="c1"># shm_msgs/Image6m</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>ros2<span class="w"> </span>topic<span class="w"> </span>info<span class="w"> </span>-v<span class="w"> </span>/mc/sdk/robot_command<span class="w">                          </span><span class="c1"># should have subscribers (SDK control active)</span>
+</code></pre></div>
+<p>The real-robot <code>RobotState</code> contains only 19 joints (14 arm + 2 head + 3 waist, no legs). The bridge selects the 14 arm joints by name, so it is unaffected; head/waist/legs are not part of the policy and are not commanded.</p>
+<ol>
+<li><strong>Safety</strong>: place the robot in a safe position; use <code>DURATION=10</code> for the first short validation; keep the emergency stop within reach.</li>
+</ol>
+<p><a id="2-real-robot-collection"></a></p>
+<h2 id="2-real-robot-collection">2. Real-robot collection<a class="headerlink" href="#2-real-robot-collection" title="Permanent link">&para;</a></h2>
+<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Inside the ubt_sim container (same domain as the robot; do not reuse simulation processes)</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>bash<span class="w"> </span>teleoperation/control/walker_c1/save_data.sh
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>bash<span class="w"> </span>teleoperation/control/walker_c1/save_data.sh<span class="w"> </span>--batch<span class="w"> </span><span class="m">20</span>
+</code></pre></div>
+<p>The output matches simulation: <code>ubt_sim/dataset/walker_c1/&lt;epoch&gt;/trajectory.hdf5</code> (15 Hz, 31 body joints + 6+6 hand channels, one RGB stream). You can also use the <a href="https://thinkercosmos.ubtrobot.com/#/studio">Thinker Studio</a> teleoperation platform and export a LeRobot v3 dataset directly.</p>
+<p>The collection side needs the real camera topics — <strong>C1 hardware does not publish <code>/sensor/camera/head/color/raw</code></strong>; it provides:</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/sensor/camera/head_stereo_left/color/raw</code></td>
+<td><code>shm_msgs/Image6m</code></td>
+<td><strong>Policy input</strong>: 1920×1536, yuv422 (UYVY), step=3840, fixed 6 MB</td>
+</tr>
+<tr>
+<td>~~<code>/sensor/camera/head_stereo_left/color/compressed</code>~~</td>
+<td><code>sensor_msgs/CompressedImage</code></td>
+<td>No longer published after the onboard vision stack restart</td>
+</tr>
+<tr>
+<td><code>head_stereo_right</code> / <code>head_fisheye_left,right</code> / <code>mono_chin</code> / <code>wrist_left,right</code></td>
+<td>Same family</td>
+<td>Other views</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Aspect ratio: native 1920×1536 (5:4). The collection side stores JPEG at half size (960×768, still 5:4). Training and deployment consistently use <strong>640×512 (5:4, exactly 1/3 of 1920×1536)</strong> with no cropping and no aspect-ratio change.</p>
+</blockquote>
+<p>Use <code>WALKER_C1_CAMERA_TOPIC</code> + <code>WALKER_C1_CAMERA_MSG_TYPE</code> for collection/deployment (the deployment script uses <code>CAMERA_TOPIC</code> / <code>CAMERA_MSG_TYPE</code>). Topics ending in <code>/compressed</code> are inferred as compressed images; everything else defaults to <code>sensor_msgs/Image</code>. <strong>The real <code>shm_msgs/Image6m</code> type must be specified explicitly</strong>, otherwise the subscription type does not match.</p>
+<p><a id="3-start-the-container"></a></p>
+<h2 id="3-start-the-container">3. Start the container<a class="headerlink" href="#3-start-the-container" title="Permanent link">&para;</a></h2>
+<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">cd</span><span class="w"> </span>ubt_IL/docker
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>bash<span class="w"> </span>run.sh<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>bash<span class="w"> </span>run.sh<span class="w"> </span>start<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>bash<span class="w"> </span>run.sh<span class="w"> </span>check<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>bash<span class="w"> </span>run.sh<span class="w"> </span>bash
+</code></pre></div>
+<p>Thor (L4T r38 / sm_110) is selected automatically by <code>env.sh</code>, which uses <code>Dockerfile.thor</code> (image <code>lerobot-tienkung:humble-thor</code>, based on the robot's <code>ros2_ws:humble-dyn</code>). Do <strong>not</strong> use the Orin <code>Dockerfile.arm64</code> (r36 base + sm_87 wheels; it does not run on Thor).</p>
+<p><code>run.sh check</code> should include:</p>
+<ul>
+<li><code>[OK] walker_c1 plugin: installed</code></li>
+<li><code>[OK] walker_c1 bridge: available</code></li>
+<li><code>[OK] walker ROS2 msgs: installed</code> (<code>mc_state_msgs</code> / <code>mc_task_msgs</code>, sharing the workspace with walker_s2)</li>
+<li><code>[OK] torch: 2.9.0+cu130 | arch: ...,sm_110,... | kernel: ok</code></li>
+<li><code>[INFO] RMW: rmw_cyclonedds_cpp | CYCLONEDDS_URI=file:///opt/cyclonedds_thor.xml</code></li>
+</ul>
+<p><a id="4-data-conversion"></a></p>
+<h2 id="4-data-conversion-hdf5---lerobot">4. Data conversion (HDF5 -&gt; LeRobot)<a class="headerlink" href="#4-data-conversion-hdf5---lerobot" title="Permanent link">&para;</a></h2>
+<p><a id="41-conversion-command"></a></p>
+<h3 id="41-conversion-command">4.1 Conversion command<a class="headerlink" href="#41-conversion-command" title="Permanent link">&para;</a></h3>
+<p><strong>Verified path: real-robot 13D</strong> (config <code>configs/walker_c1_real_13d_1RGB.json</code>, 13D = right arm 7 + right hand 6, head camera 640×512, 30 fps):</p>
+<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nv">CONFIG</span><span class="o">=</span>/ubt_IL/scripts/convert/walker_c1/configs/walker_c1_real_13d_1RGB.json<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nv">SRC_ROOT</span><span class="o">=</span>/ubt_IL/dataset/walker_c1<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nv">REPO_ID</span><span class="o">=</span>walker_c1_real_13d_1RGB<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="nv">FPS</span><span class="o">=</span><span class="m">30</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>bash<span class="w"> </span>/ubt_IL/scripts/convert/walker_c1/convert.sh<span class="w"> </span>--overwrite
+</code></pre></div>
+<ul>
+<li>If the data is still in <code>ubt_sim/dataset/walker_c1</code>, omit <code>SRC_ROOT</code> (the script falls back automatically) or set it explicitly.</li>
+<li>Real-robot recordings are 30 fps; keep the conversion <code>FPS</code> equal to the dataset frame rate. Use <code>RESAMPLE_FPS</code> for other rates.</li>
+<li>For 26D real-robot data use <code>walker_c1_real_26d_1RGB.json</code> (dual-arm task).</li>
+<li>Real hand ranges were verified: right hand <code>thumb_swing ≤0.68 / thumb_mcp ≤0.82 / four fingers ≤0.85</code>, all within deployment limits (0.96 / 1.04 / 1.57).</li>
+</ul>
+<p>For simulation conversion see <a href="../sim-workflow/#3-data-conversion">Simulation workflow · Data conversion</a>.</p>
+<p><a id="42-data-visualization"></a></p>
+<h3 id="42-data-visualization">4.2 Data visualization<a class="headerlink" href="#42-data-visualization" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nv">HF_HUB_OFFLINE</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>lerobot-dataset-viz<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--repo-id<span class="w"> </span>walker_c1_real_13d_1RGB<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--episode-index<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>--root<span class="w"> </span>/ubt_IL/dataset/walker_c1_real_13d_1RGB
+</code></pre></div>
+<p><img alt="Walker C1 EDU dataset preview" src="../../../assets/walker-c1%E6%95%B0%E6%8D%AE%E9%9B%86%E9%A2%84%E8%A7%88.png" /></p>
+<blockquote>
+<p>Check especially: image resolution (3×512×640), state/action dimension and order (13D = right arm 7 + right hand 6), hand range, and empty episodes.</p>
+</blockquote>
+<p><a id="5-training-and-evaluation"></a></p>
+<h2 id="5-training-and-evaluation">5. Training and evaluation<a class="headerlink" href="#5-training-and-evaluation" title="Permanent link">&para;</a></h2>
+<p><strong>Verified path: real-robot 13D training</strong> (config <code>train_config_walker_c1_real_act_13d_1RGB.json</code>, dataset <code>walker_c1_real_13d_1RGB</code>, output <code>walker_c1_real_13d_act_1RGB</code>):</p>
+<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nv">CONFIG</span><span class="o">=</span>/ubt_IL/scripts/train/walker_c1/configs/train_config_walker_c1_real_act_13d_1RGB.json<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nv">OUTPUT_DIR</span><span class="o">=</span>/ubt_IL/model/walker_c1_real_13d_act_1RGB<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>bash<span class="w"> </span>/ubt_IL/scripts/train/walker_c1/train.sh
+</code></pre></div>
+<blockquote>
+<p><code>train.sh</code> defaults to the simulation 26D config; real-robot training must set <code>CONFIG=</code> explicitly. When real lighting differs strongly from simulation, <code>image_transforms</code> is enabled by default in the config (color jitter / random affine).</p>
+</blockquote>
+<p>Offline evaluation (real-robot dataset):</p>
+<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>/lerobot/.venv/bin/python<span class="w"> </span>/ubt_IL/scripts/eval/eval_policy.py<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>--policy-path<span class="w"> </span>/ubt_IL/model/walker_c1_real_13d_act_1RGB/checkpoints/last/pretrained_model<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>--dataset-path<span class="w"> </span>/ubt_IL/dataset/walker_c1_real_13d_1RGB<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>--episodes<span class="w"> </span><span class="m">5</span><span class="w"> </span>--inference-freq<span class="w"> </span><span class="m">1</span><span class="w"> </span>--plot<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">  </span>--plot-dir<span class="w"> </span>/ubt_IL/scripts/eval/output/eval_walker_c1_real_13d_act<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">  </span>--output<span class="w"> </span>/ubt_IL/scripts/eval/output/eval_walker_c1_real_13d_act/results.json<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">  </span>--device<span class="w"> </span>cuda
+</code></pre></div>
+<p>With small real datasets, inspect per-dimension curves for plausibility (hand jitter, wrist overshoot) instead of relying only on the total MSE.</p>
+<p><a id="6-deployment"></a></p>
+<h2 id="6-deployment">6. Deployment<a class="headerlink" href="#6-deployment" title="Permanent link">&para;</a></h2>
+<p>Real-robot deployment (on-site photo):</p>
+<p><img alt="Walker C1 real-robot deployment" src="../../../assets/walker-c1%E7%9C%9F%E6%9C%BA%E9%83%A8%E7%BD%B2.jpg" /></p>
+<div class="language-bash highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># ⓪ Switch to half_sdk (developer mode + half-body SDK; idempotent, only prints state if already ready)</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh<span class="w"> </span>half_sdk
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/sdk_mode.sh<span class="w"> </span>check<span class="w">      </span><span class="c1"># 0 = deployable</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="c1"># ① Camera check (real: head_stereo_left/color/raw, shm_msgs/Image6m)</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>python3<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/preview_camera.py<span class="w"> </span>--once<span class="w"> </span>--save-frame<span class="w"> </span>/tmp/c1.jpg<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">  </span>--msg-type<span class="w"> </span>image6m<span class="w"> </span>--topic<span class="w"> </span>/sensor/camera/head_stereo_left/color/raw
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="c1"># ② Move to the ready pose (dry-run first to inspect targets and stage durations)</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/robot_ready.sh<span class="w"> </span>--dry-run
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/robot_ready.sh
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="c1"># ③ Single-episode rollout (WALKER_C1_REAL=1 enables the half_sdk guard; refuses outside half_sdk)</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="c1">#    Verified path: real-robot 13D model (on hardware ROBOT_MODEL defaults to walker_c1_13d)</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="nv">WALKER_C1_REAL</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="nv">SDK_GUARD</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="nv">POLICY_PATH</span><span class="o">=</span>/ubt_IL/model/walker_c1_real_13d_act_1RGB/checkpoints/last/pretrained_model<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="nv">DURATION</span><span class="o">=</span><span class="m">10</span><span class="w"> </span><span class="nv">FPS</span><span class="o">=</span><span class="m">30</span><span class="w"> </span><span class="nv">RESET_MODE</span><span class="o">=</span>task<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="nv">CAMERA_TOPIC</span><span class="o">=</span>/sensor/camera/head_stereo_left/color/raw<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="nv">CAMERA_MSG_TYPE</span><span class="o">=</span>shm_msgs/Image6m<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">  </span>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/rollout.sh
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="c1"># ④ Return home (home = all 14 arm joints at 0, arms straight down, hands open)</span>
+<a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/robot_home.sh<span class="w"> </span>--dry-run
+<a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/robot_home.sh
+<a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a>
+<a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a><span class="c1"># ⑤ Optional warm-started inference server (see inference-server.md)</span>
+<a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a><span class="nv">WALKER_C1_REAL</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-28" name="__codelineno-9-28" href="#__codelineno-9-28"></a><span class="nv">POLICY_PATH</span><span class="o">=</span>/ubt_IL/model/walker_c1_real_13d_act_1RGB/checkpoints/last/pretrained_model<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a><span class="w">  </span>bash<span class="w"> </span>/ubt_IL/scripts/deploy/walker_c1/inference_server.sh
+</code></pre></div>
+<ul>
+<li><strong>Ready pose</strong> includes a head-down angle of <code>head_pitch=0.65 rad</code> (37.2°): field tests show 0.50 only sees the table edge, while 0.65 covers the full table. Adjust with <code>--head-pitch</code>; <code>--no-head</code> leaves the head untouched. The three stages (raise shoulder → fold elbow → ready pose) default to ≥ 5 s each (15 s total + 0.5 s hold), and the log prints peak displacement and velocity (≈0.5 rad/s).</li>
+<li><strong>home</strong> is the exact reverse of the three ready stages (wrist/shoulder pitch to zero → unfold elbow → lower shoulder); measured final error max |pos| ≈ 0.02 rad. It moves only the arm and hand; head/waist/legs are untouched.</li>
+<li><strong>Inference backend</strong>: prefer <code>act_async</code> (default); serial <code>sync</code> is for debugging only and must keep single-action smoothing (default 0.15 s; setting 0 triggers a warning).</li>
+<li><code>RESET_MODE</code>: the real robot has no <code>/sim/cmd_reset</code>; use <code>task</code> (pose only) or <code>none</code>.</li>
+<li><code>max_relative_target</code>: <code>null</code> in the config JSON; set e.g. <code>0.05</code> rad/step when per-step limiting is needed.</li>
+<li><code>disable_torque_on_disconnect=true</code>: smoothly return home on exit (2 s chunk).</li>
+</ul>
+<p>Real-robot deployment demo:</p>
+<video src="../../../assets/walker-c1真机部署效果.mp4" controls muted width="100%"></video>
+
+<p>See <a href="../deploy/">Real-robot deployment</a> for the full guard, registry, and safety precheck details.</p>
+<p><a id="7-faq"></a></p>
+<h2 id="7-faq">7. FAQ<a class="headerlink" href="#7-faq" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Arm does not move at all</td>
+<td>Run <code>sdk_mode.sh check</code>: is it <code>develop + HalfSdkActive + standing</code>? Then check whether <code>/mc/sdk/robot_command</code> has subscribers and whether <code>ROS_DOMAIN_ID</code> matches</td>
+</tr>
+<tr>
+<td>Only the right hand moves</td>
+<td>The left hand is all zeros in the data (task characteristic); the policy reproduces this, which is normal</td>
+</tr>
+<tr>
+<td>Joint 4 direction/name mismatch</td>
+<td>SDK docs call it <code>elbow_roll</code>, the URDF calls it <code>elbow_pitch</code>; the bridge tolerates aliases, but verify the sign on hardware</td>
+</tr>
+<tr>
+<td>Sudden motion</td>
+<td>Set <code>max_relative_target</code>; lower <code>FPS</code>; check hand limits</td>
+</tr>
+<tr>
+<td>Camera artifacts / no image</td>
+<td>Simulation <code>sensor_msgs/Image</code> encoding should be <code>rgb8</code>; real is <code>shm_msgs/Image6m</code> (UYVY); QoS must be BEST_EFFORT</td>
+</tr>
+<tr>
+<td>Arm does not return after exit</td>
+<td><code>disable_torque_on_disconnect</code> was set false, or the bridge was killed externally</td>
+</tr>
+<tr>
+<td>Inference service unreachable</td>
+<td>Ports 5690/5691; check the state machine with <code>inference_client.sh status</code></td>
+</tr>
+<tr>
+<td>Empty topic list / no <code>/mc/*</code></td>
+<td>RMW mismatch: on hardware use <code>rmw_cyclonedds_cpp</code> + <code>cyclonedds_thor.xml</code> (see §1 item 3)</td>
+</tr>
+<tr>
+<td><code>Failed to find a free participant index</code></td>
+<td>CycloneDDS default participant limit is too low; use <code>ParticipantIndex=none</code> + <code>MaxAutoParticipantIndex=120</code></td>
+</tr>
+<tr>
+<td>Camera topic missing / no frames</td>
+<td>On hardware use <code>CAMERA_TOPIC=.../head_stereo_left/color/raw</code> + <code>CAMERA_MSG_TYPE=shm_msgs/Image6m</code>; green/purple colors mean UYVY is being decoded as YUYV</td>
+</tr>
+<tr>
+<td><code>torch.cuda.is_available()</code> is False</td>
+<td>The container lacks <code>NVIDIA_VISIBLE_DEVICES=all</code> / <code>NVIDIA_DRIVER_CAPABILITIES=all</code> (<code>run.sh start</code> sets them)</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.indexes", "navigation.path", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

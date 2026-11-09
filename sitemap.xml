@@ -1,115 +1,591 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/architecture/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/architecture/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/architecture/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/architecture/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/getting-started/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/getting-started/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/getting-started/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/data-conversion/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/data-conversion/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/common/data-conversion/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/data-conversion/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/docker/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/docker/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/common/docker/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/docker/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/hdf5-layouts/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/hdf5-layouts/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/common/hdf5-layouts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/hdf5-layouts/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/hf-manage/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/hf-manage/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/common/hf-manage/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/hf-manage/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/playback/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/common/playback/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/common/playback/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/playback/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/il/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/il/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/il/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/il/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/il/docker/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/il/docker/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/il/docker/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/il/docker/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/sim/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/sim/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/sim/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/sim/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/sim/docker/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/sim/docker/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/sim/docker/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/sim/docker/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/arm-deploy/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/arm-deploy/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/arm-deploy/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/arm-deploy/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/convert-train/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/convert-train/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/convert-train/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/convert-train/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/real-workflow/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/real-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/real-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/real-workflow/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/sim-setup/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/sim-setup/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/sim-setup/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/sim-setup/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/sim-workflow/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/sim-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/sim-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/sim-workflow/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/application-case/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/arm-deploy/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/arm-deploy/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/arm-deploy/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/cc-api/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/convert-train/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/convert-train/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/convert-train/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/convert-train/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/real-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/real-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/real-workflow/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/deploy/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/sim-setup/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/sim-setup/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/sim-setup/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/inference-server/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/sim-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/sim-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/sim-workflow/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/real-workflow/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/sim-setup/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/architecture/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/architecture/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/architecture/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/sim-workflow/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/convert-train/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/convert-train/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/convert-train/"/>
     </url>
     <url>
-         <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/wrist-camera/</loc>
-         <lastmod>2026-09-11</lastmod>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/deploy/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/deploy/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/deploy/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/inference-server/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/inference-server/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/inference-server/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/real-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/real-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/real-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/sim-setup/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/sim-setup/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/sim-setup/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/sim-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/sim-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/sim-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/application-case/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/application-case/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/application-case/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/cc-api/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/cc-api/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/cc-api/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/convert-train/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/convert-train/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/convert-train/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/deploy/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/deploy/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/deploy/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/inference-server/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/inference-server/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/inference-server/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/real-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/real-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/real-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/sim-setup/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/sim-setup/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/sim-setup/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/sim-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/sim-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/sim-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/wrist-camera/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/wrist-camera/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/wrist-camera/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/architecture/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/architecture/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/architecture/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/getting-started/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/getting-started/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/data-conversion/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/data-conversion/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/common/data-conversion/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/docker/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/docker/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/common/docker/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/hdf5-layouts/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/hdf5-layouts/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/common/hdf5-layouts/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/hf-manage/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/hf-manage/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/common/hf-manage/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/playback/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/common/playback/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/common/playback/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/il/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/il/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/il/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/il/docker/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/il/docker/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/il/docker/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/sim/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/sim/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/sim/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/sim/docker/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/sim/docker/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/sim/docker/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/arm-deploy/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/arm-deploy/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/arm-deploy/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/convert-train/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/convert-train/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/convert-train/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/real-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/real-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/real-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/sim-setup/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/sim-setup/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/sim-setup/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/sim-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung/sim-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung/sim-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/arm-deploy/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/arm-deploy/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/arm-deploy/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/convert-train/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/convert-train/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/convert-train/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/real-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/real-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/real-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/sim-setup/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/sim-setup/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/sim-setup/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/sim-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/tienkung-dex/sim-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/tienkung-dex/sim-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/architecture/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/architecture/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/architecture/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/convert-train/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/convert-train/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/convert-train/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/deploy/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/deploy/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/deploy/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/inference-server/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/inference-server/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/inference-server/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/real-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/real-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/real-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/sim-setup/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/sim-setup/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/sim-setup/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/sim-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-c1/sim-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-c1/sim-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/application-case/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/application-case/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/application-case/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/cc-api/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/cc-api/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/cc-api/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/convert-train/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/convert-train/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/convert-train/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/deploy/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/deploy/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/deploy/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/inference-server/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/inference-server/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/inference-server/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/real-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/real-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/real-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/sim-setup/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/sim-setup/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/sim-setup/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/sim-workflow/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/sim-workflow/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/sim-workflow/"/>
+    </url>
+    <url>
+        <loc>https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/wrist-camera/</loc>
+        <lastmod>2026-11-09</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/en/walker-s2/wrist-camera/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://lqx-code-sh.github.io/Thinker-IL-LAB/walker-s2/wrist-camera/"/>
     </url>
 </urlset>
