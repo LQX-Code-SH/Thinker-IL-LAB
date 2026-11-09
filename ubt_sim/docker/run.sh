@@ -321,7 +321,7 @@ EOF
             echo "[OK] Project mounted: /ubt_sim"
         else
             echo "[FAIL] Project NOT mounted!"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
 
         # Assets
@@ -329,7 +329,7 @@ EOF
             echo "[OK] Assets directory: /ubt_sim/assets"
         else
             echo "[FAIL] Assets directory missing!"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
 
         # Isaac Sim Python
@@ -338,15 +338,19 @@ EOF
             echo "[OK] Isaac Sim Python: $VER"
         else
             echo "[FAIL] Isaac Sim Python not found!"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
 
         # ubt_sim package
-        if docker exec "$CONTAINER_NAME" /isaac-sim/python.sh -c "import ubt_sim" 2>/dev/null; then
-            echo "[OK] ubt_sim package: installed"
+        # 不能在裸 Isaac Sim Python 里 `import ubt_sim`：包的 __init__ 会导入 isaaclab
+        # 任务模块，而 omni.physics 只有 Isaac Sim app 启动后才可用。用 find_spec 检查
+        # 安装（不执行包代码），metadata 顺带取版本号。
+        UBT_SIM_VER=$(docker exec "$CONTAINER_NAME" /isaac-sim/python.sh -c "import importlib.metadata as m, importlib.util as u; assert u.find_spec('ubt_sim'); print(m.version('ubt_sim'))" 2>/dev/null || true)
+        if [ -n "$UBT_SIM_VER" ]; then
+            echo "[OK] ubt_sim package: installed (v$UBT_SIM_VER)"
         else
             echo "[FAIL] ubt_sim package: NOT installed (run: bash run.sh init)"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
 
         # pyzmq
@@ -354,7 +358,7 @@ EOF
             echo "[OK] pyzmq: installed"
         else
             echo "[FAIL] pyzmq: NOT installed (run: bash run.sh init)"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
 
         # numpy version
@@ -365,11 +369,11 @@ EOF
                 echo "[OK] numpy: $NUMPY_VER (< 2)"
             else
                 echo "[FAIL] numpy: $NUMPY_VER (must be < 2)"
-                ((ERRORS++))
+                ERRORS=$((ERRORS + 1))
             fi
         else
             echo "[FAIL] numpy: NOT installed"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
 
         # ROS2
@@ -377,7 +381,7 @@ EOF
             echo "[OK] ROS2 Humble: installed"
         else
             echo "[FAIL] ROS2 Humble: NOT installed"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
 
         # bodyctrl_msgs
@@ -385,7 +389,7 @@ EOF
             echo "[OK] bodyctrl_msgs: installed"
         else
             echo "[WARN] bodyctrl_msgs: NOT installed (run: bash run.sh init)"
-            ((WARNINGS++))
+            WARNINGS=$((WARNINGS + 1))
         fi
 
         # Walker S2 ROS2 SDK messages
@@ -393,19 +397,19 @@ EOF
             echo "[OK] Walker SDK ROS2 messages: install setup found"
         else
             echo "[FAIL] Walker SDK ROS2 messages: NOT built (run: bash run.sh init)"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
         if docker exec "$CONTAINER_NAME" bash -c "source /opt/ros/humble/setup.bash && source /opt/ubt_sim/walker_sdk_ros2_msgs/install/setup.bash && for pkg in rosa_msgs shm_msgs mc_task_msgs mc_state_msgs ecat_task_msgs; do ros2 pkg list | grep -qx \"\$pkg\" || exit 1; done" 2>/dev/null; then
             echo "[OK] Walker SDK ROS2 packages: available"
         else
             echo "[FAIL] Walker SDK ROS2 packages: unavailable (run: bash run.sh init)"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
         if docker exec "$CONTAINER_NAME" bash -c "source /opt/ros/humble/setup.bash && source /opt/ubt_sim/walker_sdk_ros2_msgs/install/setup.bash && /usr/bin/python3 -c 'from mc_task_msgs.msg import JointCmd, JointCommand, RobotCommand; from mc_state_msgs.msg import RobotState; from ecat_task_msgs.msg import GripCmd, GripStatus'" 2>/dev/null; then
             echo "[OK] Walker SDK Python message imports: available"
         else
             echo "[FAIL] Walker SDK Python message imports: unavailable (run: bash run.sh init)"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
 
         # Walker C1 独立 ROS2 SDK messages（与 S2 同名包隔离）
@@ -413,13 +417,13 @@ EOF
             echo "[OK] Walker C1 ROS2 messages: install setup found"
         else
             echo "[FAIL] Walker C1 ROS2 messages: NOT built (run: bash run.sh init)"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
         if docker exec "$CONTAINER_NAME" bash -c "source /opt/ros/humble/setup.bash && source /opt/ubt_sim/walker_c1_msgs/install/setup.bash && /usr/bin/python3 -c 'from mc_task_msgs.msg import JointCmd, JointCommand, RobotCommand; from mc_state_msgs.msg import RobotState'" 2>/dev/null; then
             echo "[OK] Walker C1 Python message imports: available"
         else
             echo "[FAIL] Walker C1 Python message imports: unavailable (run: bash run.sh init)"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
 
         # TienKung Dex 真机同款消息包（桥接与控制脚本都用它们）
@@ -427,13 +431,13 @@ EOF
             echo "[OK] TienKung Dex real-robot messages: install setup found"
         else
             echo "[WARN] TienKung Dex real-robot messages: NOT built (run: bash run.sh init)"
-            ((WARNINGS++))
+            WARNINGS=$((WARNINGS + 1))
         fi
         if docker exec "$CONTAINER_NAME" bash -c "source /opt/ros/humble/setup.bash && source /opt/ubt_sim/tienkung_dex_msgs/install/setup.bash && /usr/bin/python3 -c 'from ros2_bridge_msgs.msg import ArmCtrl, HeadCtrl, RobotState, MotorStatus; from brainco_hand_msgs.msg import SetMotorMulti; from inspire_hand_msgs.msg import SetAngle, GetAngleAct'" 2>/dev/null; then
             echo "[OK] TienKung Dex real-robot message imports: available"
         else
             echo "[WARN] TienKung Dex real-robot message imports: unavailable (run: bash run.sh init)"
-            ((WARNINGS++))
+            WARNINGS=$((WARNINGS + 1))
         fi
 
         # 交互式 shell 的默认消息工作空间（/root/.bashrc）
@@ -441,7 +445,7 @@ EOF
             echo "[OK] Shell default message workspaces: configured in /root/.bashrc"
         else
             echo "[WARN] Shell default message workspaces: NOT configured (run: bash run.sh init)"
-            ((WARNINGS++))
+            WARNINGS=$((WARNINGS + 1))
         fi
 
         # GPU
@@ -450,7 +454,7 @@ EOF
             echo "[OK] GPU: $GPU"
         else
             echo "[FAIL] GPU: not detected"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
 
         # X11
@@ -459,7 +463,7 @@ EOF
             echo "[OK] X11: available (DISPLAY=:$XDISPLAY)"
         else
             echo "[WARN] X11: not available (headless mode only)"
-            ((WARNINGS++))
+            WARNINGS=$((WARNINGS + 1))
         fi
 
         # Network
@@ -468,7 +472,7 @@ EOF
             echo "[OK] Network: host mode"
         else
             echo "[FAIL] Network: $NET (expected host mode for ZMQ)"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
 
         echo ""

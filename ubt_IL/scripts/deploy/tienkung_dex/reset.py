@@ -5,7 +5,7 @@
 在 lerobot-tienkung 容器内运行：
 
     source /opt/ros/humble/setup.bash
-    ROS_DOMAIN_ID=146 /usr/bin/python3 /ubt_IL/scripts/deploy/tienkung_dex/reset.py
+    ROS_DOMAIN_ID=0 /usr/bin/python3 /ubt_IL/scripts/deploy/tienkung_dex/reset.py   # 与仿真启动时一致
 
 真机没有这个复位话题（场景不存在）。真机的"复位"是 :file:`robot_ready.py --real`。
 

@@ -3,13 +3,13 @@
 # 模型推理前把机器人摆到数据采集时的预备姿态。决策与依据见同目录 README.md。
 #
 # 用法:
-#   bash robot_ready.sh                     # 仿真（ROS_DOMAIN_ID=146 需自己 export）
+#   bash robot_ready.sh                     # 仿真（ROS_DOMAIN_ID 需与仿真一致，默认 0）
 #   bash robot_ready.sh --real              # 真机（最终目标用 READY_POSE）
 #   bash robot_ready.sh --dry-run           # 只打印四段目标，不发指令
 #   bash robot_ready.sh --stage-durations 4,4,4,4 --rate 30
 #
 # 环境变量:
-#   ROS_DOMAIN_ID   默认 0（真机）；仿真用 146
+#   ROS_DOMAIN_ID   默认 0；仿真与部署容器必须一致
 #   TIENKUNG_DEX_MSGS_WS  dex 消息工作空间（默认 /opt/tienkung_dex_msgs_ws）
 #
 # 注意：本脚本与 Bridge2 都写 /arm/cmd，Bridge2 在跑时 robot_ready.py 会拒绝执行

@@ -10,9 +10,9 @@
     python3 teleoperation/tools/playback_tienkung_dex.py \
         --episode dataset/tienkung_dex_from_lerobot/episode_000 --mode preview
 
-    # 控制回放到 Isaac Sim（ROS_DOMAIN_ID=146）
+    # 控制回放到 Isaac Sim（ROS_DOMAIN_ID 与仿真一致，ubt_sim 默认 0）
     source /opt/ros/humble/setup.bash
-    ROS_DOMAIN_ID=146 python3 teleoperation/tools/playback_tienkung_dex.py \
+    ROS_DOMAIN_ID=0 python3 teleoperation/tools/playback_tienkung_dex.py \
         --episode dataset/tienkung_dex_from_lerobot/episode_000 \
         --mode control --align-first
 
@@ -330,7 +330,7 @@ def main() -> int:
     print(f"  cd {WORKSPACE / 'ubt_sim'}")
     print(f"  python3 teleoperation/tools/playback_tienkung_dex.py "
           f"--episode dataset/tienkung_dex_from_lerobot/episode_{episodes[0]:03d} --mode preview")
-    print(f"  ROS_DOMAIN_ID=146 python3 teleoperation/tools/playback_tienkung_dex.py "
+    print(f"  ROS_DOMAIN_ID=0 python3 teleoperation/tools/playback_tienkung_dex.py "
           f"--episode dataset/tienkung_dex_from_lerobot/episode_{episodes[0]:03d} "
           f"--mode control --align-first")
     return 0

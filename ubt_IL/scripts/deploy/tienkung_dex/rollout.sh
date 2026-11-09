@@ -4,7 +4,7 @@
 #
 # 前置条件：
 #   1) 机器人已在预备位（bash robot_ready.sh [--real]）
-#   2) 仿真：ROS_DOMAIN_ID=146 的仿真已起，其 AsyncJpegCameraSender 在 5758 发 JPEG
+#   2) 仿真：仿真已起且 ROS_DOMAIN_ID 与容器一致（ubt_sim 默认 0），其 AsyncJpegCameraSender 在 5758 发 JPEG
 #      真机：Bridge2 带 --enable-image，把 /ob_camera_head/color/image_raw 转到 5558
 #
 # 用法：

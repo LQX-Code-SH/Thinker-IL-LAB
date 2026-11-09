@@ -1440,7 +1440,7 @@ def _parse_args() -> argparse.Namespace:
                         choices=list(HAND_ACTION_MODES),
                         help="因时手动作量纲：rad13=13 维 rad；pico6=6 维 0~1 展开成 13 码")
     parser.add_argument("--domain-id", type=int, default=None,
-                        help="覆盖 ROS_DOMAIN_ID（146=仿真，0=真机）；必须在 rclpy.init 前设置")
+                        help="覆盖 ROS_DOMAIN_ID（需与仿真/机器人所在域一致，默认 0）；必须在 rclpy.init 前设置")
     parser.add_argument("--enable-image", action="store_true",
                         help="把 /ob_camera_head 的 ROS 图像转成 JPEG 发到 image_port（真机用）")
     parser.add_argument("--reset", action="store_true",
